@@ -181,6 +181,24 @@ function MainAppContent() {
         onOpenAuth={handleOpenAuth} 
       />
 
+      {/* Floating 24/7 Live Support Button (Triggers Smartsupp Chat) */}
+      {!adminHubOpen && (
+        <div className="fixed bottom-6 right-6 z-[9999]">
+          <button
+            onClick={openSmartsuppChat}
+            className="group flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 hover:to-amber-400 text-dark-950 font-bold font-mono text-xs shadow-gold-lg backdrop-blur-xl transition-all duration-300 hover:scale-105 active:scale-95 border border-gold-300/40"
+            title="Chat with 24/7 Live Support"
+          >
+            <div className="relative">
+              <Headphones className="w-4 h-4 text-dark-950" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-600 border border-white animate-pulse" />
+            </div>
+            <span>24/7 Live Chat</span>
+          </button>
+        </div>
+      )}
+
+
 
 
       {/* Modals */}
