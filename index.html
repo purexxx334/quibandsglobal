@@ -32,9 +32,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
 
-  <body class="bg-dark-950 text-slate-100 font-sans antialiased selection:bg-gold-500/30 selection:text-gold-300 overflow-x-hidden min-h-screen">
-    <!-- Google Translate Hidden Bridge Container -->
-    <div id="google_translate_element" style="position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none;"></div>
+  <body class="bg-dark-950 text-slate-100 font-sans antialiased selection:bg-gold-500/30 selection:text-gold-300 overflow-x-hidden min-h-screen w-full relative touch-pan-y">
+    <!-- Google Translate Zero-Footprint Bridge Container -->
+    <div id="google_translate_element" style="position: fixed; top: 0; left: 0; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none; z-index: -99999;"></div>
+
     
     <script type="text/javascript">
       function googleTranslateElementInit() {

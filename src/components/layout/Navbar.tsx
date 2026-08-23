@@ -46,6 +46,18 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
   const navLinks = [
     { name: 'Overview', href: '#overview' },
     { name: 'How It Works', href: '#how-it-works' },
@@ -58,16 +70,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header 
-      className={`fixed top-0 left-0 right-0 z-[99999] transition-all duration-300 ${
-        isScrolled 
-          ? 'bg-[#04070d] border-b border-white/10 py-3 shadow-2xl' 
-          : 'bg-[#04070d] sm:bg-[#04070d]/90 backdrop-blur-xl border-b border-white/10 py-4 sm:py-5'
+      className={`fixed top-0 left-0 right-0 z-[99999] h-16 transition-all duration-300 bg-[#04070d] border-b border-white/10 flex items-center ${
+        isScrolled ? 'shadow-2xl' : ''
       }`}
     >
-
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
+
           
           {/* Brand Logo */}
           <button 
@@ -221,9 +230,10 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
 
-      {/* Mobile Drawer (Absolute Highest Z-Index Solid Overlay) */}
+      {/* Mobile Drawer (Always at top-16, full viewport height, scrollable) */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-x-0 top-[60px] sm:top-[68px] bottom-0 bg-[#04070d] border-b border-white/10 shadow-2xl z-[99999] overflow-y-auto overscroll-contain">
+        <div className="lg:hidden fixed top-16 inset-x-0 bottom-0 bg-[#04070d] border-b border-white/10 shadow-2xl z-[99999] overflow-y-auto overscroll-contain h-[calc(100dvh-4rem)] animate-fadeIn">
+
 
 
           <div className="px-5 py-5 space-y-4 max-w-md mx-auto">
