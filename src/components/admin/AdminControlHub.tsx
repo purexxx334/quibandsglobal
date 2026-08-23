@@ -78,10 +78,29 @@ type TabType = 'users' | 'deposits' | 'withdrawals' | 'kyc' | 'support' | 'fees'
 export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClose }) => {
 
   const { session, profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('users');
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('quibands_admin_tab') as TabType;
+      if (saved && ['users', 'deposits', 'withdrawals', 'kyc', 'support', 'fees', 'settings', 'security', 'treasury', 'notifications'].includes(saved)) {
+        return saved;
+      }
+    }
+    return 'users';
+  });
+
+  const handleSelectTab = (tab: TabType) => {
+    setActiveTab(tab);
+    setSelectedUserId(null);
+    setMobileToolsOpen(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('quibands_admin_tab', tab);
+    }
+  };
+
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
 
   // Data States
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -909,7 +928,20 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </button>
 
             <button
-              onClick={() => { setActiveTab('deposits'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              onClick={() => handleSelectTab('users')}
+              className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
+                activeTab === 'users' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4 text-gold-400" />
+                <span className="font-semibold">User Accounts Directory</span>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-300 font-mono">{users.length}</span>
+            </button>
+
+            <button
+              onClick={() => handleSelectTab('deposits')}
               className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
                 activeTab === 'deposits' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
               }`}
@@ -922,7 +954,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </button>
 
             <button
-              onClick={() => { setActiveTab('withdrawals'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              onClick={() => handleSelectTab('withdrawals')}
               className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
                 activeTab === 'withdrawals' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
               }`}
@@ -935,7 +967,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </button>
 
             <button
-              onClick={() => { setActiveTab('kyc'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              onClick={() => handleSelectTab('kyc')}
               className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
                 activeTab === 'kyc' ? 'bg-emerald-500/25 text-white border-2 border-emerald-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
               }`}
@@ -954,7 +986,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </button>
 
             <button
-              onClick={() => { setActiveTab('support'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              onClick={() => handleSelectTab('support')}
               className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
                 activeTab === 'support' ? 'bg-gradient-to-r from-gold-400/20 to-amber-500/20 text-gold-300 border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
               }`}
@@ -967,7 +999,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </button>
 
             <button
-              onClick={() => { setActiveTab('settings'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              onClick={() => handleSelectTab('settings')}
               className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
                 activeTab === 'settings' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
               }`}
@@ -979,7 +1011,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </button>
 
             <button
-              onClick={() => { setActiveTab('security'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              onClick={() => handleSelectTab('security')}
               className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
                 activeTab === 'security' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
               }`}
@@ -992,7 +1024,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </button>
 
             <button
-              onClick={() => { setActiveTab('treasury'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              onClick={() => handleSelectTab('treasury')}
               className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
                 activeTab === 'treasury' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
               }`}
@@ -1022,7 +1054,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
           <div className="hidden lg:flex w-64 border-r border-white/10 bg-dark-900/60 flex-col justify-between p-4 shrink-0">
             <div className="space-y-1.5">
               <button
-                onClick={() => { setActiveTab('users'); setSelectedUserId(null); }}
+                onClick={() => handleSelectTab('users')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition ${
                   activeTab === 'users'
                     ? 'bg-gold-500/20 text-white border border-gold-500/40 shadow-sm'
@@ -1039,7 +1071,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               </button>
 
               <button
-                onClick={() => { setActiveTab('deposits'); setSelectedUserId(null); }}
+                onClick={() => handleSelectTab('deposits')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition ${
                   activeTab === 'deposits'
                     ? 'bg-gold-500/20 text-white border border-gold-500/40 shadow-sm'
@@ -1056,7 +1088,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               </button>
 
               <button
-                onClick={() => { setActiveTab('withdrawals'); setSelectedUserId(null); }}
+                onClick={() => handleSelectTab('withdrawals')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition ${
                   activeTab === 'withdrawals'
                     ? 'bg-gold-500/20 text-white border border-gold-500/40 shadow-sm'
@@ -1073,7 +1105,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               </button>
 
               <button
-                onClick={() => { setActiveTab('kyc'); setSelectedUserId(null); }}
+                onClick={() => handleSelectTab('kyc')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition ${
                   activeTab === 'kyc'
                     ? 'bg-emerald-500/20 text-white border border-emerald-500/40 shadow-sm'
@@ -1097,7 +1129,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
               {/* LIVE SUPPORT DESK */}
               <button
-                onClick={() => { setActiveTab('support'); setSelectedUserId(null); }}
+                onClick={() => handleSelectTab('support')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition ${
                   activeTab === 'support'
                     ? 'bg-gradient-to-r from-gold-400/20 to-amber-500/20 text-gold-300 border border-gold-400/40 shadow-gold-sm'
@@ -1114,7 +1146,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               </button>
 
               <button
-                onClick={() => { setActiveTab('settings'); setSelectedUserId(null); }}
+                onClick={() => handleSelectTab('settings')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition ${
                   activeTab === 'settings'
                     ? 'bg-gold-500/20 text-white border border-gold-500/40 shadow-sm'
@@ -1128,7 +1160,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               </button>
 
               <button
-                onClick={() => { setActiveTab('security'); setSelectedUserId(null); }}
+                onClick={() => handleSelectTab('security')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition ${
                   activeTab === 'security'
                     ? 'bg-gold-500/20 text-white border border-gold-500/40 shadow-sm'
@@ -1145,7 +1177,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               </button>
 
               <button
-                onClick={() => { setActiveTab('treasury'); setSelectedUserId(null); }}
+                onClick={() => handleSelectTab('treasury')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition ${
                   activeTab === 'treasury'
                     ? 'bg-gold-500/20 text-white border border-gold-500/40 shadow-sm'
@@ -1161,6 +1193,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                 </span>
               </button>
             </div>
+
 
             <div className="p-3 rounded-xl bg-dark-950 border border-white/10 space-y-1 font-mono text-[11px] text-slate-400">
               <div className="flex items-center justify-between">
@@ -1649,8 +1682,11 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
             {/* TAB: LIVE SUPPORT CHAT DESK */}
             {activeTab === 'support' && (
-              <AdminSupportChatTab getHeaders={getHeaders} />
+              <div className="flex-1 flex flex-col h-full min-h-0 w-full overflow-hidden">
+                <AdminSupportChatTab getHeaders={getHeaders} />
+              </div>
             )}
+
 
 
             {/* TAB 4: SYSTEM SETTINGS (Gas Fee Address, Upgrade Address, Receive Limit) */}

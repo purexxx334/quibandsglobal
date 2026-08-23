@@ -159,14 +159,14 @@ export const AdminSupportChatTab: React.FC<AdminSupportChatTabProps> = ({ getHea
   });
 
   return (
-    <div className="flex-1 flex overflow-hidden font-sans text-xs w-full">
+    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden font-sans text-xs w-full h-full min-h-0">
       {/* Left Sidebar: Conversations List (Hidden on Mobile when a ticket is opened) */}
-      <div className={`w-full lg:w-80 border-r border-white/10 flex-col bg-dark-950/60 overflow-hidden shrink-0 ${
+      <div className={`w-full lg:w-80 border-r border-white/10 flex-col bg-dark-950/60 overflow-hidden shrink-0 h-full min-h-0 ${
         selectedConv ? 'hidden lg:flex' : 'flex'
       }`}>
         
         {/* Header & Search */}
-        <div className="p-3 sm:p-4 border-b border-white/10 space-y-2.5">
+        <div className="p-3 sm:p-4 border-b border-white/10 space-y-2.5 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-gold-400" />
@@ -190,7 +190,7 @@ export const AdminSupportChatTab: React.FC<AdminSupportChatTabProps> = ({ getHea
         </div>
 
         {/* Conversation List */}
-        <div className="flex-1 overflow-y-auto divide-y divide-white/5">
+        <div className="flex-1 overflow-y-auto divide-y divide-white/5 min-h-0">
           {filteredConversations.length === 0 ? (
             <div className="py-12 text-center text-slate-500 font-mono">
               No conversations found.
@@ -209,7 +209,7 @@ export const AdminSupportChatTab: React.FC<AdminSupportChatTabProps> = ({ getHea
                   }`}
                 >
                   <div className="w-9 h-9 rounded-xl bg-dark-850 border border-white/10 flex items-center justify-center shrink-0 font-bold text-white uppercase text-xs">
-                    {conv.user_name ? conv.user_name[0] : conv.user_email[0]}
+                    {conv.user_name ? conv.user_name[0] : (conv.user_email ? conv.user_email[0] : 'U')}
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -218,12 +218,12 @@ export const AdminSupportChatTab: React.FC<AdminSupportChatTabProps> = ({ getHea
                         {conv.user_name || 'Trader'}
                       </span>
                       <span className="text-[10px] text-slate-500 font-mono">
-                        {new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {conv.last_message_at ? new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                       </span>
                     </div>
 
                     <div className="text-[11px] text-slate-400 font-mono truncate mb-1">
-                      {conv.user_email}
+                      {conv.user_email || 'No email'}
                     </div>
 
                     <p className="text-[11px] text-slate-300 truncate font-sans">
@@ -238,7 +238,7 @@ export const AdminSupportChatTab: React.FC<AdminSupportChatTabProps> = ({ getHea
                             : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                         }`}
                       >
-                        {conv.status}
+                        {conv.status || 'OPEN'}
                       </span>
 
                       {conv.is_bot_active && (
@@ -261,12 +261,12 @@ export const AdminSupportChatTab: React.FC<AdminSupportChatTabProps> = ({ getHea
 
       {/* Right Area: Active Chat Conversation Thread (Hidden on mobile if no ticket is selected) */}
       {selectedConv ? (
-        <div className={`flex-1 flex-col bg-dark-900/30 overflow-hidden w-full ${
+        <div className={`flex-1 flex-col bg-dark-900/30 overflow-hidden w-full h-full min-h-0 ${
           !selectedConv ? 'hidden lg:flex' : 'flex'
         }`}>
           
           {/* Active Chat Header */}
-          <div className="p-3 sm:p-4 bg-dark-950 border-b border-white/10 flex items-center justify-between gap-2">
+          <div className="p-3 sm:p-4 bg-dark-950 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
               {/* Back to Tickets Button on Mobile */}
               <button
@@ -284,7 +284,7 @@ export const AdminSupportChatTab: React.FC<AdminSupportChatTabProps> = ({ getHea
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   <h4 className="font-bold text-white text-xs sm:text-sm truncate">{selectedConv.user_name || 'Trader'}</h4>
-                  <span className="text-slate-400 font-mono text-[10px] sm:text-xs truncate max-w-[140px] sm:max-w-none">({selectedConv.user_email})</span>
+                  <span className="text-slate-400 font-mono text-[10px] sm:text-xs truncate max-w-[140px] sm:max-w-none">({selectedConv.user_email || 'Trader'})</span>
                   {selectedConv.user_profile?.account_tier && (
                     <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[9px] font-bold">
                       {selectedConv.user_profile.account_tier}
@@ -292,10 +292,11 @@ export const AdminSupportChatTab: React.FC<AdminSupportChatTabProps> = ({ getHea
                   )}
                 </div>
                 <div className="text-[10px] sm:text-[11px] text-slate-400 font-mono mt-0.5 truncate">
-                  Bal: <strong className="text-emerald-400">${(selectedConv.user_profile?.total_balance || (selectedConv.user_profile?.main_balance || 0)).toLocaleString()}</strong>
+                  Bal: <strong className="text-emerald-400">${Number(selectedConv.user_profile?.total_balance ?? selectedConv.user_profile?.main_balance ?? 0).toLocaleString()}</strong>
                 </div>
               </div>
             </div>
+
 
             {/* Header Controls */}
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">

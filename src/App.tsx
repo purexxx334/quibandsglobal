@@ -30,10 +30,45 @@ function MainAppContent() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>('register');
   const [contactModalOpen, setContactModalOpen] = useState(false);
-  const [adminHubOpen, setAdminHubOpen] = useState(false);
+  
+  const [adminHubOpen, setAdminHubOpenState] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('quibands_admin_open') === 'true' || window.location.hash.includes('admin');
+    }
+    return false;
+  });
+
+  const setAdminHubOpen = (open: boolean) => {
+    setAdminHubOpenState(open);
+    if (typeof window !== 'undefined') {
+      if (open) {
+        localStorage.setItem('quibands_admin_open', 'true');
+        if (!window.location.hash.includes('admin')) {
+          window.history.replaceState(null, '', '#admin');
+        }
+      } else {
+        localStorage.removeItem('quibands_admin_open');
+        if (window.location.hash.includes('admin')) {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (user && (role === 'admin' || role === 'moderator')) {
+      if (localStorage.getItem('quibands_admin_open') === 'true' || window.location.hash.includes('admin')) {
+        setAdminHubOpenState(true);
+      }
+    } else if (!user) {
+      setAdminHubOpenState(false);
+    }
+  }, [user, role]);
+
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
   const [currentView, setCurrentView] = useState<'dashboard' | 'landing'>('dashboard');
+
 
   const handleOpenAuth = (mode: AuthMode) => {
     setAuthMode(mode);

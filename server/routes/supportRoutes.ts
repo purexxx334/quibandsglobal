@@ -16,5 +16,7 @@ router.get('/admin/conversations', requireAuth, requireRole('admin', 'moderator'
 router.get('/admin/conversations/:id/messages', requireAuth, requireRole('admin', 'moderator'), (req, res, next) => supportController.adminGetMessages(req, res, next));
 router.post('/admin/conversations/:id/messages', requireAuth, requireRole('admin', 'moderator'), (req, res, next) => supportController.adminSendMessage(req, res, next));
 router.patch('/admin/conversations/:id/status', requireAuth, requireRole('admin', 'moderator'), (req, res, next) => supportController.adminUpdateStatus(req, res, next));
+router.patch('/admin/conversations/:id/bot', requireAuth, requireRole('admin', 'moderator'), (req, res, next) => supportController.adminUpdateStatus(req, res, next));
 
 export default router;
+
