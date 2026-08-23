@@ -119,10 +119,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-md animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 bg-dark-950/85 backdrop-blur-md overflow-y-auto overscroll-contain animate-fadeIn">
       
       {/* Modal Container */}
-      <div className="relative w-full max-w-md rounded-3xl bg-dark-900 border border-white/10 p-6 sm:p-8 shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-md rounded-2xl sm:rounded-3xl bg-dark-900 border border-white/10 p-5 sm:p-8 shadow-2xl overflow-hidden my-auto sm:my-8">
+
         
         {/* Close Button */}
         <button

@@ -71,16 +71,18 @@ function MainAppContent() {
       <main className="flex-grow">
         {user && currentView === 'dashboard' ? (
           /* Authenticated Investor Dashboard View */
-          <UserDashboard 
-            onOpenDeposit={() => setDepositModalOpen(true)}
-            onOpenWithdrawal={() => setWithdrawalModalOpen(true)}
-            onOpenCalculator={handleScrollToCalculator}
-            onOpenAdmin={() => setAdminHubOpen(true)}
-          />
-
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-20 sm:pt-28 pb-16">
+            <UserDashboard 
+              onOpenDeposit={() => setDepositModalOpen(true)}
+              onOpenWithdrawal={() => setWithdrawalModalOpen(true)}
+              onOpenCalculator={handleScrollToCalculator}
+              onOpenAdmin={() => setAdminHubOpen(true)}
+            />
+          </div>
         ) : (
           /* Public Landing Page & Simulator View */
           <>
+
             {/* Hero Section */}
             <HeroSection 
               onOpenAuth={handleOpenAuth} 

@@ -97,11 +97,12 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onClose })
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/85 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-2xl rounded-3xl bg-dark-900 border border-slate-800 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2.5 sm:p-4 bg-dark-950/85 backdrop-blur-md overflow-y-auto overscroll-contain animate-fadeIn">
+      <div className="relative w-full max-w-2xl rounded-2xl sm:rounded-3xl bg-dark-900 border border-slate-800 shadow-2xl overflow-hidden my-auto sm:my-8 max-h-[92vh] flex flex-col">
         
         {/* Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-dark-950/60">
+        <div className="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between bg-dark-950/60">
+
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-2xl bg-gold-400/10 border border-gold-400/30 flex items-center justify-center text-gold-400">
               <Gift className="w-5 h-5" />
