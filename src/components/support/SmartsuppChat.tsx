@@ -9,8 +9,6 @@ declare global {
   }
 }
 
-const SMARTSUPP_KEY = '3cdeb6680f2bbdf23ceab58462afab7133653b98';
-
 interface SmartsuppChatProps {
   adminHubOpen?: boolean;
 }
@@ -18,63 +16,13 @@ interface SmartsuppChatProps {
 export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = false }) => {
   const { user, profile } = useAuth();
 
-  // 1. Initialize Smartsupp Script for background messaging & live chat
+  // Synchronize Logged-in Trader Profile Data with Smartsupp (Option B)
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    window._smartsupp = window._smartsupp || {};
-    window._smartsupp.key = SMARTSUPP_KEY;
-    window._smartsupp.hideOffline = false;
+    if (typeof window === 'undefined' || typeof window.smartsupp !== 'function') return;
 
     if (user) {
       const userName = profile?.full_name || profile?.username || user.email?.split('@')[0] || 'Trader';
       const userEmail = user.email || '';
-      window._smartsupp.name = userName;
-      window._smartsupp.email = userEmail;
-      window._smartsupp.variables = {
-        'Trader Email': userEmail,
-        'Full Name': userName,
-        'Account Tier': profile?.account_tier || 'BASIC',
-        'Total Balance': `$${Number(profile?.total_balance ?? profile?.main_balance ?? 0).toLocaleString()}`,
-        'Mining Balance': `$${Number(profile?.mining_balance ?? 0).toLocaleString()}`,
-        'Profit Balance': `$${Number(profile?.profit_balance ?? 0).toLocaleString()}`,
-        'KYC Status': profile?.kyc_status || 'NOT_SUBMITTED',
-        'User ID': user.id
-      };
-    }
-
-    if (!window.smartsupp) {
-      const o: any = (window.smartsupp = function () {
-        o._.push(arguments);
-      });
-      o._ = [];
-
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.charset = 'utf-8';
-      script.async = true;
-      script.src = 'https://www.smartsuppchat.com/loader.js?';
-
-      const firstScript = document.getElementsByTagName('script')[0];
-      if (firstScript && firstScript.parentNode) {
-        firstScript.parentNode.insertBefore(script, firstScript);
-      } else {
-        document.head.appendChild(script);
-      }
-    }
-  }, []);
-
-  // 2. Continuous Profile Synchronization
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    if (user) {
-      const userName = profile?.full_name || profile?.username || user.email?.split('@')[0] || 'Trader';
-      const userEmail = user.email || '';
-
-      window._smartsupp = window._smartsupp || {};
-      window._smartsupp.name = userName;
-      window._smartsupp.email = userEmail;
 
       const syncVars = {
         'Trader Email': userEmail,
@@ -86,23 +34,20 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
         'KYC Status': profile?.kyc_status || 'NOT_SUBMITTED',
         'User ID': user.id
       };
-      window._smartsupp.variables = syncVars;
 
-      if (typeof window.smartsupp === 'function') {
-        try {
-          window.smartsupp('name', userName);
-          window.smartsupp('email', userEmail);
-          window.smartsupp('variables', syncVars);
-        } catch (e) {
-          // ignore
-        }
+      try {
+        window.smartsupp('name', userName);
+        window.smartsupp('email', userEmail);
+        window.smartsupp('variables', syncVars);
+      } catch (e) {
+        console.warn('Smartsupp user sync warning:', e);
       }
     }
   }, [user, profile]);
 
-  // 3. Hide widget when inside Admin Control Hub
+  // Hide widget inside Admin Control Hub so it doesn't obstruct admin tools
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.smartsupp) return;
+    if (typeof window === 'undefined' || typeof window.smartsupp !== 'function') return;
 
     try {
       if (adminHubOpen) {
@@ -119,13 +64,14 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
   if (adminHubOpen) return null;
 
   return (
-    /* Guaranteed Blue Floating Launcher Button */
+    /* Guaranteed Blue Floating Chat Launcher Button */
     <div className="fixed bottom-5 right-5 z-[99999] notranslate" translate="no">
       <button
         onClick={openSmartsuppChat}
-        className="group relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-blue-600 via-blue-500 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white shadow-2xl shadow-blue-600/40 hover:shadow-blue-500/60 transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-white/30"
+        className="group relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-blue-600 via-blue-500 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white shadow-2xl shadow-blue-600/40 hover:shadow-blue-500/60 transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-white/30 cursor-pointer"
         title="Live Chat"
         aria-label="Open Live Chat"
+        type="button"
       >
         <MessageCircle className="w-7 h-7 sm:w-8 sm:h-8 text-white fill-white/15 transition-transform group-hover:scale-110" />
         <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-blue-600 animate-pulse" />
@@ -138,7 +84,7 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
 export const openSmartsuppChat = () => {
   if (typeof window === 'undefined') return;
 
-  // 1. Trigger Smartsupp JS API to open native chat window
+  // 1. Trigger Smartsupp JS API to open native chat
   if (typeof window.smartsupp === 'function') {
     try {
       window.smartsupp('chat:show');
@@ -149,9 +95,9 @@ export const openSmartsuppChat = () => {
     }
   }
 
-  // 2. Direct click on native Smartsupp DOM iframe/button if rendered
+  // 2. Direct click on native Smartsupp DOM iframe/button if present in DOM
   try {
-    const el = document.querySelector('#smartsupp-widget, iframe[id*="smartsupp"], iframe[name*="smartsupp"], button[aria-label*="chat" i]') as HTMLElement;
+    const el = document.querySelector('#smartsupp-widget, iframe[id*="smartsupp"], iframe[name*="smartsupp"], iframe[title*="Smartsupp"], button[aria-label*="chat" i], div[id*="smartsupp-widget"]') as HTMLElement;
     if (el) {
       el.click();
     }
