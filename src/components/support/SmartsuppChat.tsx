@@ -134,11 +134,11 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
   );
 };
 
-// Global helper to open native Smartsupp chat directly from anywhere
+// Global helper to open native Smartsupp chat directly without page navigation
 export const openSmartsuppChat = () => {
   if (typeof window === 'undefined') return;
 
-  // 1. Trigger Smartsupp JS API to open native chat
+  // 1. Trigger Smartsupp JS API to open floating native chat window on the current page
   if (typeof window.smartsupp === 'function') {
     try {
       window.smartsupp('chat:show');
@@ -158,12 +158,4 @@ export const openSmartsuppChat = () => {
   } catch (domErr) {
     // ignore
   }
-
-  // 3. Fallback: If native window hasn't expanded after 350ms, open the direct link
-  setTimeout(() => {
-    const isExpanded = document.querySelector('iframe[id*="smartsupp"][style*="display: block"], iframe[id*="smartsupp"][style*="height"]');
-    if (!isExpanded) {
-      window.open(`https://www.smartsupp.com/widget/${SMARTSUPP_KEY}`, '_blank');
-    }
-  }, 400);
 };
