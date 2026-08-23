@@ -79,11 +79,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Cpu className="w-5 h-5 text-gold-400 transition-colors group-hover:text-gold-300" />
               </div>
             </div>
-            <div className="flex flex-col">
-              <span className="text-lg font-black tracking-tight text-white font-mono flex items-center gap-1.5">
+            <div className="flex flex-col notranslate" translate="no">
+              <span className="text-base sm:text-lg font-black tracking-tight text-white font-mono flex items-center gap-1">
                 QUIBANDS<span className="text-gold-400 font-sans font-light">GLOBAL</span>
               </span>
-              <span className="text-[10px] tracking-widest text-slate-400 font-mono -mt-1">
+              <span className="text-[9px] sm:text-[10px] tracking-widest text-slate-400 font-mono -mt-1 hidden sm:block">
                 INSTITUTIONAL MINING
               </span>
             </div>
@@ -91,6 +91,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Desktop Navigation Links */}
           <nav className="hidden xl:flex items-center gap-6">
+
             {user && onNavigateView && (
               <button
                 onClick={() => onNavigateView('dashboard')}
@@ -204,30 +205,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
 
-          {/* Mobile Right Controls */}
-          <div className="flex items-center gap-2 lg:hidden">
+          {/* Mobile Right Controls - Compact & Non-Colliding */}
+          <div className="flex items-center gap-2 lg:hidden shrink-0 notranslate" translate="no">
             <LanguageSelector variant="compact" />
-
-            {!user ? (
-              <button
-                onClick={() => onOpenAuth('register')}
-                className="gold-gradient-btn px-3 py-1.5 rounded-lg text-xs font-bold shadow-gold-sm"
-              >
-                Start
-              </button>
-            ) : (
-              <button
-                onClick={onOpenDeposit}
-                className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-gold-400 to-amber-600 text-dark-950 font-bold text-[11px] flex items-center gap-1 shadow-gold-sm"
-              >
-                <Activity className="w-3 h-3" />
-                <span>Deposit</span>
-              </button>
-            )}
 
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-xl bg-dark-850 border border-white/10 text-slate-200 hover:text-white active:scale-95 transition-all"
+              className="p-2 sm:p-2.5 rounded-xl bg-dark-850 hover:bg-dark-800 border border-white/10 text-slate-200 hover:text-white active:scale-95 transition-all shadow-sm"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5 text-gold-400" /> : <Menu className="w-5 h-5" />}
@@ -235,6 +219,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       </div>
+
 
       {/* Mobile Drawer (Absolute Highest Z-Index Solid Overlay) */}
       {mobileMenuOpen && (
