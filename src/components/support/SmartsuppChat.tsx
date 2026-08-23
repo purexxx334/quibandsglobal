@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { MessageSquare } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -17,7 +18,7 @@ interface SmartsuppChatProps {
 export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = false }) => {
   const { user, profile } = useAuth();
 
-  // 1. Initialize Smartsupp Script cleanly
+  // 1. Initialize Smartsupp Script
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -86,23 +87,43 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
     }
   }, [adminHubOpen]);
 
-  return null;
+  // If inside Admin Hub, don't show the user-facing chat button
+  if (adminHubOpen) return null;
+
+  return (
+    /* Permanent Universal Floating Live Support Chat Button */
+    <div className="fixed bottom-5 right-5 z-[99999] notranslate" translate="no">
+      <button
+        onClick={openSmartsuppChat}
+        className="group flex items-center gap-2.5 px-4 py-3 sm:px-5 sm:py-3.5 rounded-full bg-gradient-to-r from-gold-500 via-amber-500 to-gold-400 hover:from-gold-400 hover:to-amber-300 text-dark-950 font-bold font-mono text-xs sm:text-sm shadow-2xl backdrop-blur-xl transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-gold-300/60"
+        title="Chat with 24/7 Live Support"
+      >
+        <div className="relative flex items-center justify-center">
+          <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-dark-950 fill-dark-950/20" />
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
+        </div>
+        <span className="tracking-wide">24/7 Live Support</span>
+      </button>
+    </div>
+  );
 };
 
 // Global helper to open native Smartsupp chat directly from anywhere
 export const openSmartsuppChat = () => {
   if (typeof window === 'undefined') return;
 
+  // 1. Try Smartsupp JS API
   if (typeof window.smartsupp === 'function') {
     try {
       window.smartsupp('chat:show');
       window.smartsupp('chat:open');
+      window.smartsupp('open');
     } catch (e) {
-      console.warn('Smartsupp open error:', e);
+      console.warn('Smartsupp open warning:', e);
     }
   }
 
-  // Also trigger click on native Smartsupp launcher element if present in DOM
+  // 2. Direct click on any rendered native Smartsupp launcher in DOM
   try {
     const el = document.querySelector('#smartsupp-widget, iframe[id*="smartsupp"], iframe[name*="smartsupp"], button[aria-label*="chat" i]') as HTMLElement;
     if (el) {
@@ -111,4 +132,12 @@ export const openSmartsuppChat = () => {
   } catch (domErr) {
     // ignore
   }
+
+  // 3. Fallback: If on mobile/PC and native popup hasn't opened after 250ms, open the direct Smartsupp interface
+  setTimeout(() => {
+    const isExpanded = document.querySelector('iframe[id*="smartsupp"][style*="display: block"], iframe[id*="smartsupp"][style*="height"]');
+    if (!isExpanded) {
+      window.open(`https://www.smartsupp.com/widget/${SMARTSUPP_KEY}`, '_blank');
+    }
+  }, 350);
 };
