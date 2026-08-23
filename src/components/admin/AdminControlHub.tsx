@@ -45,8 +45,10 @@ import {
   Trash2,
   Mail,
   Edit,
-  MessageSquare
+  MessageSquare,
+  Terminal
 } from 'lucide-react';
+
 import { AdminSupportChatTab } from './AdminSupportChatTab';
 
 import { useAuth } from '../../context/AuthContext';
