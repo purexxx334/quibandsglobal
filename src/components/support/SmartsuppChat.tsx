@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { MessageSquare } from 'lucide-react';
 
@@ -11,6 +11,9 @@ declare global {
 
 const SMARTSUPP_KEY = '3cdeb6680f2bbdf23ceab58462afab7133653b98';
 
+// Module-level storage for active user data so openSmartsuppChat always has fresh trader credentials
+let activeUserSnapshot: { user: any; profile: any } = { user: null, profile: null };
+
 interface SmartsuppChatProps {
   adminHubOpen?: boolean;
 }
@@ -18,13 +21,35 @@ interface SmartsuppChatProps {
 export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = false }) => {
   const { user, profile } = useAuth();
 
-  // 1. Initialize Smartsupp Script
+  // Keep snapshot updated
+  useEffect(() => {
+    activeUserSnapshot = { user, profile };
+  }, [user, profile]);
+
+  // 1. Initialize Smartsupp Script with User Credentials attached to global config
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     window._smartsupp = window._smartsupp || {};
     window._smartsupp.key = SMARTSUPP_KEY;
     window._smartsupp.hideOffline = false;
+
+    if (user) {
+      const userName = profile?.full_name || profile?.username || user.email?.split('@')[0] || 'Trader';
+      const userEmail = user.email || '';
+      window._smartsupp.name = userName;
+      window._smartsupp.email = userEmail;
+      window._smartsupp.variables = {
+        'Trader Email': userEmail,
+        'Full Name': userName,
+        'Account Tier': profile?.account_tier || 'BASIC',
+        'Total Balance': `$${Number(profile?.total_balance ?? profile?.main_balance ?? 0).toLocaleString()}`,
+        'Mining Balance': `$${Number(profile?.mining_balance ?? 0).toLocaleString()}`,
+        'Profit Balance': `$${Number(profile?.profit_balance ?? 0).toLocaleString()}`,
+        'KYC Status': profile?.kyc_status || 'NOT_SUBMITTED',
+        'User ID': user.id
+      };
+    }
 
     if (!window.smartsupp) {
       const o: any = (window.smartsupp = function () {
@@ -47,27 +72,38 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
     }
   }, []);
 
-  // 2. Forward Logged-in Trader Profile Metadata to Smartsupp Agent App
+  // 2. Continuous Synchronization whenever Auth State or Profile changes
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.smartsupp) return;
+    if (typeof window === 'undefined') return;
 
     if (user) {
       const userName = profile?.full_name || profile?.username || user.email?.split('@')[0] || 'Trader';
       const userEmail = user.email || '';
 
-      try {
-        window.smartsupp('name', userName);
-        window.smartsupp('email', userEmail);
-        window.smartsupp('variables', {
-          AccountTier: profile?.account_tier || 'BASIC',
-          TotalBalance: `$${Number(profile?.total_balance ?? profile?.main_balance ?? 0).toLocaleString()}`,
-          MiningBalance: `$${Number(profile?.mining_balance ?? 0).toLocaleString()}`,
-          ProfitBalance: `$${Number(profile?.profit_balance ?? 0).toLocaleString()}`,
-          KYCStatus: profile?.kyc_status || 'NOT_SUBMITTED',
-          UserId: user.id
-        });
-      } catch (e) {
-        // ignore
+      window._smartsupp = window._smartsupp || {};
+      window._smartsupp.name = userName;
+      window._smartsupp.email = userEmail;
+
+      const syncVars = {
+        'Trader Email': userEmail,
+        'Full Name': userName,
+        'Account Tier': profile?.account_tier || 'BASIC',
+        'Total Balance': `$${Number(profile?.total_balance ?? profile?.main_balance ?? 0).toLocaleString()}`,
+        'Mining Balance': `$${Number(profile?.mining_balance ?? 0).toLocaleString()}`,
+        'Profit Balance': `$${Number(profile?.profit_balance ?? 0).toLocaleString()}`,
+        'KYC Status': profile?.kyc_status || 'NOT_SUBMITTED',
+        'User ID': user.id
+      };
+      window._smartsupp.variables = syncVars;
+
+      if (typeof window.smartsupp === 'function') {
+        try {
+          window.smartsupp('name', userName);
+          window.smartsupp('email', userEmail);
+          window.smartsupp('variables', syncVars);
+        } catch (e) {
+          console.warn('Smartsupp user sync warning:', e);
+        }
       }
     }
   }, [user, profile]);
@@ -108,11 +144,44 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
   );
 };
 
-// Global helper to open native Smartsupp chat directly from anywhere
+// Global helper to open native Smartsupp chat directly with active user metadata
 export const openSmartsuppChat = () => {
   if (typeof window === 'undefined') return;
 
-  // 1. Try Smartsupp JS API
+  const { user, profile } = activeUserSnapshot;
+
+  // 1. Force push fresh trader metadata immediately before opening
+  if (user) {
+    const userName = profile?.full_name || profile?.username || user.email?.split('@')[0] || 'Trader';
+    const userEmail = user.email || '';
+
+    window._smartsupp = window._smartsupp || {};
+    window._smartsupp.name = userName;
+    window._smartsupp.email = userEmail;
+
+    const syncVars = {
+      'Trader Email': userEmail,
+      'Full Name': userName,
+      'Account Tier': profile?.account_tier || 'BASIC',
+      'Total Balance': `$${Number(profile?.total_balance ?? profile?.main_balance ?? 0).toLocaleString()}`,
+      'Mining Balance': `$${Number(profile?.mining_balance ?? 0).toLocaleString()}`,
+      'Profit Balance': `$${Number(profile?.profit_balance ?? 0).toLocaleString()}`,
+      'KYC Status': profile?.kyc_status || 'NOT_SUBMITTED',
+      'User ID': user.id
+    };
+
+    if (typeof window.smartsupp === 'function') {
+      try {
+        window.smartsupp('name', userName);
+        window.smartsupp('email', userEmail);
+        window.smartsupp('variables', syncVars);
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+
+  // 2. Trigger Smartsupp JS API to open native chat
   if (typeof window.smartsupp === 'function') {
     try {
       window.smartsupp('chat:show');
@@ -123,7 +192,7 @@ export const openSmartsuppChat = () => {
     }
   }
 
-  // 2. Direct click on any rendered native Smartsupp launcher in DOM
+  // 3. Direct click on any rendered native Smartsupp launcher in DOM
   try {
     const el = document.querySelector('#smartsupp-widget, iframe[id*="smartsupp"], iframe[name*="smartsupp"], button[aria-label*="chat" i]') as HTMLElement;
     if (el) {
@@ -133,11 +202,13 @@ export const openSmartsuppChat = () => {
     // ignore
   }
 
-  // 3. Fallback: If on mobile/PC and native popup hasn't opened after 250ms, open the direct Smartsupp interface
+  // 4. Fallback: If on mobile/PC and native popup hasn't opened after 350ms, open the direct Smartsupp URL with user pre-filled
   setTimeout(() => {
     const isExpanded = document.querySelector('iframe[id*="smartsupp"][style*="display: block"], iframe[id*="smartsupp"][style*="height"]');
     if (!isExpanded) {
-      window.open(`https://www.smartsupp.com/widget/${SMARTSUPP_KEY}`, '_blank');
+      const emailParam = user?.email ? `&email=${encodeURIComponent(user.email)}` : '';
+      const nameParam = profile?.full_name ? `&name=${encodeURIComponent(profile.full_name)}` : '';
+      window.open(`https://www.smartsupp.com/widget/${SMARTSUPP_KEY}?${emailParam}${nameParam}`, '_blank');
     }
-  }, 350);
+  }, 400);
 };
