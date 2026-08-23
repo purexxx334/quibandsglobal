@@ -60,13 +60,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const navLinks = [
     { name: 'Overview', href: '#overview' },
-    { name: 'How It Works', href: '#how-it-works' },
     { name: 'Hashrate Engine', href: '#hashrate-engine' },
     { name: 'Supported Assets', href: '#supported-assets' },
     { name: 'Security & Custody', href: '#security' },
     { name: 'Deposits & Payouts', href: '#treasury' },
     { name: 'FAQ', href: '#faq' },
   ];
+
 
   return (
     <header 

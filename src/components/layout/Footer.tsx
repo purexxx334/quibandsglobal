@@ -54,12 +54,12 @@ export const Footer: React.FC<FooterProps> = ({ onOpenContact, onOpenAuth }) => 
               Infrastructure
             </h4>
             <ul className="space-y-2 text-xs text-slate-400 font-medium">
-              <li><a href="#how-it-works" className="hover:text-gold-400 transition-colors">How It Works</a></li>
               <li><a href="#hashrate-engine" className="hover:text-gold-400 transition-colors">Hashrate Simulator</a></li>
               <li><a href="#supported-assets" className="hover:text-gold-400 transition-colors">Supported Crypto</a></li>
               <li><a href="#about" className="hover:text-gold-400 transition-colors">Green Data Centers</a></li>
               <li><a href="#overview" className="hover:text-gold-400 transition-colors">Immersion Rigs</a></li>
             </ul>
+
           </div>
 
           {/* Col 3: Treasury & Custody */}

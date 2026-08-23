@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react';
 import { Navbar } from './components/layout/Navbar';
 import { LiveMarketTicker } from './components/landing/LiveMarketTicker';
 import { HeroSection } from './components/landing/HeroSection';
-import { HowItWorks } from './components/landing/HowItWorks';
 import { MiningCalculator } from './components/landing/MiningCalculator';
+
 import { SupportedAssets } from './components/landing/SupportedAssets';
 import { AboutPlatform } from './components/landing/AboutPlatform';
 import { DepositWithdrawalInfo } from './components/landing/DepositWithdrawalInfo';
@@ -128,15 +128,11 @@ function MainAppContent() {
             {/* Live Crypto & Mining Difficulty Ticker */}
             <LiveMarketTicker />
 
-            {/* How It Works (Deposit -> Mine -> Earn) */}
-            <HowItWorks 
-              onOpenAuth={handleOpenAuth} 
-            />
-
             {/* Interactive Hashrate & Yield Estimator Simulator (No Fixed Cards) */}
             <MiningCalculator 
               onOpenAuth={handleOpenAuth} 
             />
+
 
             {/* Supported Cryptocurrencies & Networks */}
             <SupportedAssets 
