@@ -75,39 +75,31 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
 
   // Handler to open chat on all devices
   const handleOpenChat = () => {
-    let triggered = false;
-
+    // 1. Trigger Smartsupp JS API
     if (typeof window !== 'undefined' && typeof window.smartsupp === 'function') {
       try {
         window.smartsupp('chat:show');
         window.smartsupp('chat:open');
         window.smartsupp('open');
-        triggered = true;
       } catch (e) {
         console.warn('Smartsupp API trigger warning:', e);
       }
     }
 
-    // Also check for existing Smartsupp DOM iframe
+    // 2. Click native Smartsupp widget element if rendered
     try {
       const el = document.querySelector('#smartsupp-widget, iframe[id*="smartsupp"], iframe[name*="smartsupp"]') as HTMLElement;
       if (el) {
         el.click();
-        triggered = true;
       }
     } catch (domErr) {
       // ignore
     }
 
-    // Fallback: If Smartsupp is blocked by adblocker/browser on PC or slow network, toggle the embedded modal
-    setTimeout(() => {
-      // Check if native smartsupp window opened (by looking for active expanded iframe)
-      const openFrame = document.querySelector('iframe[id*="smartsupp"][style*="display: block"], iframe[id*="smartsupp"][style*="height"]') as HTMLElement;
-      if (!openFrame && !triggered) {
-        setModalOpen(true);
-      }
-    }, 150);
+    // 3. Unconditionally open the dedicated Smartsupp interface modal so the chat opens immediately
+    setModalOpen(true);
   };
+
 
   // If inside Admin Hub, don't show the user-facing chat bubble
   if (adminHubOpen) return null;
