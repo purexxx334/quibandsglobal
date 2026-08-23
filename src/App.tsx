@@ -17,8 +17,9 @@ import { AdminControlHub } from './components/admin/AdminControlHub';
 import { DepositModal } from './components/dashboard/DepositModal';
 import { WithdrawalModal } from './components/dashboard/WithdrawalModal';
 import { UserDashboard } from './components/dashboard/UserDashboard';
-import { LiveChatWidget } from './components/support/LiveChatWidget';
+import { SmartsuppChat, openSmartsuppChat } from './components/support/SmartsuppChat';
 import { AuthProvider, useAuth } from './context/AuthContext';
+
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthMode } from './types';
 
@@ -180,19 +181,7 @@ function MainAppContent() {
         onOpenAuth={handleOpenAuth} 
       />
 
-      {/* Floating Quick Support Desk Button */}
-      <div className="fixed bottom-6 right-6 z-40">
-        <button
-          onClick={() => setContactModalOpen(true)}
-          className="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-dark-850/95 hover:bg-dark-800 text-slate-200 hover:text-white border border-gold-500/40 shadow-gold-md backdrop-blur-xl transition-all duration-300 hover:scale-105"
-        >
-          <div className="relative">
-            <Headphones className="w-5 h-5 text-gold-400" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-dark-900 animate-pulse" />
-          </div>
-          <span className="text-xs font-semibold font-mono hidden sm:inline-block">24/7 Support Desk</span>
-        </button>
-      </div>
+
 
       {/* Modals */}
       <AuthModal
@@ -226,8 +215,9 @@ function MainAppContent() {
         onClose={() => setAdminHubOpen(false)}
       />
 
-      {/* 24/7 Interactive Live Support Chat Widget with AI Message Bot (Hidden when Admin Hub is open) */}
-      {!adminHubOpen && <LiveChatWidget />}
+      {/* Smartsupp 24/7 Live Chat & Visitor Intelligence Integration */}
+      <SmartsuppChat adminHubOpen={adminHubOpen} />
+
 
 
     </div>

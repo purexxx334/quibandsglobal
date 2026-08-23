@@ -166,7 +166,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({ isOpen
                 />
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 space-y-2">
                 <button
                   type="submit"
                   disabled={isSubmitting}
@@ -181,6 +181,20 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({ isOpen
                     </>
                   )}
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (typeof window !== 'undefined' && window.smartsupp) {
+                      window.smartsupp('chat:open');
+                    }
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-dark-850 hover:bg-dark-800 text-gold-400 hover:text-white border border-gold-500/30 text-xs font-mono font-semibold flex items-center justify-center gap-2 transition"
+                >
+                  <MessageSquare className="w-4 h-4 text-gold-400" />
+                  <span>Start Instant Live Chat (Smartsupp)</span>
+                </button>
               </div>
             </form>
 
@@ -188,6 +202,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({ isOpen
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               <span>TLS 1.3 256-Bit Encrypted Communication Channel</span>
             </div>
+
           </div>
         )}
 
