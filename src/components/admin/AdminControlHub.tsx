@@ -1048,7 +1048,8 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         )}
 
         {/* Main Body with Sidebar & Content */}
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden h-full min-h-0 w-full">
+
           
           {/* Navigation Sidebar (Visible on Desktop Only) */}
           <div className="hidden lg:flex w-64 border-r border-white/10 bg-dark-900/60 flex-col justify-between p-4 shrink-0">
@@ -1208,7 +1209,8 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
           </div>
 
           {/* Right Main Content Area */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-dark-900/30 w-full min-w-0">
+          <div className="flex-1 flex flex-col overflow-hidden bg-dark-900/30 w-full min-w-0 h-full min-h-0">
+
 
             
             {/* TAB 1: USERS DIRECTORY */}

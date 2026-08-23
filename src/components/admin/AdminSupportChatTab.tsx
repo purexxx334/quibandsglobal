@@ -12,10 +12,12 @@ import {
   CheckCheck,
   Power,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  ArrowLeft
 } from 'lucide-react';
 import { SupportConversation, SupportMessage } from '../../types';
 import { API_BASE } from '../../config/api';
+
 
 interface AdminSupportChatTabProps {
   getHeaders: () => Promise<Record<string, string>>;
