@@ -47,16 +47,17 @@ app.use(express.static(distPath));
 // 3. API Routes Mount
 app.use('/api', routes);
 
-// SPA fallback: Send index.html for all non-API GET requests
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) {
-    return next();
+// SPA fallback: Send index.html for all non-API GET requests (Express 5 safe)
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api')) {
+    return res.sendFile(path.join(distPath, 'index.html'));
   }
-  res.sendFile(path.join(distPath, 'index.html'));
+  next();
 });
 
 // 4. Global Error Handler
 app.use(errorHandler);
+
 
 // 5. Start Server
 const server = app.listen(env.PORT, () => {
