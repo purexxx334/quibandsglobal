@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
 import { Navbar } from './components/layout/Navbar';
 import { LiveMarketTicker } from './components/landing/LiveMarketTicker';
 import { HeroSection } from './components/landing/HeroSection';
