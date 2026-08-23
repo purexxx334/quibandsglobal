@@ -98,8 +98,11 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
   const [selectedKyc, setSelectedKyc] = useState<KycSubmission | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
 
   // System Settings State
+
+
   const [gasFeeAddress, setGasFeeAddress] = useState('TYDzsYUEpvnYmQk4zGP9sWWcTEd36AMW9y');
   const [gasFeeNetwork, setGasFeeNetwork] = useState('TRC20');
   const [tierUpgradeAddress, setTierUpgradeAddress] = useState('TYDzsYUEpvnYmQk4zGP9sWWcTEd36AMW9y');
@@ -850,11 +853,173 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
           </div>
         )}
 
+        {/* Mobile Tool Selector Bar (Visible on Mobile Only) */}
+        <div className="lg:hidden px-4 py-2.5 bg-dark-900 border-b border-white/10 flex items-center justify-between z-30 notranslate" translate="no">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[11px] text-slate-400 font-mono">Module:</span>
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-dark-950 border border-gold-500/30 text-white font-bold text-xs font-mono truncate">
+              {activeTab === 'users' && <Users className="w-3.5 h-3.5 text-gold-400" />}
+              {activeTab === 'deposits' && <ArrowDownCircle className="w-3.5 h-3.5 text-gold-400" />}
+              {activeTab === 'withdrawals' && <ArrowUpCircle className="w-3.5 h-3.5 text-rose-400" />}
+              {activeTab === 'kyc' && <FileCheck className="w-3.5 h-3.5 text-emerald-400" />}
+              {activeTab === 'support' && <MessageSquare className="w-3.5 h-3.5 text-gold-400" />}
+              {activeTab === 'settings' && <Sliders className="w-3.5 h-3.5 text-amber-400" />}
+              {activeTab === 'security' && <Radio className="w-3.5 h-3.5 text-emerald-400" />}
+              {activeTab === 'treasury' && <WalletCards className="w-3.5 h-3.5 text-cyan-400" />}
+              <span className="truncate">
+                {activeTab === 'users' && `User Accounts (${users.length})`}
+                {activeTab === 'deposits' && `Deposits (${adminDeposits.length})`}
+                {activeTab === 'withdrawals' && `Withdrawals (${adminWithdrawals.length})`}
+                {activeTab === 'kyc' && `KYC (${kycSubmissions.length})`}
+                {activeTab === 'support' && 'Live Support Desk'}
+                {activeTab === 'settings' && 'System Settings'}
+                {activeTab === 'security' && `Telemetry (${securityLogs.length})`}
+                {activeTab === 'treasury' && `Deposit Addresses (${depositAddresses.length})`}
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setMobileToolsOpen(!mobileToolsOpen)}
+            className="px-3 py-1.5 rounded-xl bg-gold-500/20 hover:bg-gold-500/30 border border-gold-500/40 text-gold-300 text-xs font-bold font-mono flex items-center gap-1.5 shadow-sm active:scale-95 transition"
+          >
+            <span>{mobileToolsOpen ? '✕ Close' : '⚙ Switch Tool ▾'}</span>
+          </button>
+        </div>
+
+        {/* Mobile Tools Overlay Drawer (Visible when toggled on Mobile) */}
+        {mobileToolsOpen && (
+          <div className="lg:hidden absolute inset-x-0 top-[110px] bottom-0 z-40 bg-[#060a12] p-4 overflow-y-auto overscroll-contain space-y-2 border-b border-white/10 shadow-2xl animate-fadeIn notranslate" translate="no">
+            <div className="text-xs font-mono text-gold-400 font-bold uppercase tracking-wider pb-2 border-b border-white/10 mb-3 flex items-center justify-between">
+              <span>Admin Modules</span>
+              <span className="text-[10px] text-slate-400">Tap to open module</span>
+            </div>
+
+            <button
+              onClick={() => { setActiveTab('users'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
+                activeTab === 'users' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4 text-gold-400" />
+                <span className="font-semibold">User Accounts Directory</span>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-300 font-mono">{users.length}</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('deposits'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
+                activeTab === 'deposits' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ArrowDownCircle className="w-4 h-4 text-gold-400" />
+                <span className="font-semibold">Deposit Requests</span>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-mono">{adminDeposits.length}</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('withdrawals'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
+                activeTab === 'withdrawals' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ArrowUpCircle className="w-4 h-4 text-rose-400" />
+                <span className="font-semibold">Withdrawals & Gas Fees</span>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-mono">{adminWithdrawals.length}</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('kyc'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
+                activeTab === 'kyc' ? 'bg-emerald-500/25 text-white border-2 border-emerald-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <FileCheck className="w-4 h-4 text-emerald-400" />
+                <span className="font-semibold">KYC Verifications</span>
+              </div>
+              {kycSubmissions.filter(k => k.status === 'PENDING').length > 0 ? (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500 text-dark-950 font-bold font-mono animate-pulse">
+                  {kycSubmissions.filter(k => k.status === 'PENDING').length} PENDING
+                </span>
+              ) : (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-mono">{kycSubmissions.length}</span>
+              )}
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('support'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
+                activeTab === 'support' ? 'bg-gradient-to-r from-gold-400/20 to-amber-500/20 text-gold-300 border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <MessageSquare className="w-4 h-4 text-gold-400" />
+                <span className="font-semibold">Live Support Desk</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold font-mono">LIVE</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('settings'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
+                activeTab === 'settings' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Sliders className="w-4 h-4 text-amber-400" />
+                <span className="font-semibold">System Treasury Settings</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('security'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
+                activeTab === 'security' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Radio className="w-4 h-4 text-emerald-400" />
+                <span className="font-semibold">Login Telemetry</span>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-mono">{securityLogs.length}</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('treasury'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
+                activeTab === 'treasury' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <WalletCards className="w-4 h-4 text-cyan-400" />
+                <span className="font-semibold">Deposit Addresses</span>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-mono">{depositAddresses.length}</span>
+            </button>
+
+            <div className="pt-3 border-t border-white/10 mt-4">
+              <button
+                onClick={() => setMobileToolsOpen(false)}
+                className="w-full py-2.5 rounded-xl bg-dark-850 text-slate-300 hover:text-white text-xs font-mono border border-white/10"
+              >
+                Close Menu & View Workspace
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Main Body with Sidebar & Content */}
         <div className="flex flex-1 overflow-hidden">
           
-          {/* Navigation Sidebar */}
-          <div className="w-64 border-r border-white/10 bg-dark-900/60 flex flex-col justify-between p-4 shrink-0">
+          {/* Navigation Sidebar (Visible on Desktop Only) */}
+          <div className="hidden lg:flex w-64 border-r border-white/10 bg-dark-900/60 flex-col justify-between p-4 shrink-0">
             <div className="space-y-1.5">
               <button
                 onClick={() => { setActiveTab('users'); setSelectedUserId(null); }}
@@ -950,7 +1115,6 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
               <button
                 onClick={() => { setActiveTab('settings'); setSelectedUserId(null); }}
-
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition ${
                   activeTab === 'settings'
                     ? 'bg-gold-500/20 text-white border border-gold-500/40 shadow-sm'
@@ -1011,12 +1175,14 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
           </div>
 
           {/* Right Main Content Area */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-dark-900/30">
+          <div className="flex-1 flex flex-col overflow-hidden bg-dark-900/30 w-full min-w-0">
+
             
             {/* TAB 1: USERS DIRECTORY */}
             {activeTab === 'users' && (
               <div className="flex-1 flex overflow-hidden">
-                <div className="flex-1 flex flex-col p-6 overflow-hidden">
+                <div className="flex-1 flex flex-col p-3 sm:p-6 overflow-hidden">
+
                   
                   {/* Search and Filters */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
