@@ -83,13 +83,42 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
   return null;
 };
 
-// Global helper to open Smartsupp chat from anywhere (e.g., Contact Support buttons)
+// Global helper to open Smartsupp chat from anywhere across PC and Mobile
 export const openSmartsuppChat = () => {
-  if (typeof window !== 'undefined' && window.smartsupp) {
+  if (typeof window === 'undefined') return;
+
+  // 1. Smartsupp API Triggers (Handles all API versions & platforms)
+  if (typeof window.smartsupp === 'function') {
     try {
+      window.smartsupp('chat:show');
       window.smartsupp('chat:open');
+      window.smartsupp('open');
     } catch (e) {
-      console.warn('Could not open Smartsupp chat:', e);
+      console.warn('Smartsupp API trigger warning:', e);
     }
   }
+
+  // 2. DOM Event & Iframe Fallback for Desktop Browsers
+  try {
+    const selectors = [
+      '#smartsupp-widget',
+      'iframe[id*="smartsupp"]',
+      'iframe[name*="smartsupp"]',
+      'iframe[title*="Smartsupp"]',
+      'div[id*="smartsupp"]',
+      'button[aria-label*="chat" i]',
+      'button[aria-label*="smartsupp" i]'
+    ];
+
+    for (const selector of selectors) {
+      const el = document.querySelector(selector) as HTMLElement;
+      if (el) {
+        el.click();
+        break;
+      }
+    }
+  } catch (domErr) {
+    // ignore
+  }
 };
+
