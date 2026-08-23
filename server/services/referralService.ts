@@ -44,8 +44,9 @@ export class ReferralService {
         .eq('auth_user_id', userId);
     }
 
-    const appUrl = process.env.APP_URL || 'http://localhost:5173';
-    const referralLink = `${appUrl}/register?ref=${referralCode}`;
+    const appUrl = process.env.APP_URL || (process.env.NODE_ENV === 'production' ? 'https://quibandsglobal.com' : 'http://localhost:5173');
+    const referralLink = `${appUrl}/?ref=${referralCode}`;
+
 
     // 2. Fetch referred users from referrals table
     const { data: referrals } = await supabaseAdmin

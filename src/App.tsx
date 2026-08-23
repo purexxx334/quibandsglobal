@@ -66,6 +66,22 @@ function MainAppContent() {
     }
   }, [user, role]);
 
+  // Auto-open registration modal when visitor arrives via referral link
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !user) {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('ref') || params.get('referral')) {
+          setAuthMode('register');
+          setAuthModalOpen(true);
+        }
+      } catch (e) {
+        // url search param catch
+      }
+    }
+  }, [user]);
+
+
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
   const [currentView, setCurrentView] = useState<'dashboard' | 'landing'>('dashboard');

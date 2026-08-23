@@ -64,13 +64,23 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onClose })
 
       const json = await res.json();
       if (json.success && json.data) {
-        setReferralCode(json.data.referralCode);
-        setReferralLink(json.data.referralLink);
+        const code = json.data.referralCode || '';
+        setReferralCode(code);
+        
+        // Dynamically compute live referral link using current domain origin
+        const origin = typeof window !== 'undefined' && window.location.origin && window.location.origin.startsWith('http')
+          ? window.location.origin
+          : 'https://quibandsglobal.com';
+        
+        const liveLink = code ? `${origin}/?ref=${code}` : (json.data.referralLink || '');
+        setReferralLink(liveLink);
+
         setTotalReferrals(json.data.totalReferrals || 0);
         setTotalEarnings(json.data.totalEarnings || 0);
         setCommissionRate(json.data.commissionRatePercent || 10);
         setReferredUsers(json.data.referredUsers || []);
       } else {
+
         setErrorMsg(json.error || 'Failed to retrieve referral data.');
       }
     } catch (err: any) {
