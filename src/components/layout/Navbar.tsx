@@ -60,10 +60,11 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
-          ? 'bg-dark-950/85 backdrop-blur-md border-b border-white/10 py-3 shadow-xl' 
-          : 'bg-transparent py-5'
+          ? 'bg-[#04070d] border-b border-white/10 py-3 shadow-2xl' 
+          : 'bg-[#04070d] sm:bg-[#04070d]/90 backdrop-blur-xl border-b border-white/10 py-4 sm:py-5'
       }`}
     >
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           
@@ -234,9 +235,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Mobile Drawer (High Z-Index Full Viewport Overlay) */}
+      {/* Mobile Drawer (High Z-Index Full Viewport Solid Overlay) */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-x-0 top-[60px] sm:top-[68px] bottom-0 bg-dark-950/98 backdrop-blur-2xl border-b border-white/10 shadow-2xl z-50 overflow-y-auto overscroll-contain">
+        <div className="lg:hidden fixed inset-x-0 top-[60px] sm:top-[68px] bottom-0 bg-[#04070d] border-b border-white/10 shadow-2xl z-50 overflow-y-auto overscroll-contain">
+
           <div className="px-5 py-5 space-y-4 max-w-md mx-auto">
             {/* Live System Status Header */}
             <div className="flex items-center justify-between pb-3 border-b border-white/10">

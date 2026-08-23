@@ -13,15 +13,19 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ variant = 'n
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close on click outside
+  // Close on click outside (handles mouse and touch)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   const filterLanguages = (list: LanguageOption[]) => {
@@ -39,25 +43,25 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ variant = 'n
   const filteredGlobal = filterLanguages(globalLanguages);
 
   return (
-    <div className={`relative inline-block text-left font-sans ${className}`} ref={dropdownRef}>
+    <div className={`relative inline-block text-left font-sans notranslate ${className}`} ref={dropdownRef} translate="no">
       {/* Trigger Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 rounded-xl transition-all duration-200 font-mono text-xs border ${
+        className={`flex items-center gap-2 rounded-xl transition-all duration-200 font-mono text-xs border active:scale-95 ${
           variant === 'dashboard'
-            ? 'px-3 py-2 bg-dark-900/90 border-gold-500/30 hover:border-gold-400 text-slate-200 hover:text-white shadow-sm'
+            ? 'px-3 py-2 bg-[#090d16] border-gold-500/40 hover:border-gold-400 text-slate-100 shadow-md'
             : variant === 'compact'
-            ? 'px-2.5 py-1.5 bg-dark-950/80 border-slate-800 hover:border-slate-700 text-slate-300'
-            : 'px-3 py-1.5 bg-dark-900/80 hover:bg-dark-850 border-white/10 hover:border-gold-500/40 text-slate-200 hover:text-white shadow-sm'
+            ? 'px-2.5 py-1.5 bg-[#090d16] border-slate-700 hover:border-gold-400 text-slate-200 shadow-sm'
+            : 'px-3 py-1.5 bg-[#090d16] hover:bg-[#111827] border-white/20 hover:border-gold-400 text-slate-100 shadow-sm'
         }`}
         title="Select Platform Language"
       >
         <span className="text-base leading-none">{currentLanguage.flag}</span>
-        <span className="font-semibold tracking-wide truncate max-w-[110px] hidden sm:inline">
+        <span className="font-bold tracking-wide truncate max-w-[110px] hidden sm:inline text-white">
           {currentLanguage.nativeName}
         </span>
-        <span className="font-semibold tracking-wide sm:hidden">
+        <span className="font-bold tracking-wide sm:hidden text-gold-400">
           {currentLanguage.code.split('-')[0].toUpperCase()}
         </span>
         <ChevronDown
@@ -67,44 +71,43 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ variant = 'n
         />
       </button>
 
-      {/* Language Selection Modal / Dropdown */}
+      {/* Language Selection Modal / Dropdown - 100% Solid Non-Transparent Background */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl bg-dark-950/98 backdrop-blur-xl border border-gold-500/30 shadow-2xl shadow-black/80 z-[100] overflow-hidden animate-fadeIn">
+        <div className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-16 sm:top-full mt-2 w-auto sm:w-84 max-w-[360px] mx-auto rounded-2xl bg-[#060a12] border-2 border-gold-500/50 shadow-2xl shadow-black z-[9999] overflow-hidden animate-fadeIn">
           {/* Header & Search */}
-          <div className="p-3 border-b border-white/10 bg-dark-900/80">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-white font-mono">
-                <Globe className="w-3.5 h-3.5 text-gold-400" />
-                <span>Select Language</span>
+          <div className="p-3.5 border-b border-slate-800 bg-[#0a0f1a]">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-white font-mono">
+                <Globe className="w-4 h-4 text-gold-400" />
+                <span>Choose Language</span>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gold-400/10 text-gold-400 border border-gold-400/20 font-mono font-bold">
-                🇸🇬 SG First
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-gold-400/15 text-gold-300 border border-gold-400/30 font-mono font-bold">
+                🇸🇬 Singapore First
               </span>
             </div>
 
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search language or region..."
-                className="w-full pl-8 pr-3 py-1.5 bg-dark-950 border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-gold-400 font-sans"
-                autoFocus
+                className="w-full pl-9 pr-3 py-2 bg-[#03060c] border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-gold-400 font-sans"
               />
             </div>
           </div>
 
           {/* Languages Scroll Area */}
-          <div className="max-h-80 overflow-y-auto p-2 space-y-3 font-sans text-xs scrollbar-thin">
+          <div className="max-h-72 sm:max-h-80 overflow-y-auto p-2.5 space-y-3 font-sans text-xs bg-[#060a12] overscroll-contain">
             {/* 1. SINGAPORE OFFICIAL LANGUAGES SECTION */}
             {filteredSingapore.length > 0 && (
               <div>
-                <div className="px-2.5 py-1 text-[11px] font-bold font-mono text-gold-400 uppercase tracking-wider flex items-center gap-1.5 bg-gold-400/5 rounded-md mb-1">
-                  <Sparkles className="w-3 h-3 text-gold-400" />
+                <div className="px-2.5 py-1 text-[11px] font-bold font-mono text-gold-400 uppercase tracking-wider flex items-center gap-1.5 bg-gold-400/10 rounded-lg mb-1.5 border border-gold-500/20">
+                  <Sparkles className="w-3.5 h-3.5 text-gold-400" />
                   <span>Singapore Official Languages</span>
                 </div>
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   {filteredSingapore.map((lang) => {
                     const isSelected = currentLanguage.code === lang.code;
                     return (
@@ -115,17 +118,17 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ variant = 'n
                           setLanguage(lang.code);
                           setIsOpen(false);
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all ${
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all active:scale-[0.98] ${
                           isSelected
-                            ? 'bg-gradient-to-r from-gold-400/20 to-amber-500/20 text-gold-300 border border-gold-400/40 font-bold'
-                            : 'text-slate-300 hover:text-white hover:bg-white/5'
+                            ? 'bg-gradient-to-r from-gold-500/25 to-amber-600/25 text-gold-300 border border-gold-400 font-bold shadow-sm'
+                            : 'text-slate-200 hover:text-white bg-[#0c121e] hover:bg-[#151f32] border border-slate-800/80'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 text-left">
-                          <span className="text-lg leading-none">{lang.flag}</span>
+                        <div className="flex items-center gap-3 text-left">
+                          <span className="text-xl leading-none">{lang.flag}</span>
                           <div>
-                            <div className="font-semibold text-white leading-tight">{lang.nativeName}</div>
-                            <div className="text-[10px] text-slate-400 font-mono">{lang.name}</div>
+                            <div className="font-bold text-white leading-tight text-xs">{lang.nativeName}</div>
+                            <div className="text-[11px] text-slate-400 font-mono">{lang.name}</div>
                           </div>
                         </div>
                         {isSelected && <Check className="w-4 h-4 text-gold-400 flex-shrink-0" />}
@@ -139,11 +142,11 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ variant = 'n
             {/* 2. GLOBAL INSTITUTIONAL LANGUAGES SECTION */}
             {filteredGlobal.length > 0 && (
               <div>
-                <div className="px-2.5 py-1 text-[11px] font-bold font-mono text-slate-400 uppercase tracking-wider bg-white/5 rounded-md mb-1 flex items-center justify-between">
+                <div className="px-2.5 py-1 text-[11px] font-bold font-mono text-slate-300 uppercase tracking-wider bg-slate-800/60 rounded-lg mb-1.5 flex items-center justify-between border border-slate-700/50">
                   <span>Global Institutional Languages</span>
-                  <span className="text-[9px] text-slate-500">{filteredGlobal.length}</span>
+                  <span className="text-[10px] text-slate-400 font-bold">{filteredGlobal.length}</span>
                 </div>
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   {filteredGlobal.map((lang) => {
                     const isSelected = currentLanguage.code === lang.code;
                     return (
@@ -154,17 +157,17 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ variant = 'n
                           setLanguage(lang.code);
                           setIsOpen(false);
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all ${
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all active:scale-[0.98] ${
                           isSelected
-                            ? 'bg-gradient-to-r from-gold-400/20 to-amber-500/20 text-gold-300 border border-gold-400/40 font-bold'
-                            : 'text-slate-300 hover:text-white hover:bg-white/5'
+                            ? 'bg-gradient-to-r from-gold-500/25 to-amber-600/25 text-gold-300 border border-gold-400 font-bold shadow-sm'
+                            : 'text-slate-200 hover:text-white bg-[#0c121e] hover:bg-[#151f32] border border-slate-800/80'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 text-left">
-                          <span className="text-lg leading-none">{lang.flag}</span>
+                        <div className="flex items-center gap-3 text-left">
+                          <span className="text-xl leading-none">{lang.flag}</span>
                           <div>
-                            <div className="font-semibold text-white leading-tight">{lang.nativeName}</div>
-                            <div className="text-[10px] text-slate-400 font-mono">
+                            <div className="font-bold text-white leading-tight text-xs">{lang.nativeName}</div>
+                            <div className="text-[11px] text-slate-400 font-mono">
                               {lang.name} &bull; {lang.region}
                             </div>
                           </div>
@@ -185,11 +188,13 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ variant = 'n
           </div>
 
           {/* Footer note */}
-          <div className="p-2.5 bg-dark-900 border-t border-white/5 text-center text-[10px] text-slate-500 font-mono">
-            Full site instant localization &bull; Quibands Global Engine
+          <div className="p-2.5 bg-[#0a0f1a] border-t border-slate-800 text-center text-[10px] text-slate-400 font-mono font-semibold">
+            Institutional Multi-Language Engine &bull; Quibands Global
           </div>
         </div>
       )}
     </div>
   );
 };
+
+

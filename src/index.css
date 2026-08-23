@@ -146,3 +146,18 @@ body {
   display: none !important;
 }
 
+/* Ensure Google Translate font tags do not alter display or typography */
+font {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  font-family: inherit !important;
+}
+
+/* Sensitive numbers and cryptographic symbols */
+.notranslate,
+[translate="no"] {
+  -webkit-touch-callout: none;
+}
+
+
