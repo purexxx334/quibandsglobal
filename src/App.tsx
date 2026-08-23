@@ -1,0 +1,201 @@
+import { useState } from 'react';
+import { Navbar } from './components/layout/Navbar';
+import { LiveMarketTicker } from './components/landing/LiveMarketTicker';
+import { HeroSection } from './components/landing/HeroSection';
+import { HowItWorks } from './components/landing/HowItWorks';
+import { MiningCalculator } from './components/landing/MiningCalculator';
+import { SupportedAssets } from './components/landing/SupportedAssets';
+import { AboutPlatform } from './components/landing/AboutPlatform';
+import { DepositWithdrawalInfo } from './components/landing/DepositWithdrawalInfo';
+import { SecurityArchitecture } from './components/landing/SecurityArchitecture';
+import { FAQSection } from './components/landing/FAQSection';
+import { Footer } from './components/layout/Footer';
+import { ContactSupportModal } from './components/landing/ContactSupportModal';
+import { AuthModal } from './components/auth/AuthModal';
+import { AdminControlHub } from './components/admin/AdminControlHub';
+import { DepositModal } from './components/dashboard/DepositModal';
+import { WithdrawalModal } from './components/dashboard/WithdrawalModal';
+import { UserDashboard } from './components/dashboard/UserDashboard';
+import { LiveChatWidget } from './components/support/LiveChatWidget';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
+import { DevAuthAdminTest } from './components/dev/DevAuthAdminTest';
+import { AuthMode } from './types';
+import { Headphones } from 'lucide-react';
+
+
+
+function MainAppContent() {
+  const { user, role } = useAuth();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>('register');
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [adminHubOpen, setAdminHubOpen] = useState(false);
+  const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<'dashboard' | 'landing'>('dashboard');
+
+  const handleOpenAuth = (mode: AuthMode) => {
+    setAuthMode(mode);
+    setAuthModalOpen(true);
+  };
+
+  const handleSuccessAuth = (email: string) => {
+    // Automatically route to investor dashboard upon login
+    setCurrentView('dashboard');
+  };
+
+  const handleScrollToCalculator = () => {
+    const el = document.getElementById('hashrate-engine');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-dark-950 text-slate-100 flex flex-col font-sans selection:bg-gold-500/30 selection:text-gold-300">
+      
+
+      {/* Top Navbar */}
+      <Navbar 
+        onOpenAuth={handleOpenAuth} 
+        onOpenContact={() => setContactModalOpen(true)}
+        onOpenAdmin={() => setAdminHubOpen(true)}
+        onOpenDeposit={() => setDepositModalOpen(true)}
+        onOpenWithdrawal={() => setWithdrawalModalOpen(true)}
+        currentView={currentView}
+        onNavigateView={(view) => setCurrentView(view)}
+      />
+
+      {/* Main Content Area */}
+      <main className="flex-grow">
+        {user && currentView === 'dashboard' ? (
+          /* Authenticated Investor Dashboard View */
+          <UserDashboard 
+            onOpenDeposit={() => setDepositModalOpen(true)}
+            onOpenWithdrawal={() => setWithdrawalModalOpen(true)}
+            onOpenCalculator={handleScrollToCalculator}
+            onOpenAdmin={() => setAdminHubOpen(true)}
+          />
+
+        ) : (
+          /* Public Landing Page & Simulator View */
+          <>
+            {/* Hero Section */}
+            <HeroSection 
+              onOpenAuth={handleOpenAuth} 
+              onOpenCalculator={handleScrollToCalculator} 
+            />
+
+            {/* Live Crypto & Mining Difficulty Ticker */}
+            <LiveMarketTicker />
+
+            {/* How It Works (Deposit -> Mine -> Earn) */}
+            <HowItWorks 
+              onOpenAuth={handleOpenAuth} 
+            />
+
+            {/* Interactive Hashrate & Yield Estimator Simulator (No Fixed Cards) */}
+            <MiningCalculator 
+              onOpenAuth={handleOpenAuth} 
+            />
+
+            {/* Supported Cryptocurrencies & Networks */}
+            <SupportedAssets 
+              onOpenAuth={handleOpenAuth} 
+            />
+
+            {/* About the Platform & Green Datacenter Infrastructure */}
+            <AboutPlatform />
+
+            {/* Transparent Deposit, Withdrawal & Segregated Ledger Protocol */}
+            <DepositWithdrawalInfo 
+              onOpenAuth={handleOpenAuth} 
+            />
+
+            {/* Security, Cold Storage & Non-Custodial Architecture */}
+            <SecurityArchitecture />
+
+            {/* FAQ Section */}
+            <FAQSection 
+              onOpenContact={() => setContactModalOpen(true)} 
+            />
+          </>
+        )}
+      </main>
+
+      {/* Footer */}
+      <Footer 
+        onOpenContact={() => setContactModalOpen(true)} 
+        onOpenAuth={handleOpenAuth} 
+      />
+
+      {/* Floating Quick Support Desk Button */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <button
+          onClick={() => setContactModalOpen(true)}
+          className="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-dark-850/95 hover:bg-dark-800 text-slate-200 hover:text-white border border-gold-500/40 shadow-gold-md backdrop-blur-xl transition-all duration-300 hover:scale-105"
+        >
+          <div className="relative">
+            <Headphones className="w-5 h-5 text-gold-400" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-dark-900 animate-pulse" />
+          </div>
+          <span className="text-xs font-semibold font-mono hidden sm:inline-block">24/7 Support Desk</span>
+        </button>
+      </div>
+
+      {/* Development & Verification Diagnostic Tool (Bottom Left) */}
+      <DevAuthAdminTest />
+
+      {/* Modals */}
+      <AuthModal
+        isOpen={authModalOpen}
+        initialMode={authMode}
+        onClose={() => setAuthModalOpen(false)}
+        onSuccessAuth={handleSuccessAuth}
+      />
+
+      <ContactSupportModal
+        isOpen={contactModalOpen}
+        onClose={() => setContactModalOpen(false)}
+      />
+
+      {/* User Deposit Modal */}
+      <DepositModal
+        isOpen={depositModalOpen}
+        onClose={() => setDepositModalOpen(false)}
+      />
+
+      {/* User Withdrawal Modal */}
+      <WithdrawalModal
+        isOpen={withdrawalModalOpen}
+        onClose={() => setWithdrawalModalOpen(false)}
+      />
+
+      {/* Institutional Admin Control Hub */}
+      <AdminControlHub
+        isOpen={adminHubOpen}
+        onClose={() => setAdminHubOpen(false)}
+      />
+
+      {/* 24/7 Interactive Live Support Chat Widget with AI Message Bot */}
+      <LiveChatWidget />
+
+    </div>
+  );
+
+}
+
+export function App() {
+
+  return (
+    <LanguageProvider>
+      <AuthProvider>
+        <MainAppContent />
+      </AuthProvider>
+    </LanguageProvider>
+  );
+}
+
+export default App;
+
