@@ -223,7 +223,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return LANGUAGES[0];
   });
 
-  // Apply Google Translate translation across the whole page safely without reload
+  // Apply Google Translate translation across the whole page safely without reload or page shifts
   const applyLanguageTranslation = (lang: LanguageOption) => {
     const googleCode = lang.googleCode;
     const host = window.location.hostname;
@@ -240,15 +240,45 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${host}`;
     }
 
-    // 2. Trigger Google Translate combo element with safe polling (no page reload)
+    // 2. Continuous body style cleaner to prevent any shifting
+    const enforceZeroShift = () => {
+      if (document.body) {
+        document.body.style.top = '0px';
+        document.body.style.position = 'static';
+        document.body.style.marginTop = '0px';
+        document.body.style.paddingTop = '0px';
+      }
+      if (document.documentElement) {
+        document.documentElement.style.top = '0px';
+        document.documentElement.style.position = 'static';
+        document.documentElement.style.marginTop = '0px';
+        document.documentElement.style.paddingTop = '0px';
+      }
+      // Remove any injected banner iframes
+      const banner = document.querySelector('.goog-te-banner-frame') as HTMLElement | null;
+      if (banner) {
+        banner.style.display = 'none';
+        banner.style.height = '0px';
+        banner.style.visibility = 'hidden';
+      }
+    };
+
+    // Run cleaner immediately and periodically
+    enforceZeroShift();
+    const interval = setInterval(enforceZeroShift, 100);
+    setTimeout(() => clearInterval(interval), 4000);
+
+    // 3. Trigger Google Translate combo element with safe polling (no page reload)
     const triggerCombo = (attempts = 0) => {
+      enforceZeroShift();
       const selectElem = document.querySelector('.goog-te-combo') as HTMLSelectElement | null;
       if (selectElem) {
         selectElem.value = googleCode;
         selectElem.dispatchEvent(new Event('change'));
         selectElem.dispatchEvent(new Event('input'));
-      } else if (attempts < 12) {
-        setTimeout(() => triggerCombo(attempts + 1), 250);
+        enforceZeroShift();
+      } else if (attempts < 15) {
+        setTimeout(() => triggerCombo(attempts + 1), 200);
       }
     };
 
@@ -264,21 +294,20 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  // Sync with stored language on mount (No reload, only trigger translation once combo is ready)
+  // Sync with stored language on mount only if user previously chose a specific language
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
+    if (saved && saved !== 'en-SG') {
       const found = LANGUAGES.find((l) => l.code === saved);
-      if (found) {
+      if (found && found.googleCode !== 'en') {
         setCurrentLanguageState(found);
-        if (found.googleCode !== 'en') {
-          setTimeout(() => {
-            applyLanguageTranslation(found);
-          }, 800);
-        }
+        setTimeout(() => {
+          applyLanguageTranslation(found);
+        }, 1200);
       }
     }
   }, []);
+
 
 
 
