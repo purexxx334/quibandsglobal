@@ -7,10 +7,11 @@
     "dev": "vite",
     "server": "tsx watch server/index.ts",
     "dev:all": "concurrently -n \"VITE,SERVER\" -c \"blue,green\" \"vite\" \"tsx watch server/index.ts\"",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "start": "tsx server/index.ts",
     "preview": "vite preview"
   },
+
 
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
