@@ -64,6 +64,9 @@ import {
 } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { API_BASE } from '../../config/api';
+import { DevAuthAdminTest } from '../dev/DevAuthAdminTest';
+
+
 
 interface AdminControlHubProps {
   isOpen: boolean;
@@ -2404,9 +2407,14 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
           </div>
         )}
 
+        {/* Phase 1-4 Developer & Admin Test Console (Embedded for Admin) */}
+        <DevAuthAdminTest />
+
+
       </div>
     </div>
   );
+
 
 
 };

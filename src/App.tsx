@@ -19,8 +19,8 @@ import { UserDashboard } from './components/dashboard/UserDashboard';
 import { LiveChatWidget } from './components/support/LiveChatWidget';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
-import { DevAuthAdminTest } from './components/dev/DevAuthAdminTest';
 import { AuthMode } from './types';
+
 import { Headphones } from 'lucide-react';
 
 
@@ -144,11 +144,9 @@ function MainAppContent() {
         </button>
       </div>
 
-      {/* Development & Verification Diagnostic Tool (Bottom Left) */}
-      <DevAuthAdminTest />
-
       {/* Modals */}
       <AuthModal
+
         isOpen={authModalOpen}
         initialMode={authMode}
         onClose={() => setAuthModalOpen(false)}
