@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { MessageCircle } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -17,7 +18,7 @@ interface SmartsuppChatProps {
 export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = false }) => {
   const { user, profile } = useAuth();
 
-  // 1. Initialize Smartsupp Script cleanly & ensure native blue button is visible
+  // 1. Initialize Smartsupp Script
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -60,16 +61,10 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
       } else {
         document.head.appendChild(script);
       }
-    } else {
-      try {
-        window.smartsupp('chat:show');
-      } catch (e) {
-        // ignore
-      }
     }
   }, []);
 
-  // 2. Synchronize user profile with Smartsupp
+  // 2. Continuous Profile Synchronization
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -105,7 +100,7 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
     }
   }, [user, profile]);
 
-  // 3. Hide Smartsupp widget when inside Admin Control Hub so it doesn't obstruct admin tools
+  // 3. Hide widget when inside Admin Control Hub
   useEffect(() => {
     if (typeof window === 'undefined' || !window.smartsupp) return;
 
@@ -120,23 +115,41 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
     }
   }, [adminHubOpen]);
 
-  // Render purely native Smartsupp widget
-  return null;
+  // Don't show in Admin Hub
+  if (adminHubOpen) return null;
+
+  return (
+    /* Guaranteed Blue Floating Chat Launcher Button */
+    <div className="fixed bottom-5 right-5 z-[99999] notranslate" translate="no">
+      <button
+        onClick={openSmartsuppChat}
+        className="group relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-white/20"
+        title="Live Chat"
+        aria-label="Open Live Chat"
+      >
+        <MessageCircle className="w-7 h-7 sm:w-8 sm:h-8 text-white fill-white/10 transition-transform group-hover:scale-110" />
+        <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-blue-600 animate-pulse" />
+      </button>
+    </div>
+  );
 };
 
-// Global helper to open native Smartsupp chat directly from Contact buttons or nav
+// Global helper to open native Smartsupp chat directly from anywhere
 export const openSmartsuppChat = () => {
   if (typeof window === 'undefined') return;
 
+  // 1. Trigger Smartsupp JS API to open native chat
   if (typeof window.smartsupp === 'function') {
     try {
       window.smartsupp('chat:show');
       window.smartsupp('chat:open');
+      window.smartsupp('open');
     } catch (e) {
-      console.warn('Smartsupp open error:', e);
+      console.warn('Smartsupp open warning:', e);
     }
   }
 
+  // 2. Direct click on native Smartsupp DOM iframe/button if present
   try {
     const el = document.querySelector('#smartsupp-widget, iframe[id*="smartsupp"], iframe[name*="smartsupp"], button[aria-label*="chat" i]') as HTMLElement;
     if (el) {
@@ -145,4 +158,12 @@ export const openSmartsuppChat = () => {
   } catch (domErr) {
     // ignore
   }
+
+  // 3. Fallback: If native window hasn't expanded after 350ms, open the direct link
+  setTimeout(() => {
+    const isExpanded = document.querySelector('iframe[id*="smartsupp"][style*="display: block"], iframe[id*="smartsupp"][style*="height"]');
+    if (!isExpanded) {
+      window.open(`https://www.smartsupp.com/widget/${SMARTSUPP_KEY}`, '_blank');
+    }
+  }, 400);
 };
