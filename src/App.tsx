@@ -214,8 +214,9 @@ function MainAppContent() {
         onClose={() => setAdminHubOpen(false)}
       />
 
-      {/* 24/7 Interactive Live Support Chat Widget with AI Message Bot */}
-      <LiveChatWidget />
+      {/* 24/7 Interactive Live Support Chat Widget with AI Message Bot (Hidden when Admin Hub is open) */}
+      {!adminHubOpen && <LiveChatWidget />}
+
 
     </div>
   );

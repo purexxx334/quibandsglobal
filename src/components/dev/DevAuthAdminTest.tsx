@@ -21,10 +21,29 @@ import {
   X
 } from 'lucide-react';
 
-export const DevAuthAdminTest: React.FC = () => {
+interface DevAuthAdminTestProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  hideFloatingButton?: boolean;
+}
+
+export const DevAuthAdminTest: React.FC<DevAuthAdminTestProps> = ({
+  isOpen: controlledIsOpen,
+  onClose: controlledOnClose,
+  hideFloatingButton = false,
+}) => {
   const { user, session, profile, role, isConfigured, signUp, signIn, signOut, fetchProfileFromBackend } = useAuth();
   
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
+
+  const handleClose = () => {
+    if (controlledOnClose) {
+      controlledOnClose();
+    }
+    setInternalIsOpen(false);
+  };
+
   const [testEmail, setTestEmail] = useState('testuser@quibands.com');
   const [testPassword, setTestPassword] = useState('SecurePass123!');
   const [testFullName, setTestFullName] = useState('Test Trader');
@@ -169,19 +188,21 @@ export const DevAuthAdminTest: React.FC = () => {
 
   return (
     <>
-      {/* Floating Bottom Left Trigger Button */}
-      <div className="fixed bottom-6 left-6 z-40">
-        <button
-          onClick={() => setIsOpen(true)}
-          className="flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-dark-900/95 hover:bg-dark-800 text-gold-400 border border-gold-500/40 shadow-xl backdrop-blur-xl transition-all duration-200 hover:scale-105"
-        >
-          <Terminal className="w-4 h-4 text-gold-400" />
-          <span className="text-xs font-mono font-bold">Phase 1-4 Test Console</span>
-          {user && (
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          )}
-        </button>
-      </div>
+      {/* Floating Bottom Left Trigger Button (Only rendered if hideFloatingButton is false) */}
+      {!hideFloatingButton && (
+        <div className="fixed bottom-6 left-6 z-40">
+          <button
+            onClick={() => setInternalIsOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-dark-900/95 hover:bg-dark-800 text-gold-400 border border-gold-500/40 shadow-xl backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95"
+          >
+            <Terminal className="w-4 h-4 text-gold-400" />
+            <span className="text-xs font-mono font-bold">Phase 1-4 Test Console</span>
+            {user && (
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Slide-over Diagnostic Drawer */}
       {isOpen && (
@@ -205,12 +226,13 @@ export const DevAuthAdminTest: React.FC = () => {
               </div>
 
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={handleClose}
                 className="p-2 rounded-xl bg-dark-850 hover:bg-dark-800 text-slate-400 hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
+
 
             {/* Supabase & Backend Status Badges */}
             <div className="grid grid-cols-2 gap-3 mb-6 font-mono text-xs">

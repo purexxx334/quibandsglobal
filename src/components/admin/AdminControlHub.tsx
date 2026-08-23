@@ -118,8 +118,10 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+  const [testConsoleOpen, setTestConsoleOpen] = useState(false);
 
   // System Settings State
+
 
 
   const [gasFeeAddress, setGasFeeAddress] = useState('TYDzsYUEpvnYmQk4zGP9sWWcTEd36AMW9y');
@@ -842,7 +844,15 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => setTestConsoleOpen(true)}
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-dark-850 border border-gold-500/30 hover:border-gold-400 text-gold-400 hover:text-white text-xs font-mono flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+              title="Phase 1-4 Integration & Diagnostics Console"
+            >
+              <Terminal className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Test Console</span>
+            </button>
             <button
               onClick={fetchData}
               disabled={loading}
@@ -858,6 +868,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               <X className="w-5 h-5" />
             </button>
           </div>
+
         </div>
 
         {/* Global Toast Banner */}
@@ -1035,6 +1046,18 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               </div>
               <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-mono">{depositAddresses.length}</span>
             </button>
+
+            <button
+              onClick={() => { setTestConsoleOpen(true); setMobileToolsOpen(false); }}
+              className="w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] text-gold-300 bg-gold-500/10 border border-gold-500/30 hover:bg-gold-500/20"
+            >
+              <div className="flex items-center gap-3">
+                <Terminal className="w-4 h-4 text-gold-400" />
+                <span className="font-semibold">Phase 1-4 Test Console</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gold-400/20 text-gold-300 border border-gold-400/30 font-mono font-bold">DEV</span>
+            </button>
+
 
             <div className="pt-3 border-t border-white/10 mt-4">
               <button
@@ -2612,7 +2635,12 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         )}
 
         {/* Phase 1-4 Developer & Admin Test Console (Embedded for Admin) */}
-        <DevAuthAdminTest />
+        <DevAuthAdminTest
+          isOpen={testConsoleOpen}
+          onClose={() => setTestConsoleOpen(false)}
+          hideFloatingButton={true}
+        />
+
 
 
       </div>
