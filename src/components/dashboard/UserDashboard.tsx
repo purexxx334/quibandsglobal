@@ -40,12 +40,8 @@ import { supabase } from '../../lib/supabase';
 import { EditProfileModal } from './EditProfileModal';
 import { KycModal } from './KycModal';
 import { ReferralModal } from './ReferralModal';
+import { API_BASE } from '../../config/api';
 
-
-
-
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 interface UserDashboardProps {
   onOpenDeposit: () => void;

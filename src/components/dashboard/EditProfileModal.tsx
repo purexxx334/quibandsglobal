@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { API_BASE } from '../../config/api';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -22,7 +23,6 @@ interface EditProfileModalProps {
   onProfileUpdated?: () => void;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   isOpen,

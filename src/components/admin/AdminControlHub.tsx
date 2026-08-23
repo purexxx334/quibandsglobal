@@ -63,6 +63,7 @@ import {
   KycSubmission
 } from '../../types';
 import { supabase } from '../../lib/supabase';
+import { API_BASE } from '../../config/api';
 
 interface AdminControlHubProps {
   isOpen: boolean;
@@ -71,10 +72,8 @@ interface AdminControlHubProps {
 
 type TabType = 'users' | 'deposits' | 'withdrawals' | 'kyc' | 'support' | 'fees' | 'settings' | 'security' | 'treasury' | 'notifications';
 
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
 export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClose }) => {
+
   const { session, profile } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('users');
   const [loading, setLoading] = useState(false);

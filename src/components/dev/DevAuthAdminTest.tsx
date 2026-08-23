@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { API_BASE } from '../../config/api';
+
 import { 
   ShieldCheck, 
   Terminal, 
@@ -36,7 +38,7 @@ export const DevAuthAdminTest: React.FC = () => {
     setLogs((prev) => [{ time, type, message, details }, ...prev.slice(0, 29)]);
   };
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 
   // 1. Test Backend Health Check
   const testHealthCheck = async () => {

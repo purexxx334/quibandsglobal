@@ -20,6 +20,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { KycSubmission, KycDocumentType } from '../../types';
+import { API_BASE } from '../../config/api';
 
 interface KycModalProps {
   isOpen: boolean;
@@ -27,7 +28,6 @@ interface KycModalProps {
   onKycUpdated?: () => void;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const KycModal: React.FC<KycModalProps> = ({
   isOpen,

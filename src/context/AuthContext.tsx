@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 import { UserProfile } from '../types';
+import { API_BASE as API_BASE_URL } from '../config/api';
 
 export type { UserProfile };
 
@@ -15,7 +16,6 @@ interface AuthContextType {
   isConfigured: boolean;
   signUp: (email: string, password: string, fullName: string, referralCode?: string) => Promise<{ error?: string; user?: User | null }>;
   signIn: (email: string, password: string) => Promise<{ error?: string; user?: User | null }>;
-
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
   fetchProfileFromBackend: (token?: string) => Promise<UserProfile | null>;
@@ -23,12 +23,10 @@ interface AuthContextType {
   refreshSession: () => Promise<void>;
 }
 
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);

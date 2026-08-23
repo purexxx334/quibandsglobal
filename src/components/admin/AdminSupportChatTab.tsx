@@ -15,12 +15,12 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { SupportConversation, SupportMessage } from '../../types';
+import { API_BASE } from '../../config/api';
 
 interface AdminSupportChatTabProps {
   getHeaders: () => Promise<Record<string, string>>;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const CANNED_REPLIES = [
   'Hello! Compliance has received your gas fee payment reference and is currently verifying on-chain.',

@@ -13,6 +13,9 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { API_BASE } from '../../config/api';
+
+
 
 interface ReferralUser {
   id: string;
@@ -40,9 +43,8 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onClose })
   const [copiedCode, setCopiedCode] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
   useEffect(() => {
+
     if (isOpen) {
       fetchReferralData();
     }
