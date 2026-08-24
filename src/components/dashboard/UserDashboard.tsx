@@ -464,10 +464,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
       {/* 2. Three Main Financial Balances Grid (Main, Mining, Profit) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         
-        {/* 2.1 Main Vault Balance */}
+        {/* 2.1 Available Balance */}
         <div className="p-6 rounded-2xl bg-dark-900/90 border border-slate-800 space-y-3 hover:border-slate-700 transition-all relative overflow-hidden shadow-lg">
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span className="font-semibold uppercase tracking-wider">Main Vault Balance</span>
+            <span className="font-semibold uppercase tracking-wider">Available Balance</span>
             <div className="p-2.5 rounded-xl bg-gold-400/10 text-gold-400">
               <Wallet className="w-5 h-5" />
             </div>
