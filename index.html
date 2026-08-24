@@ -30,77 +30,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <style>
-      /* Floating chat button — always visible, no framework dependency */
-      #qb-chat-btn {
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        z-index: 2147483000;
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #1d4ed8, #0ea5e9);
-        border: none;
-        outline: none;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 20px rgba(29, 78, 216, 0.6), 0 0 0 0 rgba(29, 78, 216, 0.4);
-        animation: qb-pulse 2.5s infinite;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-      }
-      #qb-chat-btn:hover,
-      #qb-chat-btn:active {
-        transform: scale(1.12);
-        box-shadow: 0 8px 32px rgba(29, 78, 216, 0.8);
-      }
-      #qb-chat-btn svg {
-        width: 28px;
-        height: 28px;
-        fill: none;
-        stroke: #ffffff;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-      }
-      /* Pulse ring animation */
-      @keyframes qb-pulse {
-        0%   { box-shadow: 0 4px 20px rgba(29,78,216,0.6), 0 0 0 0 rgba(29,78,216,0.5); }
-        70%  { box-shadow: 0 4px 20px rgba(29,78,216,0.6), 0 0 0 14px rgba(29,78,216,0); }
-        100% { box-shadow: 0 4px 20px rgba(29,78,216,0.6), 0 0 0 0 rgba(29,78,216,0); }
-      }
-      /* Tooltip label */
-      #qb-chat-label {
-        position: fixed;
-        bottom: 92px;
-        right: 18px;
-        z-index: 2147483000;
-        background: #1e293b;
-        color: #e2e8f0;
-        font-family: 'Inter', sans-serif;
-        font-size: 12px;
-        font-weight: 600;
-        padding: 6px 12px;
-        border-radius: 8px;
-        border: 1px solid rgba(100,116,139,0.4);
-        white-space: nowrap;
-        pointer-events: none;
-        opacity: 0;
-        transform: translateY(4px);
-        transition: opacity 0.2s ease, transform 0.2s ease;
-      }
-      #qb-chat-btn:hover + #qb-chat-label,
-      #qb-chat-btn:focus + #qb-chat-label {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    </style>
   </head>
 
-  <!-- NOTE: 'relative' class removed from body — it creates a stacking context that breaks position:fixed -->
   <body class="bg-dark-950 text-slate-100 font-sans antialiased selection:bg-gold-500/30 selection:text-gold-300 overflow-x-hidden min-h-screen w-full touch-pan-y">
     <!-- Google Translate Zero-Footprint Bridge Container -->
     <div id="google_translate_element" style="position: fixed; top: 0; left: 0; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none; z-index: -99999;"></div>
@@ -118,36 +49,6 @@
       }
     </script>
     <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-
-    <!-- Smartsupp Live Chat -->
-    <script type="text/javascript">
-      var _smartsupp = _smartsupp || {};
-      _smartsupp.key = '3cdeb6680f2bbdf23ceab58462afab7133653b98';
-      _smartsupp.hideOffline = false;
-      window.smartsupp||(function(d) {
-        var s,c,o=smartsupp=function(){ o._.push(arguments)};o._=[];
-        s=d.getElementsByTagName('script')[0];c=d.createElement('script');
-        c.type='text/javascript';c.charset='utf-8';c.async=true;
-        c.src='https://www.smartsuppchat.com/loader.js?';s.parentNode.insertBefore(c,s);
-      })(document);
-    </script>
-
-    <!-- Guaranteed-visible floating Live Support button -->
-    <!-- This is pure HTML — visible immediately, no React or JS framework needed -->
-    <button id="qb-chat-btn" title="Live Support Chat" aria-label="Open Live Support Chat" onclick="
-      if (typeof window.smartsupp === 'function') {
-        try {
-          window.smartsupp('chat:show');
-          window.smartsupp('chat:open');
-        } catch(e) {}
-      }
-    ">
-      <!-- Chat bubble SVG icon -->
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-      </svg>
-    </button>
-    <span id="qb-chat-label">Live Support</span>
 
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
