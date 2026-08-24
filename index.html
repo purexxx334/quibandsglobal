@@ -112,6 +112,24 @@
         var mBtn = document.getElementById('qb-mobile-chat-btn');
         if (!mBtn) return;
 
+        function forceUnhideSmartsuppIframes() {
+          try {
+            var iframes = document.querySelectorAll('iframe');
+            iframes.forEach(function(f) {
+              if (f.src && f.src.indexOf('smartsupp') !== -1) {
+                f.style.pointerEvents = 'auto';
+                f.style.opacity = '1';
+                f.style.zIndex = '2147483647';
+              }
+            });
+            var containers = document.querySelectorAll('#smartsupp-widget-container, #chat-application, div[id*="smartsupp"]');
+            containers.forEach(function(c) {
+              c.style.pointerEvents = 'auto';
+              c.style.zIndex = '2147483647';
+            });
+          } catch(e) {}
+        }
+
         function triggerSmartsuppOpen() {
           if (typeof window.smartsupp === 'function') {
             try {
@@ -119,7 +137,8 @@
               window.smartsupp('chat:open');
             } catch(e) {}
           }
-          // Retry to ensure Smartsupp pops up even if slow to initialize on mobile
+          forceUnhideSmartsuppIframes();
+
           var retries = 0;
           var int = setInterval(function() {
             retries++;
@@ -129,19 +148,20 @@
                 window.smartsupp('chat:open');
               } catch(e) {}
             }
-            if (retries >= 15) clearInterval(int);
-          }, 150);
+            forceUnhideSmartsuppIframes();
+            if (retries >= 10) clearInterval(int);
+          }, 200);
         }
 
-        mBtn.addEventListener('click', function(e) {
-          if (e && e.preventDefault) e.preventDefault();
+        mBtn.addEventListener('click', function() {
           triggerSmartsuppOpen();
         });
 
-        mBtn.addEventListener('touchend', function(e) {
-          if (e && e.preventDefault) e.preventDefault();
-          triggerSmartsuppOpen();
-        }, { passive: false });
+        mBtn.addEventListener('pointerup', function(e) {
+          if (e.pointerType === 'touch') {
+            triggerSmartsuppOpen();
+          }
+        });
       })();
     </script>
   </body>
