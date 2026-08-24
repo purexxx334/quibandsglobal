@@ -62,29 +62,6 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 
-    <!-- Floating In-Page Smartsupp Chat Modal (Guaranteed Mobile + PC) -->
-    <div id="qb-chat-modal" style="display: none; position: fixed; inset: 0; z-index: 2147483647; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);">
-      <div style="position: absolute; bottom: 0; right: 0; width: 100%; max-width: 420px; height: 85vh; max-height: 700px; background: #0f172a; border-radius: 16px 16px 0 0; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 -10px 40px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.1);">
-        <!-- Modal Header with Close Button -->
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; background: #1e293b; border-bottom: 1px solid rgba(255,255,255,0.08);">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <div style="width: 10px; height: 10px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></div>
-            <span style="color: #ffffff; font-weight: 600; font-size: 14px; font-family: sans-serif;">Live Support</span>
-          </div>
-          <button id="qb-chat-close-btn" type="button" style="background: rgba(255,255,255,0.1); border: none; color: #ffffff; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px;">✕</button>
-        </div>
-        <!-- Smartsupp Embedded Frame with full interaction & permissions -->
-        <iframe
-          id="qb-chat-frame"
-          src="about:blank"
-          style="width: 100%; height: 100%; border: none; background: #ffffff; flex: 1;"
-          title="Live Chat"
-          allow="microphone; camera; clipboard-write; autoplay"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
-        ></iframe>
-      </div>
-    </div>
-
     <!-- Floating Live Chat Trigger Button -->
     <button
       id="qb-live-chat-btn"
@@ -118,77 +95,49 @@
 
     <script type="text/javascript">
       (function() {
-        var modal = document.getElementById('qb-chat-modal');
-        var frame = document.getElementById('qb-chat-frame');
         var openBtn = document.getElementById('qb-live-chat-btn');
-        var closeBtn = document.getElementById('qb-chat-close-btn');
 
-        function openChatModal() {
-          // If on desktop and Smartsupp native opened, use native
-          if (window.smartsupp && window.innerWidth > 768) {
+        function triggerSmartsuppOpen() {
+          if (window.smartsupp) {
             try {
+              window.smartsupp('chat:show');
               window.smartsupp('chat:open');
-              return;
             } catch(e) {}
           }
-
-          // Guaranteed in-page floating modal for mobile / fallback
-          if (modal) {
-            if (frame && frame.src === 'about:blank') {
-              var smartsuppHtml = '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>html,body{margin:0;padding:0;width:100%;height:100%;background:#ffffff;overflow:hidden;}</style></head><body>' +
-                '<script type="text/javascript">' +
-                'var _smartsupp = _smartsupp || {};' +
-                '_smartsupp.key = "3cdeb6680f2bbdf23ceab58462afab7133653b98";' +
-                '_smartsupp.hideOffline = false;' +
-                '_smartsupp.chatBubble = false;' +
-                '_smartsupp.open = true;' +
-                'window.smartsupp||(function(d){var s,c,o=smartsupp=function(){o._.push(arguments)};o._=[];s=d.getElementsByTagName("script")[0];c=d.createElement("script");c.type="text/javascript";c.charset="utf-8";c.async=true;c.src="https://www.smartsuppchat.com/loader.js?";s.parentNode.insertBefore(c,s);})(document);' +
-                'var checkCount=0; var checkInt = setInterval(function(){ checkCount++; if(window.smartsupp){ try{ window.smartsupp("chat:open"); }catch(e){} } if(checkCount>30) clearInterval(checkInt); }, 300);' +
-                '<\/script></body></html>';
-              frame.srcdoc = smartsuppHtml;
-            }
-            modal.style.display = 'block';
-            if (openBtn) openBtn.style.display = 'none';
-          }
-        }
-
-        function closeChatModal() {
-          if (modal) {
-            modal.style.display = 'none';
-            if (openBtn) openBtn.style.display = 'flex';
-          }
+          // Trigger native chat buttons or iframes in DOM
+          try {
+            var nativeEls = document.querySelectorAll('#smartsupp-widget-container button, [id*="smartsupp"] button, button[data-testid="chat-button"], iframe[src*="smartsupp"]');
+            nativeEls.forEach(function(el) {
+              if (el && el.click) el.click();
+            });
+          } catch(e) {}
         }
 
         if (openBtn) {
           openBtn.onclick = function(e) {
             if (e && e.preventDefault) e.preventDefault();
-            openChatModal();
+            triggerSmartsuppOpen();
           };
           openBtn.ontouchend = function(e) {
             if (e && e.preventDefault) e.preventDefault();
-            openChatModal();
-          };
-        }
-
-        if (closeBtn) {
-          closeBtn.onclick = function(e) {
-            if (e && e.preventDefault) e.preventDefault();
-            closeChatModal();
-          };
-          closeBtn.ontouchend = function(e) {
-            if (e && e.preventDefault) e.preventDefault();
-            closeChatModal();
-          };
-        }
-
-        if (modal) {
-          modal.onclick = function(e) {
-            if (e.target === modal) {
-              closeChatModal();
-            }
+            triggerSmartsuppOpen();
           };
         }
       })();
     </script>
+    <style>
+      /* Ensure Smartsupp mobile chat window covers the screen and displays full chat controls */
+      #smartsupp-widget-container,
+      #chat-application,
+      iframe[name^="smartsupp"],
+      iframe[id^="smartsupp"],
+      div[id*="smartsupp"] {
+        z-index: 2147483647 !important;
+        pointer-events: auto !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+    </style>
   </body>
 </html>
