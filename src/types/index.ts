@@ -92,6 +92,7 @@ export interface UserProfile {
   mining_balance?: number;
   profit_balance?: number;
   total_balance?: number;
+  total_deposited?: number;
   receive_limit?: number;
   account_tier?: string;
   balance_remark?: string | null;
