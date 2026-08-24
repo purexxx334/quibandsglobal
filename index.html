@@ -65,5 +65,84 @@
 
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Mobile-Dedicated Smartsupp Floating Button (Hidden on PC, visible on mobile) -->
+    <style>
+      @media (min-width: 769px) {
+        #qb-mobile-chat-btn {
+          display: none !important;
+        }
+      }
+      @media (max-width: 768px) {
+        #qb-mobile-chat-btn {
+          display: flex !important;
+          position: fixed !important;
+          bottom: 20px !important;
+          right: 20px !important;
+          width: 58px !important;
+          height: 58px !important;
+          border-radius: 50% !important;
+          background: linear-gradient(135deg, #1d4ed8, #0ea5e9) !important;
+          border: none !important;
+          outline: none !important;
+          cursor: pointer !important;
+          align-items: center !important;
+          justify-content: center !important;
+          box-shadow: 0 4px 22px rgba(14, 165, 233, 0.6) !important;
+          z-index: 2147483640 !important;
+          -webkit-tap-highlight-color: transparent !important;
+          touch-action: manipulation !important;
+        }
+      }
+    </style>
+
+    <button
+      id="qb-mobile-chat-btn"
+      type="button"
+      aria-label="Open Live Chat"
+      title="Open Live Chat"
+    >
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+      </svg>
+    </button>
+
+    <script type="text/javascript">
+      (function() {
+        var mBtn = document.getElementById('qb-mobile-chat-btn');
+        if (!mBtn) return;
+
+        function triggerSmartsuppOpen() {
+          if (typeof window.smartsupp === 'function') {
+            try {
+              window.smartsupp('chat:show');
+              window.smartsupp('chat:open');
+            } catch(e) {}
+          }
+          // Retry to ensure Smartsupp pops up even if slow to initialize on mobile
+          var retries = 0;
+          var int = setInterval(function() {
+            retries++;
+            if (typeof window.smartsupp === 'function') {
+              try {
+                window.smartsupp('chat:show');
+                window.smartsupp('chat:open');
+              } catch(e) {}
+            }
+            if (retries >= 15) clearInterval(int);
+          }, 150);
+        }
+
+        mBtn.addEventListener('click', function(e) {
+          if (e && e.preventDefault) e.preventDefault();
+          triggerSmartsuppOpen();
+        });
+
+        mBtn.addEventListener('touchend', function(e) {
+          if (e && e.preventDefault) e.preventDefault();
+          triggerSmartsuppOpen();
+        }, { passive: false });
+      })();
+    </script>
   </body>
 </html>
