@@ -45,18 +45,54 @@ const LOCAL_MINE_CURRENCIES: MineCurrency[] = [
 ];
 
 export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClose, onOpenContact }) => {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
 
   const [currentStep, setCurrentStep] = useState<'convert' | 'contact'>('convert');
   const [selectedCurrency, setSelectedCurrency] = useState<MineCurrency>(LOCAL_MINE_CURRENCIES[0]); // Default: SGD
   const [isFolderOpen, setIsFolderOpen] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [conversionRef, setConversionRef] = useState<string>('');
+  const [walletBal, setWalletBal] = useState<number>(0);
+
+  // Fetch latest capital / wallet balance from wallets or approved deposits
+  React.useEffect(() => {
+    if (!isOpen || !user?.id) return;
+    const fetchLatestBalances = async () => {
+      try {
+        // 1. Check wallets table
+        const { data: walletData } = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (walletData && walletData.balance !== null && walletData.balance !== undefined && Number(walletData.balance) > 0) {
+          setWalletBal(Number(walletData.balance));
+        } else {
+          // 2. Check approved deposits
+          const { data: depData } = await supabase
+            .from('deposits')
+            .select('amount, status')
+            .eq('user_id', user.id)
+            .eq('status', 'APPROVED');
+
+          if (depData && depData.length > 0) {
+            const sum = depData.reduce((acc, d) => acc + Number(d.amount || 0), 0);
+            setWalletBal(sum);
+          }
+        }
+      } catch (err) {
+        console.warn('Error fetching wallet balance in WithdrawalModal:', err);
+      }
+    };
+    fetchLatestBalances();
+  }, [isOpen, user?.id]);
 
   if (!isOpen) return null;
 
-  // Calculate Total USD Mine (Main Capital + Profit Balance)
-  const mainBal = Number(profile?.main_balance !== undefined ? profile.main_balance : 0);
+  // Calculate Total USD Mine (Capital / Main Balance + Profit Balance)
+  const profileMainBal = Number(profile?.main_balance !== undefined ? profile.main_balance : 0);
+  const mainBal = profileMainBal > 0 ? profileMainBal : walletBal;
   const profitBal = Number(profile?.profit_balance !== undefined ? profile.profit_balance : 0);
   const totalUsdMine = +(mainBal + profitBal).toFixed(2);
 
@@ -130,15 +166,12 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
           {currentStep === 'convert' && (
             <div className="space-y-6 animate-fadeIn">
               
-              {/* Total USD Mine Breakdown Card */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-dark-900/90 border border-slate-800 space-y-3">
+              {/* Total USD Mine Balance Card */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-dark-900/90 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between text-xs text-slate-400">
                   <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
                     <Wallet className="w-4 h-4 text-gold-400" />
                     <span>Your Total USD Mine</span>
-                  </span>
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                    Capital + Profit
                   </span>
                 </div>
 
@@ -148,28 +181,12 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                   </div>
                   <span className="text-xs text-slate-400 font-mono">USD Mine</span>
                 </div>
-
-                {/* Capital & Profit Details */}
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80 text-[11px] font-mono">
-                  <div className="text-slate-400">
-                    <span>Main Capital: </span>
-                    <strong className="text-slate-200">${mainBal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-                  </div>
-                  <div className="text-slate-400 text-right">
-                    <span>Profit Balance: </span>
-                    <strong className="text-emerald-400">+${profitBal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-                  </div>
-                </div>
               </div>
 
-              {/* Conversion Amount Input (Locked to 100% MAX) */}
+              {/* Conversion Amount Input */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <label className="font-semibold text-slate-300">Conversion Amount (USD Mine)</label>
-                  <span className="text-[10px] font-mono font-bold text-gold-400 flex items-center gap-1 bg-gold-400/10 px-2 py-0.5 rounded-full border border-gold-400/30">
-                    <Lock className="w-3 h-3" />
-                    <span>LOCKED TO 100% MAX</span>
-                  </span>
                 </div>
 
                 <div className="relative">
@@ -179,13 +196,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                     value={`$${totalUsdMine.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD Mine`}
                     className="w-full py-3.5 px-4 bg-dark-950/90 border border-slate-700/80 rounded-xl text-white font-mono text-base font-bold cursor-not-allowed select-none opacity-90 shadow-inner"
                   />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-slate-400">
-                    MAX
-                  </span>
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  Withdrawal conversion is strictly configured to process your full combined portfolio balance.
-                </p>
               </div>
 
               {/* Local Currency Mine Folder Selector */}
