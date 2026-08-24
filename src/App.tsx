@@ -205,6 +205,7 @@ function MainAppContent() {
       <WithdrawalModal
         isOpen={withdrawalModalOpen}
         onClose={() => setWithdrawalModalOpen(false)}
+        onOpenContact={() => setContactModalOpen(true)}
       />
 
       {/* Institutional Admin Control Hub */}
