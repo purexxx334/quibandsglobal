@@ -37,7 +37,7 @@ import {
   Building2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { DepositRequest, WithdrawalRequest, UserNotification, Transaction } from '../../types';
+import { DepositRequest, WithdrawalRequest, UserNotification, Transaction, UserProfile } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { EditProfileModal } from './EditProfileModal';
 import { KycModal } from './KycModal';
