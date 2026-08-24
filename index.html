@@ -112,69 +112,45 @@
         var btn = document.getElementById('qb-live-chat');
         if (!btn) return;
 
-        var chatOpened = false;
-
-        // Check if Smartsupp has fully initialised its iframe in the DOM
-        function smartsuppReady() {
-          return !!(
-            document.getElementById('chat-application') ||
-            document.querySelector('iframe[src*="smartsuppchat"]') ||
-            document.querySelector('div[id*="smartsupp"]')
-          );
-        }
-
-        // Open Smartsupp chat using its API
-        function openViaAPI() {
-          try {
-            if (typeof window.smartsupp === 'function') {
+        function triggerSmartsupp() {
+          if (typeof window.smartsupp === 'function') {
+            try {
               window.smartsupp('chat:open');
-              chatOpened = true;
               return true;
-            }
-          } catch(e) {}
+            } catch(e) {}
+          }
+          // Check if Smartsupp iframe button exists in DOM and simulate click
+          var nativeBtn = document.querySelector('#smartsupp-widget-container button, [id^="smartsupp"] button, iframe[src*="smartsupp"]');
+          if (nativeBtn) {
+            try {
+              nativeBtn.click();
+              return true;
+            } catch(e) {}
+          }
           return false;
         }
 
-        // Fallback: open chat in a new tab (works reliably on mobile)
-        function openViaTab() {
-          var a = document.createElement('a');
-          a.href = 'https://app.smartsupp.com/chat/3cdeb6680f2bbdf23ceab58462afab7133653b98';
-          a.target = '_blank';
-          a.rel = 'noopener';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        }
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
 
-        // Once Smartsupp loads, hide its native launcher so only our button is visible
-        var hideAttempts = 0;
-        var hideInterval = setInterval(function() {
-          hideAttempts++;
-          if (smartsuppReady()) {
-            clearInterval(hideInterval);
-            try {
-              if (typeof window.smartsupp === 'function') {
-                window.smartsupp('chat:hide');
+          if (!triggerSmartsupp()) {
+            // If smartsupp is still initializing, retry every 150ms for 3 seconds
+            var count = 0;
+            var interval = setInterval(function() {
+              count++;
+              if (triggerSmartsupp() || count >= 20) {
+                clearInterval(interval);
               }
-            } catch(e) {}
+            }, 150);
           }
-          // Give up after 20 seconds
-          if (hideAttempts > 100) clearInterval(hideInterval);
-        }, 200);
+        });
 
-        // Main click handler — works on both PC and mobile
-        function handleOpen() {
-          if (smartsuppReady()) {
-            openViaAPI();
-          } else {
-            // Smartsupp not loaded yet (common on mobile) — open in new tab
-            openViaTab();
-          }
-        }
-
-        // Use click for both PC and mobile (mobile browsers fire click too)
-        btn.addEventListener('click', handleOpen);
-
+        // Ensure touch works smoothly on mobile
+        btn.addEventListener('touchend', function(e) {
+          e.preventDefault();
+          btn.click();
+        });
       })();
     </script>
 
