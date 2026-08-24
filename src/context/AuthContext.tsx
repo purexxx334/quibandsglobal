@@ -116,14 +116,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Sync authenticated visitor directly with Smartsupp
           if (typeof window !== 'undefined' && (window as any).smartsupp) {
             try {
-              (window as any).smartsupp('name', fetchedProfile?.fullName || currentSession.user?.email || 'Valued Trader');
+              (window as any).smartsupp('name', fetchedProfile?.full_name || currentSession.user?.email || 'Valued Trader');
               (window as any).smartsupp('email', currentSession.user?.email || '');
               (window as any).smartsupp('variables', {
                 userId: { value: currentSession.user?.id, label: 'User ID' },
-                fullName: { value: fetchedProfile?.fullName || 'N/A', label: 'Full Name' },
+                fullName: { value: fetchedProfile?.full_name || 'N/A', label: 'Full Name' },
                 email: { value: currentSession.user?.email || 'N/A', label: 'Email' },
-                accountTier: { value: fetchedProfile?.kycStatus || 'Standard', label: 'KYC Tier' },
-                activeBalance: { value: `$${fetchedProfile?.totalDeposited || 0}`, label: 'Deposited' }
+                accountTier: { value: fetchedProfile?.kyc_status || 'Standard', label: 'KYC Tier' },
+                activeBalance: { value: `$${fetchedProfile?.total_balance || 0}`, label: 'Total Balance' }
               });
             } catch(e) {}
           }
