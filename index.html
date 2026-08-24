@@ -99,6 +99,7 @@
     <button
       id="qb-mobile-chat-btn"
       type="button"
+      onclick="if(window.smartsupp){ smartsupp('chat:open'); } return false;"
       aria-label="Open Live Chat"
       title="Open Live Chat"
     >
@@ -106,96 +107,5 @@
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
       </svg>
     </button>
-
-    <script type="text/javascript">
-      (function() {
-        var mBtn = document.getElementById('qb-mobile-chat-btn');
-        if (!mBtn) return;
-
-        function expandSmartsuppMobile() {
-          try {
-            var iframes = document.querySelectorAll('iframe');
-            iframes.forEach(function(f) {
-              if (f.id === 'chat-application' || (f.src && f.src.indexOf('smartsupp') !== -1) || (f.id && f.id.indexOf('smartsupp') !== -1)) {
-                f.style.position = 'fixed';
-                f.style.top = '0';
-                f.style.left = '0';
-                f.style.width = '100vw';
-                f.style.height = '100vh';
-                f.style.opacity = '1';
-                f.style.zIndex = '2147483647';
-                f.style.pointerEvents = 'auto';
-                f.style.display = 'block';
-              }
-            });
-            var containers = document.querySelectorAll('#smartsupp-widget-container, #chat-application, div[id*="smartsupp"]');
-            containers.forEach(function(c) {
-              c.style.position = 'fixed';
-              c.style.top = '0';
-              c.style.left = '0';
-              c.style.width = '100vw';
-              c.style.height = '100vh';
-              c.style.zIndex = '2147483647';
-              c.style.pointerEvents = 'auto';
-              c.style.display = 'block';
-            });
-          } catch(e) {}
-        }
-
-        function collapseSmartsuppMobile() {
-          try {
-            var iframes = document.querySelectorAll('iframe');
-            iframes.forEach(function(f) {
-              if (f.id === 'chat-application' || (f.src && f.src.indexOf('smartsupp') !== -1) || (f.id && f.id.indexOf('smartsupp') !== -1)) {
-                f.style.width = '0px';
-                f.style.height = '0px';
-                f.style.opacity = '0';
-                f.style.pointerEvents = 'none';
-              }
-            });
-          } catch(e) {}
-        }
-
-        function triggerSmartsuppOpen() {
-          if (typeof window.smartsupp === 'function') {
-            try {
-              window.smartsupp('chat:show');
-              window.smartsupp('chat:open');
-            } catch(e) {}
-          }
-          expandSmartsuppMobile();
-
-          var retries = 0;
-          var int = setInterval(function() {
-            retries++;
-            if (typeof window.smartsupp === 'function') {
-              try {
-                window.smartsupp('chat:show');
-                window.smartsupp('chat:open');
-              } catch(e) {}
-            }
-            expandSmartsuppMobile();
-            if (retries >= 10) clearInterval(int);
-          }, 200);
-        }
-
-        mBtn.addEventListener('click', function() {
-          triggerSmartsuppOpen();
-        });
-
-        mBtn.addEventListener('pointerup', function(e) {
-          if (e.pointerType === 'touch') {
-            triggerSmartsuppOpen();
-          }
-        });
-
-        // Listen for close event to collapse frame
-        if (typeof window.smartsupp === 'function') {
-          try {
-            window.smartsupp('on', 'chat:close', collapseSmartsuppMobile);
-          } catch(e) {}
-        }
-      })();
-    </script>
   </body>
 </html>
