@@ -461,8 +461,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
         </div>
       </div>
 
-      {/* 2. Three Main Financial Balances Grid (Main, Mining, Profit) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      {/* 2. Two Main Financial Balances Grid (Main, Profit) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         
         {/* 2.1 Main Balance */}
         <div className="p-6 rounded-2xl bg-dark-900/90 border border-slate-800 space-y-3 hover:border-slate-700 transition-all relative overflow-hidden shadow-lg">
@@ -487,66 +487,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
           )}
         </div>
 
-        {/* 2.2 Dedicated Mining Balance (Live Ticking + Miner Symbol) */}
-        <div className={`p-6 rounded-2xl bg-dark-900/90 border transition-all relative overflow-hidden shadow-lg ${
-          hasApprovedDeposit
-            ? justTicked ? 'border-emerald-400/80 shadow-emerald-500/10' : 'border-slate-800 hover:border-emerald-500/50'
-            : 'border-slate-800/80 hover:border-amber-500/30'
-        }`}>
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold uppercase tracking-wider">Mining Balance</span>
-              {hasApprovedDeposit ? (
-                <span className="flex h-2 w-2 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-              ) : (
-                <span className="h-2 w-2 rounded-full bg-amber-400/60" />
-              )}
-            </div>
-            {/* Animated Miner Pickaxe Icon */}
-            <div className={`p-2.5 rounded-xl relative ${hasApprovedDeposit ? 'bg-emerald-400/10 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
-              <Pickaxe className={`w-5 h-5 ${hasApprovedDeposit ? 'animate-bounce text-emerald-400' : 'text-slate-400'}`} />
-            </div>
-          </div>
-
-          <div>
-            <div className="text-3xl font-black font-mono tracking-tight flex items-baseline gap-1">
-              <span className={hasApprovedDeposit ? 'text-emerald-400' : 'text-slate-300'}>
-                ${miningBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 })}
-              </span>
-            </div>
-            
-            {/* Live Yield Ticker Badge or Standby Badge */}
-            {hasApprovedDeposit ? (
-              <div className="text-[11px] text-emerald-300 flex items-center justify-between mt-2 font-mono bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-                <span className="flex items-center gap-1">
-                  <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-                  <span>Live Mining: {hashrateSpeed} TH/s</span>
-                </span>
-                <span className="text-emerald-400 font-bold animate-pulse">
-                  +${sessionYieldEarned.toFixed(5)} cycle
-                </span>
-              </div>
-            ) : (
-              <div className="text-[11px] text-amber-300 flex items-center justify-between mt-2 font-mono bg-amber-950/30 px-2.5 py-1 rounded-lg border border-amber-500/20">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Standby &bull; Awaiting Deposit</span>
-                </span>
-                <button
-                  onClick={onOpenDeposit}
-                  className="text-amber-400 font-bold hover:underline"
-                >
-                  Deposit Now &rarr;
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 2.3 Realized Profit Balance */}
+        {/* 2.2 Realized Profit Balance */}
         <div className="p-6 rounded-2xl bg-dark-900/90 border border-slate-800 space-y-3 hover:border-slate-700 transition-all relative overflow-hidden shadow-lg">
           <div className="flex items-center justify-between text-xs text-slate-400">
             <span className="font-semibold uppercase tracking-wider">Profit Balance</span>
