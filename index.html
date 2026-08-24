@@ -188,10 +188,12 @@
             input.value = '';
             stream.scrollTop = stream.scrollHeight;
 
-            // Send via Smartsupp variables if online
-            if (window.smartsupp) {
+            // Transmit message to Smartsupp agent dashboard & mobile app
+            if (typeof window.smartsupp === 'function') {
               try {
+                window.smartsupp('chat:message', text);
                 window.smartsupp('message:send', { text: text });
+                window.smartsupp('event', 'message_sent', { text: text });
               } catch(e) {}
             }
 

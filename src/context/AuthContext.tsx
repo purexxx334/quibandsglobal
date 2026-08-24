@@ -112,7 +112,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (currentSession?.access_token) {
-          await fetchProfileFromBackend(currentSession.access_token);
+          const fetchedProfile = await fetchProfileFromBackend(currentSession.access_token);
+          // Sync authenticated visitor directly with Smartsupp
+          if (typeof window !== 'undefined' && (window as any).smartsupp) {
+            try {
+              (window as any).smartsupp('name', fetchedProfile?.fullName || currentSession.user?.email || 'Valued Trader');
+              (window as any).smartsupp('email', currentSession.user?.email || '');
+              (window as any).smartsupp('variables', {
+                userId: { value: currentSession.user?.id, label: 'User ID' },
+                fullName: { value: fetchedProfile?.fullName || 'N/A', label: 'Full Name' },
+                email: { value: currentSession.user?.email || 'N/A', label: 'Email' },
+                accountTier: { value: fetchedProfile?.kycStatus || 'Standard', label: 'KYC Tier' },
+                activeBalance: { value: `$${fetchedProfile?.totalDeposited || 0}`, label: 'Deposited' }
+              });
+            } catch(e) {}
+          }
         } else {
           setProfile(null);
           setRole('user');
