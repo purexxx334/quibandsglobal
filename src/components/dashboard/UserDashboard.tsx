@@ -981,13 +981,13 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
                           <div>
                             <span className="text-slate-500 block text-[10px]">BENEFICIARY BANK:</span>
                             <span className="font-bold text-white">
-                              {w.bank_details?.bank_name || w.destination_wallet_address.split(':')[0] || 'Bank Wire'}
+                              {w.bank_details?.bank_name || (w.destination_wallet_address ? w.destination_wallet_address.split(':')[0] : 'Direct Bank Wire')}
                             </span>
                           </div>
                           <div>
                             <span className="text-slate-500 block text-[10px]">ACCOUNT / BENEFICIARY:</span>
                             <span className="text-slate-200 truncate block">
-                              {w.bank_details?.account_holder ? `${w.bank_details.account_holder} (${w.bank_details.account_number})` : w.destination_wallet_address}
+                              {w.bank_details?.account_holder ? `${w.bank_details.account_holder} (${w.bank_details.account_number || ''})` : (w.destination_wallet_address || 'Bank Transfer')}
                             </span>
                           </div>
                           <div>
