@@ -476,10 +476,6 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
             <div className="text-3xl font-black text-white font-mono tracking-tight">
               ${mainBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="text-[11px] text-emerald-400 flex items-center gap-1 mt-1.5 font-mono">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Available for Instant Withdrawal</span>
-            </div>
           </div>
 
           {/* Admin Remark for Main Balance (Only shown if remark is added) */}
