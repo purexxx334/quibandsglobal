@@ -22,6 +22,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { BankDetails } from '../../types';
 
 interface WithdrawalModalProps {
@@ -66,7 +67,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
   mainBalance = 0,
   onSuccess,
 }) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
 
   const [step, setStep] = useState<WithdrawalStep>('bank-details');
   const [loading, setLoading] = useState(false);
@@ -100,6 +101,18 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
     refCode?: string;
   } | null>(null);
 
+  // Helper to reliably get the JWT Bearer token
+  const getAuthToken = async (): Promise<string> => {
+    if (session?.access_token) return session.access_token;
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session?.access_token) return data.session.access_token;
+    } catch (e) {
+      console.warn('Error fetching supabase session:', e);
+    }
+    return localStorage.getItem('quibands_auth_token') || sessionStorage.getItem('quibands_auth_token') || '';
+  };
+
   // Fetch user profile and saved bank details when modal opens
   useEffect(() => {
     if (isOpen && user) {
@@ -107,13 +120,17 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
       setError(null);
       fetchUserProfile();
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, session?.access_token]);
 
   const fetchUserProfile = async () => {
     try {
-      const token = localStorage.getItem('quibands_auth_token') || sessionStorage.getItem('quibands_auth_token');
+      const token = await getAuthToken();
+      if (!token) return;
+
       const res = await fetch('/api/profile', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
       const data = await res.json();
       if (data.success && data.data) {
@@ -176,14 +193,14 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
       setError('Please enter your Account Number or IBAN.');
       return;
     }
-    if (!swiftRouting.trim()) {
-      setError('Please enter your Bank SWIFT / BIC or Routing Code.');
-      return;
-    }
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('quibands_auth_token') || sessionStorage.getItem('quibands_auth_token');
+      const token = await getAuthToken();
+      if (!token) {
+        throw new Error('Authentication session expired. Please sign in again.');
+      }
+
       const bankData: BankDetails = {
         bank_name: bankName.trim(),
         account_holder: accountHolder.trim(),
@@ -195,10 +212,10 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
 
       // Persist to user profile
       const res = await fetch('/api/profile', {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ bank_details: bankData }),
       });
@@ -239,7 +256,10 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('quibands_auth_token') || sessionStorage.getItem('quibands_auth_token');
+      const token = await getAuthToken();
+      if (!token) {
+        throw new Error('Authentication session expired. Please sign in again.');
+      }
       
       const payload = {
         asset: selectedSource === 'convert' ? `${profileConvertCurrency} MINE` : 'USDT',
@@ -269,7 +289,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
@@ -450,19 +470,21 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
               />
             </div>
 
-            {/* SWIFT / BIC / Routing Code */}
+            {/* SWIFT / BIC / Routing Code (Optional) */}
             <div className="space-y-1.5">
-              <label className="text-xs font-mono font-bold text-slate-300 flex items-center gap-1.5">
-                <Hash className="w-3.5 h-3.5 text-gold-400" />
-                <span>SWIFT / BIC or Routing Number</span>
+              <label className="text-xs font-mono font-bold text-slate-300 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Hash className="w-3.5 h-3.5 text-gold-400" />
+                  <span>SWIFT / BIC or Routing Number</span>
+                </span>
+                <span className="text-[10px] text-slate-500 font-sans font-normal">(Optional)</span>
               </label>
               <input
                 type="text"
                 value={swiftRouting}
                 onChange={(e) => setSwiftRouting(e.target.value)}
-                placeholder="e.g. DBSSSGSG or 021000021"
+                placeholder="e.g. DBSSSGSG or 021000021 (Optional)"
                 className="w-full px-4 py-3 rounded-xl bg-dark-900 border border-slate-800 focus:border-gold-400 focus:outline-none text-white text-xs font-mono uppercase placeholder:text-slate-600"
-                required
               />
             </div>
 

@@ -40,7 +40,7 @@ export class ProfileController {
         });
       }
 
-      const { full_name, username, avatar_url, phone_number, country, address, city, postal_code, dob } = req.body;
+      const { full_name, username, avatar_url, phone_number, country, address, city, postal_code, dob, bank_details } = req.body;
       const updated = await profileService.updateProfile(req.user.id, {
         full_name,
         username,
@@ -51,6 +51,7 @@ export class ProfileController {
         city,
         postal_code,
         dob,
+        bank_details,
       });
 
       return res.status(200).json({
