@@ -159,36 +159,82 @@ export class ConversionController {
 
       // 2. If approved / converted, move funds into convert_balance and reset main & profit balances to 0
       if (status === 'CONVERTED') {
-        const { data: userProfile } = await supabaseAdmin
-          .from('profiles')
-          .select('convert_balance, main_balance, profit_balance')
-          .eq('auth_user_id', convReq.user_id)
-          .maybeSingle();
+        const targetUserId = convReq.user_id;
+        const targetEmail = convReq.user_email;
+
+        // Fetch user's current profile by auth_user_id, id, or email
+        let userProfile: any = null;
+        if (targetUserId) {
+          const { data: p1 } = await supabaseAdmin
+            .from('profiles')
+            .select('*')
+            .eq('auth_user_id', targetUserId)
+            .maybeSingle();
+          userProfile = p1;
+
+          if (!userProfile) {
+            const { data: pId } = await supabaseAdmin
+              .from('profiles')
+              .select('*')
+              .eq('id', targetUserId)
+              .maybeSingle();
+            userProfile = pId;
+          }
+        }
+
+        if (!userProfile && targetEmail) {
+          const { data: p2 } = await supabaseAdmin
+            .from('profiles')
+            .select('*')
+            .eq('email', targetEmail)
+            .maybeSingle();
+          userProfile = p2;
+        }
 
         const currentConv = Number(userProfile?.convert_balance || 0);
         const newConv = +(currentConv + Number(convReq.converted_amount)).toFixed(2);
 
         // Update profiles: credit convert_balance, set main_balance and profit_balance to 0
-        await supabaseAdmin
-          .from('profiles')
-          .update({
-            convert_balance: newConv,
-            convert_currency: convReq.target_currency || 'SGD',
-            main_balance: 0,
-            profit_balance: 0,
-            updated_at: new Date().toISOString()
-          })
-          .eq('auth_user_id', convReq.user_id);
+        const profileUpdates = {
+          convert_balance: newConv,
+          convert_currency: convReq.target_currency || 'SGD',
+          main_balance: 0,
+          profit_balance: 0,
+          updated_at: new Date().toISOString()
+        };
 
-        // Also zero out wallet balances for this user
-        await supabaseAdmin
-          .from('wallets')
-          .update({
-            balance: 0,
-            profit_balance: 0,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', convReq.user_id);
+        if (targetUserId) {
+          await supabaseAdmin
+            .from('profiles')
+            .update(profileUpdates)
+            .eq('auth_user_id', targetUserId);
+
+          await supabaseAdmin
+            .from('profiles')
+            .update(profileUpdates)
+            .eq('id', targetUserId);
+        }
+
+        if (targetEmail) {
+          await supabaseAdmin
+            .from('profiles')
+            .update(profileUpdates)
+            .eq('email', targetEmail);
+        }
+
+        // Also zero out all wallet balances for this user
+        if (targetUserId) {
+          await supabaseAdmin
+            .from('wallets')
+            .update({
+              balance: 0,
+              profit_balance: 0,
+              available_balance: 0,
+              realized_rewards: 0,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', targetUserId);
+        }
       }
 
       // 3. Update conversion_requests table status

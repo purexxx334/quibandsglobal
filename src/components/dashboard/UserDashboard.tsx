@@ -73,6 +73,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   const [wallets, setWallets] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [freshProfile, setFreshProfile] = useState<UserProfile | null>(null);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [kycModalOpen, setKycModalOpen] = useState(false);
   const [referralModalOpen, setReferralModalOpen] = useState(false);
@@ -116,7 +117,20 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
       const headers = await getHeaders();
 
       // Refresh Auth Context Profile for updated remarks/balances
-      if (refreshProfile) refreshProfile();
+      if (refreshProfile) {
+        await refreshProfile();
+      }
+
+      // Also directly fetch /api/profile for guaranteed instant reactive updates
+      try {
+        const profRes = await fetch(`${API_BASE}/profile`, { headers });
+        const profJson = await profRes.json();
+        if (profJson.success && profJson.data) {
+          setFreshProfile(profJson.data);
+        }
+      } catch (profErr) {
+        console.warn('Direct profile fetch error:', profErr);
+      }
 
       // 1. Fetch User Deposits
       const depRes = await fetch(`${API_BASE}/deposits`, { headers });
@@ -324,13 +338,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
 
   // Financial Balances Calculation
-  const mainBalanceUsd = Number(profile?.main_balance !== undefined ? profile.main_balance : (wallets['USDT'] || 0));
-  const miningBalanceUsd = liveMiningBalance > 0 ? liveMiningBalance : Number(profile?.mining_balance || 0);
-  const profitBalanceUsd = Number(profile?.profit_balance !== undefined ? profile.profit_balance : 0);
-  const convertBalance = Number(profile?.convert_balance || 0);
-  const convertCurrency = profile?.convert_currency || 'SGD';
-  const receiveLimitUsd = Number(profile?.receive_limit || 9000.00);
-  const accountTier = profile?.account_tier || 'BASIC';
+  const activeProfile = freshProfile || profile;
+  const mainBalanceUsd = Number(activeProfile?.main_balance !== undefined ? activeProfile.main_balance : (wallets['USDT'] || 0));
+  const miningBalanceUsd = liveMiningBalance > 0 ? liveMiningBalance : Number(activeProfile?.mining_balance || 0);
+  const profitBalanceUsd = Number(activeProfile?.profit_balance !== undefined ? activeProfile.profit_balance : 0);
+  const convertBalance = Number(activeProfile?.convert_balance || 0);
+  const convertCurrency = activeProfile?.convert_currency || 'SGD';
+  const receiveLimitUsd = Number(activeProfile?.receive_limit || 9000.00);
+  const accountTier = activeProfile?.account_tier || 'BASIC';
 
   // Calculate session percentage
   const sessionPercent = Math.min(100, Math.max(0, Math.round(((sessionTotalSeconds - sessionSecondsLeft) / sessionTotalSeconds) * 100)));
