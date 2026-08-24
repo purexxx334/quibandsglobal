@@ -62,8 +62,39 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 
+    <!-- Floating Live Chat Trigger Button for Mobile & Desktop -->
+    <button
+      id="qb-live-chat-btn"
+      type="button"
+      style="
+        position: fixed !important;
+        bottom: 24px !important;
+        right: 24px !important;
+        width: 60px !important;
+        height: 60px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(135deg, #1d4ed8, #06b6d4) !important;
+        border: none !important;
+        outline: none !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 6px 25px rgba(29, 78, 216, 0.75) !important;
+        z-index: 2147483640 !important;
+        -webkit-tap-highlight-color: transparent !important;
+        touch-action: manipulation !important;
+      "
+      aria-label="Open Live Chat"
+      title="Open Live Chat"
+    >
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+      </svg>
+    </button>
+
     <style>
-      /* Ensure Smartsupp native widget displays prominently on both desktop and mobile */
+      /* Ensure Smartsupp frame and chat window display over everything when opened */
       #smartsupp-widget-container,
       #chat-application,
       iframe[name^="smartsupp"],
@@ -73,5 +104,34 @@
         pointer-events: auto !important;
       }
     </style>
+
+    <script type="text/javascript">
+      (function() {
+        function openLiveChat() {
+          if (window.smartsupp) {
+            try {
+              window.smartsupp('chat:open');
+            } catch(e) {}
+          }
+          // Also trigger any rendered iframe or native widget buttons
+          try {
+            var nativeButtons = document.querySelectorAll('#smartsupp-widget-container button, [id*="smartsupp"] button, button[data-testid="chat-button"]');
+            nativeButtons.forEach(function(b) { b.click(); });
+          } catch(e) {}
+        }
+
+        var btn = document.getElementById('qb-live-chat-btn');
+        if (btn) {
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            openLiveChat();
+          });
+          btn.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            openLiveChat();
+          }, { passive: false });
+        }
+      })();
+    </script>
   </body>
 </html>
