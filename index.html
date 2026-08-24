@@ -62,7 +62,23 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 
-    <!-- Floating Live Chat Trigger Button for Mobile & Desktop -->
+    <!-- Floating In-Page Smartsupp Chat Modal (Guaranteed Mobile + PC) -->
+    <div id="qb-chat-modal" style="display: none; position: fixed; inset: 0; z-index: 2147483647; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);">
+      <div style="position: absolute; bottom: 0; right: 0; width: 100%; max-width: 420px; height: 85vh; max-height: 700px; background: #0f172a; border-radius: 16px 16px 0 0; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 -10px 40px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.1);">
+        <!-- Modal Header with Close Button -->
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; background: #1e293b; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 10px; height: 10px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></div>
+            <span style="color: #ffffff; font-weight: 600; font-size: 14px; font-family: sans-serif;">Live Support</span>
+          </div>
+          <button id="qb-chat-close-btn" type="button" style="background: rgba(255,255,255,0.1); border: none; color: #ffffff; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px;">✕</button>
+        </div>
+        <!-- Smartsupp Embedded Frame -->
+        <iframe id="qb-chat-frame" src="about:blank" style="width: 100%; height: 100%; border: none; background: #0f172a;" title="Live Chat"></iframe>
+      </div>
+    </div>
+
+    <!-- Floating Live Chat Trigger Button -->
     <button
       id="qb-live-chat-btn"
       type="button"
@@ -93,57 +109,66 @@
       </svg>
     </button>
 
-    <style>
-      /* Ensure Smartsupp frame and chat window display over everything when opened */
-      #smartsupp-widget-container,
-      #chat-application,
-      iframe[name^="smartsupp"],
-      iframe[id^="smartsupp"],
-      div[id*="smartsupp"] {
-        z-index: 2147483647 !important;
-        pointer-events: auto !important;
-      }
-    </style>
-
     <script type="text/javascript">
       (function() {
-        function triggerChat() {
-          // 1. Direct Smartsupp API call
-          if (typeof window.smartsupp === 'function') {
+        var modal = document.getElementById('qb-chat-modal');
+        var frame = document.getElementById('qb-chat-frame');
+        var openBtn = document.getElementById('qb-live-chat-btn');
+        var closeBtn = document.getElementById('qb-chat-close-btn');
+
+        function openChatModal() {
+          // If on desktop and Smartsupp native opened, use native
+          if (window.smartsupp && window.innerWidth > 768) {
             try {
               window.smartsupp('chat:open');
+              return;
             } catch(e) {}
           }
 
-          // 2. PostMessage to Smartsupp iframes (how mobile chat iframe communicates internally)
-          try {
-            var iframes = document.querySelectorAll('iframe');
-            iframes.forEach(function(f) {
-              if (f.src && f.src.indexOf('smartsupp') !== -1) {
-                f.contentWindow.postMessage('smartsupp:chat:open', '*');
-                f.contentWindow.postMessage(JSON.stringify({ type: 'smartsupp:chat:open' }), '*');
-              }
-            });
-          } catch(e) {}
-
-          // 3. Search and click all child buttons or widgets
-          try {
-            var elList = document.querySelectorAll('#smartsupp-widget-container *, [id*="smartsupp"] *, button[data-testid="chat-button"]');
-            elList.forEach(function(el) {
-              if (el.click) el.click();
-            });
-          } catch(e) {}
+          // Guaranteed in-page floating modal for mobile / fallback
+          if (modal) {
+            if (frame && frame.src === 'about:blank') {
+              frame.src = 'https://www.smartsupp.com/widget/3cdeb6680f2bbdf23ceab58462afab7133653b98';
+            }
+            modal.style.display = 'block';
+            if (openBtn) openBtn.style.display = 'none';
+          }
         }
 
-        var btn = document.getElementById('qb-live-chat-btn');
-        if (btn) {
-          btn.onclick = function(e) {
+        function closeChatModal() {
+          if (modal) {
+            modal.style.display = 'none';
+            if (openBtn) openBtn.style.display = 'flex';
+          }
+        }
+
+        if (openBtn) {
+          openBtn.onclick = function(e) {
             if (e && e.preventDefault) e.preventDefault();
-            triggerChat();
+            openChatModal();
           };
-          btn.ontouchend = function(e) {
+          openBtn.ontouchend = function(e) {
             if (e && e.preventDefault) e.preventDefault();
-            triggerChat();
+            openChatModal();
+          };
+        }
+
+        if (closeBtn) {
+          closeBtn.onclick = function(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            closeChatModal();
+          };
+          closeBtn.ontouchend = function(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            closeChatModal();
+          };
+        }
+
+        if (modal) {
+          modal.onclick = function(e) {
+            if (e.target === modal) {
+              closeChatModal();
+            }
           };
         }
       })();
