@@ -64,20 +64,5 @@
 
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-
-    <style>
-      /* Ensure Smartsupp official native widget displays at highest priority without obstruction */
-      #smartsupp-widget-container,
-      #chat-application,
-      iframe[name^="smartsupp"],
-      iframe[id^="smartsupp"],
-      div[id*="smartsupp"] {
-        z-index: 2147483647 !important;
-        pointer-events: auto !important;
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-      }
-    </style>
   </body>
 </html>
