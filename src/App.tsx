@@ -84,7 +84,15 @@ function MainAppContent() {
 
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
+  const [withdrawalBalances, setWithdrawalBalances] = useState<{ main: number; profit: number }>({ main: 0, profit: 0 });
   const [currentView, setCurrentView] = useState<'dashboard' | 'landing'>('dashboard');
+
+  const handleOpenWithdrawal = (main?: number, profit?: number) => {
+    if (main !== undefined && profit !== undefined) {
+      setWithdrawalBalances({ main, profit });
+    }
+    setWithdrawalModalOpen(true);
+  };
 
 
   const handleOpenAuth = (mode: AuthMode) => {
@@ -114,7 +122,7 @@ function MainAppContent() {
         onOpenContact={() => setContactModalOpen(true)}
         onOpenAdmin={() => setAdminHubOpen(true)}
         onOpenDeposit={() => setDepositModalOpen(true)}
-        onOpenWithdrawal={() => setWithdrawalModalOpen(true)}
+        onOpenWithdrawal={handleOpenWithdrawal}
         currentView={currentView}
         onNavigateView={(view) => setCurrentView(view)}
       />
@@ -126,7 +134,7 @@ function MainAppContent() {
           <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-20 sm:pt-28 pb-16">
             <UserDashboard 
               onOpenDeposit={() => setDepositModalOpen(true)}
-              onOpenWithdrawal={() => setWithdrawalModalOpen(true)}
+              onOpenWithdrawal={handleOpenWithdrawal}
               onOpenCalculator={handleScrollToCalculator}
               onOpenAdmin={() => setAdminHubOpen(true)}
             />
@@ -206,6 +214,8 @@ function MainAppContent() {
         isOpen={withdrawalModalOpen}
         onClose={() => setWithdrawalModalOpen(false)}
         onOpenContact={() => setContactModalOpen(true)}
+        mainBalance={withdrawalBalances.main}
+        profitBalance={withdrawalBalances.profit}
       />
 
       {/* Institutional Admin Control Hub */}

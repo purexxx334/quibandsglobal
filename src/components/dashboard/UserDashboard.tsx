@@ -45,7 +45,7 @@ import { API_BASE } from '../../config/api';
 
 interface UserDashboardProps {
   onOpenDeposit: () => void;
-  onOpenWithdrawal?: () => void;
+  onOpenWithdrawal?: (main?: number, profit?: number) => void;
   onOpenCalculator?: () => void;
   onOpenAdmin?: () => void;
 }
@@ -440,7 +440,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
             {onOpenWithdrawal && (
               <button
-                onClick={onOpenWithdrawal}
+                onClick={() => onOpenWithdrawal(mainBalanceUsd, profitBalanceUsd)}
                 className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-xs shadow-lg shadow-orange-500/20 transition-all flex items-center gap-2 transform active:scale-95"
               >
                 <ArrowUpCircle className="w-4 h-4" />

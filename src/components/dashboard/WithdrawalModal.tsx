@@ -22,6 +22,8 @@ interface WithdrawalModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenContact?: () => void;
+  mainBalance?: number;
+  profitBalance?: number;
 }
 
 interface MineCurrency {
@@ -44,7 +46,13 @@ const LOCAL_MINE_CURRENCIES: MineCurrency[] = [
   { code: 'USD', name: 'USD Mine (US Dollar)', symbol: '$', ratePerUsd: 1.00, flag: '🇺🇸' },
 ];
 
-export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClose, onOpenContact }) => {
+export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onOpenContact,
+  mainBalance,
+  profitBalance
+}) => {
   const { user, profile } = useAuth();
 
   const [currentStep, setCurrentStep] = useState<'convert' | 'contact'>('convert');
@@ -52,37 +60,51 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
   const [isFolderOpen, setIsFolderOpen] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [conversionRef, setConversionRef] = useState<string>('');
-  const [walletBal, setWalletBal] = useState<number>(0);
+  const [fetchedMainBal, setFetchedMainBal] = useState<number>(0);
+  const [fetchedProfitBal, setFetchedProfitBal] = useState<number>(0);
 
-  // Fetch latest capital / wallet balance from wallets or approved deposits
+  // Fetch latest capital & profit balances from wallets or approved deposits if not passed
   React.useEffect(() => {
     if (!isOpen || !user?.id) return;
     const fetchLatestBalances = async () => {
       try {
-        // 1. Check wallets table
+        // 1. Fetch from profiles
+        const { data: profData } = await supabase
+          .from('profiles')
+          .select('main_balance, profit_balance')
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
+
+        // 2. Fetch from wallets table
         const { data: walletData } = await supabase
           .from('wallets')
-          .select('balance')
+          .select('balance, profit_balance')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        if (walletData && walletData.balance !== null && walletData.balance !== undefined && Number(walletData.balance) > 0) {
-          setWalletBal(Number(walletData.balance));
-        } else {
-          // 2. Check approved deposits
-          const { data: depData } = await supabase
-            .from('deposits')
-            .select('amount, status')
-            .eq('user_id', user.id)
-            .eq('status', 'APPROVED');
+        // 3. Fetch from approved deposits
+        const { data: depData } = await supabase
+          .from('deposits')
+          .select('amount, status')
+          .eq('user_id', user.id)
+          .eq('status', 'APPROVED');
 
-          if (depData && depData.length > 0) {
-            const sum = depData.reduce((acc, d) => acc + Number(d.amount || 0), 0);
-            setWalletBal(sum);
-          }
-        }
+        const depSum = depData && depData.length > 0 
+          ? depData.reduce((acc, d) => acc + Number(d.amount || 0), 0) 
+          : 0;
+
+        const resolvedMain = Number(profData?.main_balance || 0) > 0
+          ? Number(profData?.main_balance)
+          : (Number(walletData?.balance || 0) > 0 ? Number(walletData?.balance) : depSum);
+
+        const resolvedProfit = Number(profData?.profit_balance || 0) > 0
+          ? Number(profData?.profit_balance)
+          : Number(walletData?.profit_balance || 0);
+
+        setFetchedMainBal(resolvedMain);
+        setFetchedProfitBal(resolvedProfit);
       } catch (err) {
-        console.warn('Error fetching wallet balance in WithdrawalModal:', err);
+        console.warn('Error fetching balances in WithdrawalModal:', err);
       }
     };
     fetchLatestBalances();
@@ -90,11 +112,17 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
 
   if (!isOpen) return null;
 
-  // Calculate Total USD Mine (Capital / Main Balance + Profit Balance)
-  const profileMainBal = Number(profile?.main_balance !== undefined ? profile.main_balance : 0);
-  const mainBal = profileMainBal > 0 ? profileMainBal : walletBal;
-  const profitBal = Number(profile?.profit_balance !== undefined ? profile.profit_balance : 0);
-  const totalUsdMine = +(mainBal + profitBal).toFixed(2);
+  // Resolve Capital (Main Balance) and Profit Balance
+  const effectiveMainBal = mainBalance !== undefined && mainBalance > 0
+    ? mainBalance
+    : (fetchedMainBal > 0 ? fetchedMainBal : Number(profile?.main_balance || 0));
+
+  const effectiveProfitBal = profitBalance !== undefined && profitBalance > 0
+    ? profitBalance
+    : (fetchedProfitBal > 0 ? fetchedProfitBal : Number(profile?.profit_balance || 0));
+
+  // Combined Total USD Mine (Capital + Profit)
+  const totalUsdMine = +(effectiveMainBal + effectiveProfitBal).toFixed(2);
 
   // Converted value
   const convertedValue = +(totalUsdMine * selectedCurrency.ratePerUsd).toFixed(2);
