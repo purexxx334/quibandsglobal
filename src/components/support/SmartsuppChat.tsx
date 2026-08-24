@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { MessageCircle } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -16,7 +15,7 @@ interface SmartsuppChatProps {
 export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = false }) => {
   const { user, profile } = useAuth();
 
-  // Synchronize Logged-in Trader Profile Data with Smartsupp (Option B)
+  // Option B: Continuous Synchronization of Logged-in Trader Profile Data
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -46,7 +45,7 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
           window.smartsupp('email', userEmail);
           window.smartsupp('variables', syncVars);
         } catch (e) {
-          console.warn('Smartsupp user sync warning:', e);
+          console.warn('Smartsupp sync warning:', e);
         }
       }
     }
@@ -67,55 +66,20 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
     }
   }, [adminHubOpen]);
 
-  // Don't show in Admin Hub
-  if (adminHubOpen) return null;
-
-  return (
-    /* Guaranteed Blue Floating Chat Launcher Button */
-    <div className="fixed bottom-5 right-5 z-[99999] notranslate" translate="no">
-      <button
-        onClick={openSmartsuppChat}
-        className="group relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-blue-600 via-blue-500 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white shadow-2xl shadow-blue-600/40 hover:shadow-blue-500/60 transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-white/30 cursor-pointer"
-        title="Live Chat"
-        aria-label="Open Live Chat"
-        type="button"
-      >
-        <MessageCircle className="w-7 h-7 sm:w-8 sm:h-8 text-white fill-white/15 transition-transform group-hover:scale-110" />
-        <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-blue-600 animate-pulse" />
-      </button>
-    </div>
-  );
+  // Smartsupp's native launcher renders directly without any DOM blocking overlay
+  return null;
 };
 
-// Global helper to open native Smartsupp chat directly
+// Global helper to open native Smartsupp chat directly (e.g. from navbar or Contact Support buttons)
 export const openSmartsuppChat = () => {
   if (typeof window === 'undefined') return;
 
-  // 1. Trigger Smartsupp JS API to open native chat
   if (typeof window.smartsupp === 'function') {
     try {
       window.smartsupp('chat:show');
       window.smartsupp('chat:open');
-      window.smartsupp('open');
     } catch (e) {
       console.warn('Smartsupp open warning:', e);
     }
-  }
-
-  // 2. Direct click and touch dispatch on native Smartsupp elements in DOM
-  try {
-    const smartsuppElements = document.querySelectorAll(
-      '#smartsupp-widget, iframe[id*="smartsupp"], iframe[name*="smartsupp"], iframe[title*="Smartsupp"], button[aria-label*="chat" i], div[id*="smartsupp-widget"]'
-    );
-    smartsuppElements.forEach((el) => {
-      (el as HTMLElement).click();
-      try {
-        el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-      } catch (e) {
-        // ignore
-      }
-    });
-  } catch (domErr) {
-    // ignore
   }
 };
