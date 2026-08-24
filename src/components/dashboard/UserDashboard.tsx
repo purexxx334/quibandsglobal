@@ -487,7 +487,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
           )}
         </div>
 
-        {/* 2.2 Dedicated Cloud Mining Balance (Live Ticking + Miner Symbol) */}
+        {/* 2.2 Dedicated Mining Balance (Live Ticking + Miner Symbol) */}
         <div className={`p-6 rounded-2xl bg-dark-900/90 border transition-all relative overflow-hidden shadow-lg ${
           hasApprovedDeposit
             ? justTicked ? 'border-emerald-400/80 shadow-emerald-500/10' : 'border-slate-800 hover:border-emerald-500/50'
@@ -495,7 +495,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
         }`}>
           <div className="flex items-center justify-between text-xs text-slate-400">
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold uppercase tracking-wider">Cloud Mining Balance</span>
+              <span className="font-semibold uppercase tracking-wider">Mining Balance</span>
               {hasApprovedDeposit ? (
                 <span className="flex h-2 w-2 relative">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -549,7 +549,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
         {/* 2.3 Realized Profit Balance */}
         <div className="p-6 rounded-2xl bg-dark-900/90 border border-slate-800 space-y-3 hover:border-slate-700 transition-all relative overflow-hidden shadow-lg">
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span className="font-semibold uppercase tracking-wider">Cumulative Profit Balance</span>
+            <span className="font-semibold uppercase tracking-wider">Profit Balance</span>
             <div className="p-2.5 rounded-xl bg-indigo-400/10 text-indigo-400">
               <TrendingUp className="w-5 h-5" />
             </div>

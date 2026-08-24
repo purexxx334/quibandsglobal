@@ -2016,7 +2016,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                 {/* 2. Mining Balance */}
                 <div className="p-3.5 bg-dark-900 rounded-xl border border-white/5 space-y-2">
                   <div className="flex justify-between items-center">
-                    <label className="font-bold text-emerald-400 uppercase tracking-wider text-[11px]">Cloud Mining Balance ($ USD)</label>
+                    <label className="font-bold text-emerald-400 uppercase tracking-wider text-[11px]">Mining Balance ($ USD)</label>
                     <span className="text-slate-400 text-[10px]">Rig Balance</span>
                   </div>
                   <input
