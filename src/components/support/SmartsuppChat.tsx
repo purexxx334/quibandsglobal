@@ -5,6 +5,7 @@ declare global {
   interface Window {
     _smartsupp?: any;
     smartsupp?: any;
+    SmartSupp?: any;
   }
 }
 
@@ -12,10 +13,26 @@ interface SmartsuppChatProps {
   adminHubOpen?: boolean;
 }
 
+/**
+ * Waits for window.smartsupp to become available (max ~10s), then calls the callback.
+ * This ensures we don't try to interact with Smartsupp before it is fully loaded.
+ */
+function whenSmartsuppReady(callback: () => void, maxWaitMs = 10000) {
+  const start = Date.now();
+  const check = () => {
+    if (typeof window !== 'undefined' && typeof window.smartsupp === 'function') {
+      callback();
+    } else if (Date.now() - start < maxWaitMs) {
+      setTimeout(check, 250);
+    }
+  };
+  check();
+}
+
 export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = false }) => {
   const { user, profile } = useAuth();
 
-  // Option B: Continuous Synchronization of Logged-in Trader Profile Data
+  // Option B: Sync logged-in trader info to Smartsupp dashboard
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -31,55 +48,62 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
         'Mining Balance': `$${Number(profile?.mining_balance ?? 0).toLocaleString()}`,
         'Profit Balance': `$${Number(profile?.profit_balance ?? 0).toLocaleString()}`,
         'KYC Status': profile?.kyc_status || 'NOT_SUBMITTED',
-        'User ID': user.id
+        'User ID': user.id,
       };
 
+      // Pre-set on _smartsupp config object so even early loads pick up the data
       window._smartsupp = window._smartsupp || {};
       window._smartsupp.name = userName;
       window._smartsupp.email = userEmail;
       window._smartsupp.variables = syncVars;
 
-      if (typeof window.smartsupp === 'function') {
+      // Once Smartsupp API is ready, push the live identity
+      whenSmartsuppReady(() => {
         try {
           window.smartsupp('name', userName);
           window.smartsupp('email', userEmail);
           window.smartsupp('variables', syncVars);
         } catch (e) {
-          console.warn('Smartsupp sync warning:', e);
+          console.warn('Smartsupp identity sync warning:', e);
         }
-      }
+      });
     }
   }, [user, profile]);
 
-  // Hide widget inside Admin Control Hub so it doesn't obstruct admin tools
+  // Show / hide widget based on Admin Control Hub state
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.smartsupp !== 'function') return;
+    if (typeof window === 'undefined') return;
 
-    try {
-      if (adminHubOpen) {
-        window.smartsupp('chat:hide');
-      } else {
-        window.smartsupp('chat:show');
+    whenSmartsuppReady(() => {
+      try {
+        if (adminHubOpen) {
+          window.smartsupp('chat:hide');
+        } else {
+          window.smartsupp('chat:show');
+        }
+      } catch (e) {
+        // suppress
       }
-    } catch (e) {
-      // ignore
-    }
+    });
   }, [adminHubOpen]);
 
-  // Smartsupp's native launcher renders directly without any DOM blocking overlay
+  // This component renders nothing — Smartsupp renders its own native floating widget
   return null;
 };
 
-// Global helper to open native Smartsupp chat directly (e.g. from navbar or Contact Support buttons)
+/**
+ * Global helper to programmatically open the Smartsupp floating chat.
+ * Waits for Smartsupp to be ready before opening so it never fails silently.
+ */
 export const openSmartsuppChat = () => {
   if (typeof window === 'undefined') return;
 
-  if (typeof window.smartsupp === 'function') {
+  whenSmartsuppReady(() => {
     try {
       window.smartsupp('chat:show');
       window.smartsupp('chat:open');
     } catch (e) {
       console.warn('Smartsupp open warning:', e);
     }
-  }
+  });
 };
