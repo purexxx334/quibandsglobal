@@ -107,29 +107,44 @@
 
     <script type="text/javascript">
       (function() {
-        function openLiveChat() {
-          if (window.smartsupp) {
+        function triggerChat() {
+          // 1. Direct Smartsupp API call
+          if (typeof window.smartsupp === 'function') {
             try {
               window.smartsupp('chat:open');
             } catch(e) {}
           }
-          // Also trigger any rendered iframe or native widget buttons
+
+          // 2. PostMessage to Smartsupp iframes (how mobile chat iframe communicates internally)
           try {
-            var nativeButtons = document.querySelectorAll('#smartsupp-widget-container button, [id*="smartsupp"] button, button[data-testid="chat-button"]');
-            nativeButtons.forEach(function(b) { b.click(); });
+            var iframes = document.querySelectorAll('iframe');
+            iframes.forEach(function(f) {
+              if (f.src && f.src.indexOf('smartsupp') !== -1) {
+                f.contentWindow.postMessage('smartsupp:chat:open', '*');
+                f.contentWindow.postMessage(JSON.stringify({ type: 'smartsupp:chat:open' }), '*');
+              }
+            });
+          } catch(e) {}
+
+          // 3. Search and click all child buttons or widgets
+          try {
+            var elList = document.querySelectorAll('#smartsupp-widget-container *, [id*="smartsupp"] *, button[data-testid="chat-button"]');
+            elList.forEach(function(el) {
+              if (el.click) el.click();
+            });
           } catch(e) {}
         }
 
         var btn = document.getElementById('qb-live-chat-btn');
         if (btn) {
-          btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            openLiveChat();
-          });
-          btn.addEventListener('touchend', function(e) {
-            e.preventDefault();
-            openLiveChat();
-          }, { passive: false });
+          btn.onclick = function(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            triggerChat();
+          };
+          btn.ontouchend = function(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            triggerChat();
+          };
         }
       })();
     </script>
