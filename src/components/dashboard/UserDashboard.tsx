@@ -852,7 +852,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
                   <p className="text-sm font-medium text-slate-400">No withdrawal records found.</p>
                   {onOpenWithdrawal && (
                     <button
-                      onClick={onOpenWithdrawal}
+                      onClick={() => onOpenWithdrawal(mainBalanceUsd, profitBalanceUsd)}
                       className="px-5 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold transition-colors"
                     >
                       Start Withdrawal
@@ -914,7 +914,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
                           <div className="pt-2 flex items-center justify-between border-t border-slate-800">
                             <span className="text-xs text-emerald-400 font-medium">Clearance Ready</span>
                             <button
-                              onClick={onOpenWithdrawal}
+                              onClick={() => onOpenWithdrawal(mainBalanceUsd, profitBalanceUsd)}
                               className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-xs shadow-md flex items-center space-x-1"
                             >
                               <span>Withdraw Funds</span>
