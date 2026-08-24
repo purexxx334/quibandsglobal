@@ -32,7 +32,8 @@ import {
   FileCheck,
   ShieldAlert,
   Edit3,
-  Gift
+  Gift,
+  Coins
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { DepositRequest, WithdrawalRequest, UserNotification, Transaction } from '../../types';
@@ -45,6 +46,7 @@ import { API_BASE } from '../../config/api';
 
 interface UserDashboardProps {
   onOpenDeposit: () => void;
+  onOpenConvert?: (main?: number, profit?: number) => void;
   onOpenWithdrawal?: (main?: number, profit?: number) => void;
   onOpenCalculator?: () => void;
   onOpenAdmin?: () => void;
@@ -60,7 +62,7 @@ const SUPPORTED_COINS = [
   { symbol: 'BNB', name: 'BNB Chain', network: 'BEP20 EVM', price: 580.00, icon: '⬡', color: 'from-yellow-400 to-amber-500', textCol: 'text-yellow-400' },
 ];
 
-export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onOpenWithdrawal, onOpenCalculator, onOpenAdmin }) => {
+export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onOpenConvert, onOpenWithdrawal, onOpenCalculator, onOpenAdmin }) => {
   const { user, profile, session, role, refreshProfile } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'transactions' | 'deposits' | 'withdrawals' | 'notifications'>('transactions');
@@ -432,21 +434,29 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
             <button
               onClick={onOpenDeposit}
-              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-gold-400 to-amber-600 hover:from-gold-500 hover:to-amber-700 text-dark-950 font-bold text-xs shadow-gold transition-all flex items-center gap-2 transform active:scale-95"
+              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-gold-400 to-amber-600 hover:from-gold-500 hover:to-amber-700 text-dark-950 font-bold text-xs shadow-gold transition-all flex items-center gap-2 transform active:scale-95 cursor-pointer"
             >
               <ArrowDownCircle className="w-4 h-4" />
               <span>Deposit Assets</span>
             </button>
 
-            {onOpenWithdrawal && (
+            {onOpenConvert && (
               <button
-                onClick={() => onOpenWithdrawal(mainBalanceUsd, profitBalanceUsd)}
-                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-xs shadow-lg shadow-orange-500/20 transition-all flex items-center gap-2 transform active:scale-95"
+                onClick={() => onOpenConvert(mainBalanceUsd, profitBalanceUsd)}
+                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 transform active:scale-95 cursor-pointer"
               >
-                <ArrowUpCircle className="w-4 h-4" />
-                <span>Withdraw</span>
+                <Coins className="w-4 h-4" />
+                <span>Convert</span>
               </button>
             )}
+
+            <button
+              type="button"
+              className="px-5 py-3 rounded-2xl bg-slate-800/90 hover:bg-slate-800 text-slate-300 hover:text-white font-bold text-xs border border-slate-700/80 transition-all flex items-center gap-2 transform active:scale-95 cursor-pointer"
+            >
+              <ArrowUpCircle className="w-4 h-4 text-slate-400" />
+              <span>Withdraw</span>
+            </button>
 
             <button
               onClick={fetchDashboardData}

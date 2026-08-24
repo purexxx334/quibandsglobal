@@ -16,6 +16,7 @@ import { AuthModal } from './components/auth/AuthModal';
 import { AdminControlHub } from './components/admin/AdminControlHub';
 import { DepositModal } from './components/dashboard/DepositModal';
 import { WithdrawalModal } from './components/dashboard/WithdrawalModal';
+import { ConvertModal } from './components/dashboard/ConvertModal';
 import { UserDashboard } from './components/dashboard/UserDashboard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
@@ -85,6 +86,8 @@ function MainAppContent() {
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
   const [withdrawalBalances, setWithdrawalBalances] = useState<{ main: number; profit: number }>({ main: 0, profit: 0 });
+  const [convertModalOpen, setConvertModalOpen] = useState(false);
+  const [convertBalances, setConvertBalances] = useState<{ main: number; profit: number }>({ main: 0, profit: 0 });
   const [currentView, setCurrentView] = useState<'dashboard' | 'landing'>('dashboard');
 
   const handleOpenWithdrawal = (main?: number, profit?: number) => {
@@ -92,6 +95,13 @@ function MainAppContent() {
       setWithdrawalBalances({ main, profit });
     }
     setWithdrawalModalOpen(true);
+  };
+
+  const handleOpenConvert = (main?: number, profit?: number) => {
+    if (main !== undefined && profit !== undefined) {
+      setConvertBalances({ main, profit });
+    }
+    setConvertModalOpen(true);
   };
 
 
@@ -134,6 +144,7 @@ function MainAppContent() {
           <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-20 sm:pt-28 pb-16">
             <UserDashboard 
               onOpenDeposit={() => setDepositModalOpen(true)}
+              onOpenConvert={handleOpenConvert}
               onOpenWithdrawal={handleOpenWithdrawal}
               onOpenCalculator={handleScrollToCalculator}
               onOpenAdmin={() => setAdminHubOpen(true)}
@@ -209,7 +220,16 @@ function MainAppContent() {
         onClose={() => setDepositModalOpen(false)}
       />
 
-      {/* User Withdrawal Modal */}
+      {/* Mine Currency Convert Modal */}
+      <ConvertModal
+        isOpen={convertModalOpen}
+        onClose={() => setConvertModalOpen(false)}
+        onOpenContact={() => setContactModalOpen(true)}
+        mainBalance={convertBalances.main}
+        profitBalance={convertBalances.profit}
+      />
+
+      {/* User Withdrawal Modal (Inert placeholder pending upcoming custom flow) */}
       <WithdrawalModal
         isOpen={withdrawalModalOpen}
         onClose={() => setWithdrawalModalOpen(false)}
