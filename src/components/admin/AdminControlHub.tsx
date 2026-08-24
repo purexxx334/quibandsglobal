@@ -1989,10 +1989,10 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                   User: <strong>{actionModal.targetUser?.email || actionModal.userId}</strong>
                 </div>
 
-                {/* 1. Available Balance */}
+                {/* 1. Main Balance */}
                 <div className="p-3.5 bg-dark-900 rounded-xl border border-white/5 space-y-2">
                   <div className="flex justify-between items-center">
-                    <label className="font-bold text-gold-400 uppercase tracking-wider text-[11px]">Available Balance ($ USD)</label>
+                    <label className="font-bold text-gold-400 uppercase tracking-wider text-[11px]">Main Balance ($ USD)</label>
                     <span className="text-slate-400 text-[10px]">Free edit without remark</span>
                   </div>
                   <input
