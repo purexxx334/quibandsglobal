@@ -549,7 +549,15 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
             <div className="text-3xl font-black text-emerald-300 font-mono tracking-tight">
-              {convertCurrency === 'SGD' ? 'S$' : (convertCurrency === 'EUR' ? '€' : (convertCurrency === 'GBP' ? '£' : (convertCurrency === 'JPY' ? '¥' : '$')))} {convertBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-base font-semibold text-emerald-400">{convertCurrency} Mine</span>
+              {convertCurrency === 'SGD' ? 'S$' :
+               convertCurrency === 'EUR' ? '€' :
+               convertCurrency === 'GBP' ? '£' :
+               convertCurrency === 'CAD' ? 'CA$' :
+               convertCurrency === 'AUD' ? 'A$' :
+               convertCurrency === 'JPY' ? '¥' :
+               convertCurrency === 'CHF' ? 'CHF ' :
+               convertCurrency === 'AED' ? 'AED ' : '$'
+              }{convertBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-base font-semibold text-emerald-400">{convertCurrency} Mine</span>
             </div>
             <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />

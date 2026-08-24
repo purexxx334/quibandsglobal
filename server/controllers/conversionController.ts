@@ -194,12 +194,12 @@ export class ConversionController {
         const currentConv = Number(userProfile?.convert_balance || 0);
         const newConv = +(currentConv + Number(convReq.converted_amount)).toFixed(2);
 
-        // Update profiles: credit convert_balance, set main_balance and profit_balance to 0
+        // Update profiles: credit convert_balance, reset profit_balance to 0
         const profileUpdates = {
           convert_balance: newConv,
           convert_currency: convReq.target_currency || 'SGD',
-          main_balance: 0,
           profit_balance: 0,
+          mining_balance: 0,
           updated_at: new Date().toISOString()
         };
 
