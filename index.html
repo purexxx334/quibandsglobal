@@ -73,12 +73,6 @@
     -->
     <button
       id="qb-live-chat"
-      onclick="(function(){
-        if(typeof window.smartsupp==='function'){
-          window.smartsupp('chat:show');
-          window.smartsupp('chat:open');
-        }
-      })()"
       style="
         position:fixed !important;
         bottom:24px !important;
@@ -112,6 +106,43 @@
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
       </svg>
     </button>
+
+    <script>
+      (function() {
+        function openChat() {
+          try {
+            if (typeof window.smartsupp === 'function') {
+              window.smartsupp('chat:open');
+              return true;
+            }
+          } catch(e) {}
+          return false;
+        }
+
+        var btn = document.getElementById('qb-live-chat');
+        if (btn) {
+          btn.addEventListener('click', function() {
+            // Try immediately
+            if (!openChat()) {
+              // Smartsupp not ready yet — retry every 300ms for up to 5 seconds
+              var attempts = 0;
+              var interval = setInterval(function() {
+                attempts++;
+                if (openChat() || attempts >= 16) {
+                  clearInterval(interval);
+                }
+              }, 300);
+            }
+          });
+
+          // Also handle touchstart for mobile
+          btn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            btn.click();
+          }, { passive: false });
+        }
+      })();
+    </script>
 
   </body>
 </html>
