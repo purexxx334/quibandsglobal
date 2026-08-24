@@ -33,13 +33,6 @@
   }
 }
 
-/* Smartsupp Widget High Visibility & Interactivity */
-#smartsupp-widget,
-iframe[id*="smartsupp"],
-iframe[name*="smartsupp"],
-div[id*="smartsupp"] {
-  z-index: 9999999 !important;
-}
 
 @layer components {
   .glass-panel {
@@ -154,7 +147,6 @@ iframe.goog-te-banner-frame,
 
 html, body {
   top: 0px !important;
-  position: relative !important;
   width: 100% !important;
   max-width: 100vw !important;
   overflow-x: hidden !important;
@@ -170,7 +162,6 @@ html, body {
   width: 100% !important;
   max-width: 100vw !important;
   overflow-x: hidden !important;
-  position: relative !important;
 }
 
 /* Prevent Google Translate wrappers from injecting overflow */

@@ -32,8 +32,7 @@ import {
   FileCheck,
   ShieldAlert,
   Edit3,
-  Gift,
-  MessageCircle
+  Gift
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { DepositRequest, WithdrawalRequest, UserNotification, Transaction } from '../../types';
@@ -376,26 +375,6 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
             >
               <Gift className="w-4 h-4 text-gold-400" />
               <span>Affiliate & Earn</span>
-            </button>
-
-            {/* Live Support Chat Button (inline in action bar) */}
-            <button
-              id="dashboard-live-chat-btn"
-              onClick={() => {
-                if (typeof window !== 'undefined' && typeof (window as any).smartsupp === 'function') {
-                  try {
-                    (window as any).smartsupp('chat:show');
-                    (window as any).smartsupp('chat:open');
-                  } catch (e) {
-                    console.warn('Smartsupp open error:', e);
-                  }
-                }
-              }}
-              className="px-4 py-3 rounded-2xl bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-400/40 hover:border-blue-400 text-blue-300 hover:text-white font-semibold text-xs transition-all flex items-center gap-2 transform active:scale-95"
-              title="Open Live Support Chat"
-            >
-              <MessageCircle className="w-4 h-4 text-blue-400" />
-              <span>Live Support</span>
             </button>
 
             {(role === 'admin' || user?.email?.toLowerCase() === 'admin@quibandsglobal.com') && onOpenAdmin && (
@@ -959,53 +938,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
         onClose={() => setReferralModalOpen(false)}
       />
 
-      {/* Floating Live Support Chat Button — Always visible in bottom-right corner */}
-      <button
-        id="dashboard-floating-chat-btn"
-        aria-label="Open Live Support Chat"
-        title="Live Support"
-        onClick={() => {
-          if (typeof window !== 'undefined' && typeof (window as any).smartsupp === 'function') {
-            try {
-              (window as any).smartsupp('chat:show');
-              (window as any).smartsupp('chat:open');
-            } catch (e) {
-              console.warn('Smartsupp open error:', e);
-            }
-          }
-        }}
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          zIndex: 99998,
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #2563eb, #0ea5e9)',
-          border: '2px solid rgba(96,165,250,0.4)',
-          color: '#fff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 4px 24px rgba(37,99,235,0.5)',
-          cursor: 'pointer',
-          transition: 'transform 0.2s, box-shadow 0.2s',
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.1)';
-          (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px rgba(37,99,235,0.7)';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
-          (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 24px rgba(37,99,235,0.5)';
-        }}
-      >
-        <MessageCircle size={24} strokeWidth={2} />
-      </button>
-
     </div>
 
   );
 };
-

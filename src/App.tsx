@@ -17,7 +17,6 @@ import { AdminControlHub } from './components/admin/AdminControlHub';
 import { DepositModal } from './components/dashboard/DepositModal';
 import { WithdrawalModal } from './components/dashboard/WithdrawalModal';
 import { UserDashboard } from './components/dashboard/UserDashboard';
-import { SmartsuppChat, openSmartsuppChat } from './components/support/SmartsuppChat';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 import { LanguageProvider } from './context/LanguageContext';
@@ -214,8 +213,6 @@ function MainAppContent() {
         onClose={() => setAdminHubOpen(false)}
       />
 
-      {/* Smartsupp 24/7 Live Chat & Visitor Intelligence Integration */}
-      <SmartsuppChat adminHubOpen={adminHubOpen} />
 
 
 
