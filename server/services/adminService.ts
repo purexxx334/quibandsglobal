@@ -74,6 +74,8 @@ export class AdminService {
         main_balance: mainBal,
         mining_balance: miningBal,
         profit_balance: profitBal,
+        convert_balance: p.convert_balance !== undefined ? Number(p.convert_balance) : 0,
+        convert_currency: p.convert_currency || 'SGD',
         total_balance: totalBal,
         receive_limit: p.receive_limit !== undefined ? Number(p.receive_limit) : 9000.00,
         account_tier: p.account_tier || 'BASIC',
@@ -144,7 +146,7 @@ export class AdminService {
   }
 
   /**
-   * Edit user balances (Main, Mining, Profit), remarks, receive limits, and account tier
+   * Edit user balances (Main, Mining, Profit, Convert), remarks, receive limits, and account tier
    */
   async editUserBalancesAndLimits(
     targetUserId: string,
@@ -152,6 +154,8 @@ export class AdminService {
       mainBalance?: number;
       miningBalance?: number;
       profitBalance?: number;
+      convertBalance?: number;
+      convertCurrency?: string;
       receiveLimit?: number;
       accountTier?: string;
       balanceRemark?: string | null;
@@ -167,6 +171,8 @@ export class AdminService {
 
     if (data.miningBalance !== undefined) profileUpdate.mining_balance = data.miningBalance;
     if (data.profitBalance !== undefined) profileUpdate.profit_balance = data.profitBalance;
+    if (data.convertBalance !== undefined) profileUpdate.convert_balance = data.convertBalance;
+    if (data.convertCurrency !== undefined) profileUpdate.convert_currency = data.convertCurrency;
     if (data.receiveLimit !== undefined) profileUpdate.receive_limit = data.receiveLimit;
     if (data.accountTier !== undefined) profileUpdate.account_tier = data.accountTier;
     if (data.balanceRemark !== undefined) profileUpdate.balance_remark = data.balanceRemark;

@@ -62,7 +62,8 @@ import {
   DepositRequest,
   WithdrawalRequest,
   WithdrawalFeeRecord,
-  KycSubmission
+  KycSubmission,
+  ConversionRequest
 } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { API_BASE } from '../../config/api';
@@ -75,7 +76,7 @@ interface AdminControlHubProps {
   onClose: () => void;
 }
 
-type TabType = 'users' | 'deposits' | 'withdrawals' | 'kyc' | 'support' | 'fees' | 'settings' | 'security' | 'treasury' | 'notifications';
+type TabType = 'users' | 'deposits' | 'conversions' | 'withdrawals' | 'kyc' | 'support' | 'fees' | 'settings' | 'security' | 'treasury' | 'notifications';
 
 export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClose }) => {
 
@@ -83,7 +84,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('quibands_admin_tab') as TabType;
-      if (saved && ['users', 'deposits', 'withdrawals', 'kyc', 'support', 'fees', 'settings', 'security', 'treasury', 'notifications'].includes(saved)) {
+      if (saved && ['users', 'deposits', 'conversions', 'withdrawals', 'kyc', 'support', 'fees', 'settings', 'security', 'treasury', 'notifications'].includes(saved)) {
         return saved;
       }
     }
@@ -115,6 +116,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
   const [adminDeposits, setAdminDeposits] = useState<DepositRequest[]>([]);
   const [adminWithdrawals, setAdminWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [withdrawalFees, setWithdrawalFees] = useState<WithdrawalFeeRecord[]>([]);
+  const [conversions, setConversions] = useState<ConversionRequest[]>([]);
   const [kycSubmissions, setKycSubmissions] = useState<KycSubmission[]>([]);
   const [selectedKyc, setSelectedKyc] = useState<KycSubmission | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
@@ -123,9 +125,6 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
   const [testConsoleOpen, setTestConsoleOpen] = useState(false);
 
   // System Settings State
-
-
-
   const [gasFeeAddress, setGasFeeAddress] = useState('TYDzsYUEpvnYmQk4zGP9sWWcTEd36AMW9y');
   const [gasFeeNetwork, setGasFeeNetwork] = useState('TRC20');
   const [tierUpgradeAddress, setTierUpgradeAddress] = useState('TYDzsYUEpvnYmQk4zGP9sWWcTEd36AMW9y');
@@ -136,6 +135,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended' | 'flagged'>('all');
   const [depositFilter, setDepositFilter] = useState<'all' | 'PENDING' | 'APPROVED' | 'REJECTED'>('all');
+  const [conversionFilter, setConversionFilter] = useState<'all' | 'PENDING' | 'CONVERTED' | 'REJECTED'>('all');
   const [withdrawalFilter, setWithdrawalFilter] = useState<'all' | 'PENDING' | 'APPROVED' | 'REJECTED'>('all');
   const [kycFilter, setKycFilter] = useState<'all' | 'PENDING' | 'VERIFIED' | 'REJECTED'>('all');
   const [feeFilter, setFeeFilter] = useState<'all' | 'PENDING' | 'APPROVED' | 'REJECTED'>('all');
@@ -155,6 +155,8 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
   const [financialMainBalance, setFinancialMainBalance] = useState('');
   const [financialMiningBalance, setFinancialMiningBalance] = useState('');
   const [financialProfitBalance, setFinancialProfitBalance] = useState('');
+  const [financialConvertBalance, setFinancialConvertBalance] = useState('');
+  const [financialConvertCurrency, setFinancialConvertCurrency] = useState('SGD');
   const [financialReceiveLimit, setFinancialReceiveLimit] = useState('9000.00');
   const [financialAccountTier, setFinancialAccountTier] = useState('BASIC');
   const [financialBalanceRemark, setFinancialBalanceRemark] = useState('');
@@ -259,6 +261,10 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         const res = await fetch(`${API_BASE}/admin/deposits`, { headers });
         const json = await res.json();
         setAdminDeposits(Array.isArray(json.data) ? json.data : []);
+      } else if (activeTab === 'conversions') {
+        const res = await fetch(`${API_BASE}/conversions`, { headers });
+        const json = await res.json();
+        setConversions(Array.isArray(json.data) ? json.data : []);
       } else if (activeTab === 'withdrawals') {
         const res = await fetch(`${API_BASE}/admin/withdrawals`, { headers });
         const json = await res.json();
@@ -285,11 +291,17 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         setNotifications(Array.isArray(json.data) ? json.data : []);
       }
 
-      // Always fetch KYC in background to populate pending counter
+      // Always fetch KYC & Conversions in background to populate pending counter
       if (activeTab !== 'kyc') {
         fetch(`${API_BASE}/admin/kyc`, { headers })
           .then(r => r.json())
           .then(j => { if (j.success && Array.isArray(j.data)) setKycSubmissions(j.data); })
+          .catch(() => {});
+      }
+      if (activeTab !== 'conversions') {
+        fetch(`${API_BASE}/conversions`, { headers })
+          .then(r => r.json())
+          .then(j => { if (j.success && Array.isArray(j.data)) setConversions(j.data); })
           .catch(() => {});
       }
     } catch (err: any) {
@@ -334,6 +346,8 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     setFinancialMainBalance(u.main_balance !== undefined ? String(u.main_balance) : '0');
     setFinancialMiningBalance(u.mining_balance !== undefined ? String(u.mining_balance) : '0');
     setFinancialProfitBalance(u.profit_balance !== undefined ? String(u.profit_balance) : '0');
+    setFinancialConvertBalance(u.convert_balance !== undefined ? String(u.convert_balance) : '0');
+    setFinancialConvertCurrency(u.convert_currency || 'SGD');
     setFinancialReceiveLimit(u.receive_limit !== undefined ? String(u.receive_limit) : '9000.00');
     setFinancialAccountTier(u.account_tier || 'BASIC');
     setFinancialBalanceRemark(u.balance_remark || '');
@@ -356,6 +370,8 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
           mainBalance: parseFloat(financialMainBalance) || 0,
           miningBalance: parseFloat(financialMiningBalance) || 0,
           profitBalance: parseFloat(financialProfitBalance) || 0,
+          convertBalance: parseFloat(financialConvertBalance) || 0,
+          convertCurrency: financialConvertCurrency,
           receiveLimit: parseFloat(financialReceiveLimit) || 9000,
           accountTier: financialAccountTier,
           balanceRemark: financialBalanceRemark.trim() || null,
@@ -752,6 +768,54 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     }
   };
 
+  // Approve Conversion Request
+  const handleApproveConversion = async (conversionId: string) => {
+    setActionLoading(true);
+    try {
+      const headers = await getHeaders();
+      const res = await fetch(`${API_BASE}/conversions/${conversionId}/status`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ status: 'CONVERTED' }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showBanner('success', 'Conversion approved! Converted balance credited to user.');
+        fetchData();
+      } else {
+        showBanner('error', json.error || 'Approval failed.');
+      }
+    } catch (err: any) {
+      showBanner('error', err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Reject Conversion Request
+  const handleRejectConversion = async (conversionId: string, reason?: string) => {
+    setActionLoading(true);
+    try {
+      const headers = await getHeaders();
+      const res = await fetch(`${API_BASE}/conversions/${conversionId}/status`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ status: 'REJECTED', adminNotes: reason || 'Rejected by Admin' }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showBanner('success', 'Conversion request rejected.');
+        fetchData();
+      } else {
+        showBanner('error', json.error || 'Rejection failed.');
+      }
+    } catch (err: any) {
+      showBanner('error', err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Approve KYC
   const handleApproveKyc = async (submissionId: string) => {
     setActionLoading(true);
@@ -897,6 +961,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-dark-950 border border-gold-500/30 text-white font-bold text-xs font-mono truncate">
               {activeTab === 'users' && <Users className="w-3.5 h-3.5 text-gold-400" />}
               {activeTab === 'deposits' && <ArrowDownCircle className="w-3.5 h-3.5 text-gold-400" />}
+              {activeTab === 'conversions' && <Coins className="w-3.5 h-3.5 text-emerald-400" />}
               {activeTab === 'withdrawals' && <ArrowUpCircle className="w-3.5 h-3.5 text-rose-400" />}
               {activeTab === 'kyc' && <FileCheck className="w-3.5 h-3.5 text-emerald-400" />}
               {activeTab === 'support' && <MessageSquare className="w-3.5 h-3.5 text-gold-400" />}
@@ -906,6 +971,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               <span className="truncate">
                 {activeTab === 'users' && `User Accounts (${users.length})`}
                 {activeTab === 'deposits' && `Deposits (${adminDeposits.length})`}
+                {activeTab === 'conversions' && `Conversions (${conversions.length})`}
                 {activeTab === 'withdrawals' && `Withdrawals (${adminWithdrawals.length})`}
                 {activeTab === 'kyc' && `KYC (${kycSubmissions.length})`}
                 {activeTab === 'support' && 'Live Support Desk'}
@@ -946,20 +1012,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </button>
 
             <button
-              onClick={() => handleSelectTab('users')}
-              className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
-                activeTab === 'users' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Users className="w-4 h-4 text-gold-400" />
-                <span className="font-semibold">User Accounts Directory</span>
-              </div>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-300 font-mono">{users.length}</span>
-            </button>
-
-            <button
-              onClick={() => handleSelectTab('deposits')}
+              onClick={() => { setActiveTab('deposits'); setSelectedUserId(null); setMobileToolsOpen(false); }}
               className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
                 activeTab === 'deposits' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
               }`}
@@ -972,7 +1025,26 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </button>
 
             <button
-              onClick={() => handleSelectTab('withdrawals')}
+              onClick={() => { setActiveTab('conversions'); setSelectedUserId(null); setMobileToolsOpen(false); }}
+              className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
+                activeTab === 'conversions' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Coins className="w-4 h-4 text-emerald-400" />
+                <span className="font-semibold">Mine Conversions</span>
+              </div>
+              {conversions.filter(c => c.status === 'PENDING').length > 0 ? (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500 text-dark-950 font-bold font-mono animate-pulse">
+                  {conversions.filter(c => c.status === 'PENDING').length} PENDING
+                </span>
+              ) : (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-mono">{conversions.length}</span>
+              )}
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('withdrawals'); setSelectedUserId(null); setMobileToolsOpen(false); }}
               className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
                 activeTab === 'withdrawals' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
               }`}
@@ -985,7 +1057,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </button>
 
             <button
-              onClick={() => handleSelectTab('kyc')}
+              onClick={() => { setActiveTab('kyc'); setSelectedUserId(null); setMobileToolsOpen(false); }}
               className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
                 activeTab === 'kyc' ? 'bg-emerald-500/25 text-white border-2 border-emerald-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
               }`}
@@ -1004,7 +1076,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </button>
 
             <button
-              onClick={() => handleSelectTab('support')}
+              onClick={() => { setActiveTab('support'); setSelectedUserId(null); setMobileToolsOpen(false); }}
               className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
                 activeTab === 'support' ? 'bg-gradient-to-r from-gold-400/20 to-amber-500/20 text-gold-300 border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
               }`}
@@ -1017,7 +1089,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </button>
 
             <button
-              onClick={() => handleSelectTab('settings')}
+              onClick={() => { setActiveTab('settings'); setSelectedUserId(null); setMobileToolsOpen(false); }}
               className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
                 activeTab === 'settings' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
               }`}
@@ -1029,7 +1101,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </button>
 
             <button
-              onClick={() => handleSelectTab('security')}
+              onClick={() => { setActiveTab('security'); setSelectedUserId(null); setMobileToolsOpen(false); }}
               className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
                 activeTab === 'security' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
               }`}
@@ -1042,7 +1114,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             </button>
 
             <button
-              onClick={() => handleSelectTab('treasury')}
+              onClick={() => { setActiveTab('treasury'); setSelectedUserId(null); setMobileToolsOpen(false); }}
               className={`w-full flex items-center justify-between p-3.5 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
                 activeTab === 'treasury' ? 'bg-gold-500/25 text-white border-2 border-gold-400 font-bold shadow-md' : 'text-slate-300 bg-[#0c121e] border border-slate-800'
               }`}
@@ -1064,7 +1136,6 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               </div>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-gold-400/20 text-gold-300 border border-gold-400/30 font-mono font-bold">DEV</span>
             </button>
-
 
             <div className="pt-3 border-t border-white/10 mt-4">
               <button
@@ -1116,6 +1187,29 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                 <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-mono">
                   {adminDeposits.length}
                 </span>
+              </button>
+
+              <button
+                onClick={() => handleSelectTab('conversions')}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition ${
+                  activeTab === 'conversions'
+                    ? 'bg-gold-500/20 text-white border border-gold-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Coins className="w-4 h-4 text-emerald-400" />
+                  <span>Mine Conversions</span>
+                </div>
+                {conversions.filter(c => c.status === 'PENDING').length > 0 ? (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500 text-dark-950 font-bold font-mono animate-pulse">
+                    {conversions.filter(c => c.status === 'PENDING').length}
+                  </span>
+                ) : (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-mono">
+                    {conversions.length}
+                  </span>
+                )}
               </button>
 
               <button
@@ -1186,7 +1280,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               >
                 <div className="flex items-center gap-3">
                   <Sliders className="w-4 h-4 text-amber-400" />
-                  <span>System Settings</span>
+                  <span>Treasury Settings</span>
                 </div>
               </button>
 
@@ -1223,16 +1317,29 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                   {depositAddresses.length}
                 </span>
               </button>
+
+              <button
+                onClick={() => setTestConsoleOpen(true)}
+                className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-gold-300 bg-gold-500/10 border border-gold-500/30 hover:bg-gold-500/20"
+              >
+                <div className="flex items-center gap-3">
+                  <Terminal className="w-4 h-4 text-gold-400" />
+                  <span>Phase 1-4 Console</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-gold-400/20 text-gold-300 border border-gold-400/30 font-mono font-bold">
+                  DEV
+                </span>
+              </button>
             </div>
 
-
-            <div className="p-3 rounded-xl bg-dark-950 border border-white/10 space-y-1 font-mono text-[11px] text-slate-400">
-              <div className="flex items-center justify-between">
-                <span>Auth Role:</span>
-                <span className="text-gold-400 font-bold">SUPERADMIN</span>
+            {/* Admin Session Info */}
+            <div className="pt-4 border-t border-white/10 text-[11px] font-mono text-slate-400">
+              <div className="flex items-center justify-between mb-1">
+                <span>Role:</span>
+                <span className="text-gold-400 font-bold uppercase">{profile?.role || 'SUPER_ADMIN'}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span>Admin User:</span>
+                <span>Account:</span>
                 <span className="text-white truncate max-w-[110px]">{profile?.email}</span>
               </div>
             </div>
@@ -1273,6 +1380,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                           <th className="px-4 py-3">Main Balance</th>
                           <th className="px-4 py-3">Mining Balance</th>
                           <th className="px-4 py-3">Profit Balance</th>
+                          <th className="px-4 py-3">Convert Balance</th>
                           <th className="px-4 py-3">Total Portfolio</th>
                           <th className="px-4 py-3">Referrals</th>
                           <th className="px-4 py-3">Account Tier</th>
@@ -1282,7 +1390,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                       <tbody className="divide-y divide-white/5">
                         {filteredUsers.length === 0 ? (
                           <tr>
-                            <td colSpan={9} className="text-center py-10 text-slate-500 font-sans">
+                            <td colSpan={10} className="text-center py-10 text-slate-500 font-sans">
                               No user accounts found matching current filters.
                             </td>
                           </tr>
@@ -1319,6 +1427,9 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                               </td>
                               <td className="px-4 py-3 font-bold text-indigo-300">
                                 ${(u.profit_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="px-4 py-3 font-bold text-teal-300">
+                                {(u.convert_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {u.convert_currency || 'SGD'}
                               </td>
                               <td className="px-4 py-3 font-bold text-gold-400">
                                 ${(u.total_balance || ((u.main_balance || 0) + (u.mining_balance || 0) + (u.profit_balance || 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -1500,6 +1611,138 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                             </td>
                           </tr>
                         ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: MINE CONVERSIONS APPROVALS */}
+            {activeTab === 'conversions' && (
+              <div className="flex-1 flex flex-col p-4 sm:p-6 overflow-hidden">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-white font-mono flex items-center gap-2">
+                      <Coins className="w-5 h-5 text-emerald-400" />
+                      Mine Asset Conversions & 20% Fee Clearances
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Review USD Mine to Local Mine conversions. Approving automatically credits the user's Convert Balance.
+                    </p>
+                  </div>
+
+                  {/* Filter tabs */}
+                  <div className="flex items-center gap-1.5 p-1 bg-dark-950 border border-white/10 rounded-xl text-xs font-mono">
+                    {(['all', 'PENDING', 'CONVERTED', 'REJECTED'] as const).map((filter) => (
+                      <button
+                        key={filter}
+                        onClick={() => setConversionFilter(filter)}
+                        className={`px-3 py-1.5 rounded-lg font-bold transition uppercase ${
+                          conversionFilter === filter
+                            ? 'bg-gold-500/20 text-gold-400 border border-gold-500/40 shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {filter} {filter !== 'all' && `(${conversions.filter((c) => c.status === filter).length})`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto border border-white/10 rounded-xl bg-dark-950/80 font-mono text-xs">
+                  <table className="w-full text-left">
+                    <thead className="sticky top-0 bg-dark-900 border-b border-white/10 text-[11px] uppercase tracking-wider text-slate-400">
+                      <tr>
+                        <th className="px-4 py-3">Date</th>
+                        <th className="px-4 py-3">User</th>
+                        <th className="px-4 py-3">From (USD Mine)</th>
+                        <th className="px-4 py-3">Target Currency</th>
+                        <th className="px-4 py-3">Gross Output</th>
+                        <th className="px-4 py-3">20% BNB Fee</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {conversions
+                        .filter((c) => conversionFilter === 'all' || c.status === conversionFilter)
+                        .length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="text-center py-10 text-slate-500 font-sans">
+                            No conversion requests found.
+                          </td>
+                        </tr>
+                      ) : (
+                        conversions
+                          .filter((c) => conversionFilter === 'all' || c.status === conversionFilter)
+                          .map((c) => (
+                            <tr key={c.id} className="hover:bg-white/[0.02] transition">
+                              <td className="px-4 py-3 text-slate-400">
+                                {new Date(c.created_at).toLocaleDateString()}
+                              </td>
+                              <td className="px-4 py-3 font-sans font-bold text-white">
+                                {c.user_email || (c as any).user_profile?.email || c.user_id.slice(0, 10)}
+                              </td>
+                              <td className="px-4 py-3 font-bold text-white">
+                                ${Number(c.from_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} {c.from_currency}
+                              </td>
+                              <td className="px-4 py-3 font-bold text-emerald-400">
+                                {c.target_currency} Mine
+                              </td>
+                              <td className="px-4 py-3 font-bold text-emerald-400">
+                                {Number(c.to_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} {c.target_currency}
+                              </td>
+                              <td className="px-4 py-3 font-mono">
+                                <div className="text-amber-400 font-bold">
+                                  {c.fee_amount_bnb ? `${c.fee_amount_bnb} BNB` : `$${c.fee_amount_usd || (c.from_amount * 0.2)}`}
+                                </div>
+                                <div className="text-[10px] text-slate-400">
+                                  20% Fee (${(c.fee_amount_usd || (c.from_amount * 0.2)).toFixed(2)})
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                    c.status === 'CONVERTED'
+                                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                      : c.status === 'REJECTED'
+                                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                      : 'bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse'
+                                  }`}
+                                >
+                                  {c.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {c.status === 'PENDING' ? (
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button
+                                      onClick={() => handleApproveConversion(c.id)}
+                                      disabled={actionLoading}
+                                      className="px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 rounded-lg text-xs font-bold transition disabled:opacity-50"
+                                    >
+                                      Approve & Credit
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        const reason = prompt('Rejection reason (optional):');
+                                        handleRejectConversion(c.id, reason || undefined);
+                                      }}
+                                      disabled={actionLoading}
+                                      className="px-3 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/40 rounded-lg text-xs font-bold transition disabled:opacity-50"
+                                    >
+                                      Reject
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] text-slate-500">
+                                    {c.status === 'CONVERTED' ? 'Approved & Credited' : 'Rejected'}
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))
                       )}
                     </tbody>
                   </table>
@@ -2059,7 +2302,40 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                   />
                 </div>
 
-                {/* 4. Receive Limit & Account Tier */}
+                {/* 4. Convert Balance (Local Mine Asset) */}
+                <div className="p-3.5 bg-dark-900 rounded-xl border border-white/5 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="font-bold text-teal-400 uppercase tracking-wider text-[11px]">Convert Balance (Local Mine Asset)</label>
+                    <span className="text-slate-400 text-[10px]">Converted Mine</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={financialConvertBalance}
+                      onChange={(e) => setFinancialConvertBalance(e.target.value)}
+                      placeholder="0.00"
+                      className="col-span-2 p-2 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-teal-500 focus:outline-none"
+                    />
+                    <select
+                      value={financialConvertCurrency}
+                      onChange={(e) => setFinancialConvertCurrency(e.target.value)}
+                      className="p-2 bg-dark-950 border border-slate-700 rounded-lg text-white text-xs font-mono font-bold focus:border-teal-500 focus:outline-none"
+                    >
+                      <option value="SGD">SGD Mine (S$)</option>
+                      <option value="EUR">EUR Mine (€)</option>
+                      <option value="GBP">GBP Mine (£)</option>
+                      <option value="CAD">CAD Mine (CA$)</option>
+                      <option value="AUD">AUD Mine (A$)</option>
+                      <option value="JPY">JPY Mine (¥)</option>
+                      <option value="CHF">CHF Mine (CHF)</option>
+                      <option value="AED">AED Mine (AED)</option>
+                      <option value="USD">USD Mine ($)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 5. Receive Limit & Account Tier */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-slate-300 mb-1">Receive / Withdrawal Limit ($)</label>
