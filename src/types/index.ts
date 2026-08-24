@@ -371,11 +371,16 @@ export interface ConversionRequest {
   user_id: string;
   user_email: string;
   usd_mine_amount: number;
+  from_amount?: number;
+  from_currency?: string;
   target_currency: string;
   converted_amount: number;
+  to_amount?: number;
   exchange_rate: number;
   conversion_fee_usd: number;
+  fee_amount_usd?: number;
   conversion_fee_bnb: number;
+  fee_amount_bnb?: number;
   fee_wallet_address: string;
   status: ConversionStatus;
   ref_code: string;

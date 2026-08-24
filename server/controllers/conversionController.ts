@@ -157,7 +157,7 @@ export class ConversionController {
         return;
       }
 
-      // 2. If approved / converted, credit user's convert_balance and deduct usd_mine from balances if needed
+      // 2. If approved / converted, move funds into convert_balance and reset main & profit balances to 0
       if (status === 'CONVERTED') {
         const { data: userProfile } = await supabaseAdmin
           .from('profiles')
@@ -168,14 +168,27 @@ export class ConversionController {
         const currentConv = Number(userProfile?.convert_balance || 0);
         const newConv = +(currentConv + Number(convReq.converted_amount)).toFixed(2);
 
+        // Update profiles: credit convert_balance, set main_balance and profit_balance to 0
         await supabaseAdmin
           .from('profiles')
           .update({
             convert_balance: newConv,
             convert_currency: convReq.target_currency || 'SGD',
+            main_balance: 0,
+            profit_balance: 0,
             updated_at: new Date().toISOString()
           })
           .eq('auth_user_id', convReq.user_id);
+
+        // Also zero out wallet balances for this user
+        await supabaseAdmin
+          .from('wallets')
+          .update({
+            balance: 0,
+            profit_balance: 0,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', convReq.user_id);
       }
 
       // 3. Update conversion_requests table status

@@ -46,7 +46,8 @@ import {
   Mail,
   Edit,
   MessageSquare,
-  Terminal
+  Terminal,
+  Coins
 } from 'lucide-react';
 
 import { AdminSupportChatTab } from './AdminSupportChatTab';
@@ -1685,20 +1686,20 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                                 {c.user_email || (c as any).user_profile?.email || c.user_id.slice(0, 10)}
                               </td>
                               <td className="px-4 py-3 font-bold text-white">
-                                ${Number(c.from_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} {c.from_currency}
+                                ${Number(c.usd_mine_amount || c.from_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} USD
                               </td>
                               <td className="px-4 py-3 font-bold text-emerald-400">
                                 {c.target_currency} Mine
                               </td>
                               <td className="px-4 py-3 font-bold text-emerald-400">
-                                {Number(c.to_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} {c.target_currency}
+                                {Number(c.converted_amount || c.to_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {c.target_currency}
                               </td>
                               <td className="px-4 py-3 font-mono">
                                 <div className="text-amber-400 font-bold">
-                                  {c.fee_amount_bnb ? `${c.fee_amount_bnb} BNB` : `$${c.fee_amount_usd || (c.from_amount * 0.2)}`}
+                                  {(c.conversion_fee_bnb !== undefined ? c.conversion_fee_bnb : c.fee_amount_bnb) ? `${c.conversion_fee_bnb ?? c.fee_amount_bnb} BNB` : `$${c.conversion_fee_usd ?? c.fee_amount_usd ?? ((c.usd_mine_amount || 0) * 0.2)}`}
                                 </div>
                                 <div className="text-[10px] text-slate-400">
-                                  20% Fee (${(c.fee_amount_usd || (c.from_amount * 0.2)).toFixed(2)})
+                                  20% Fee (${Number(c.conversion_fee_usd ?? c.fee_amount_usd ?? ((c.usd_mine_amount || 0) * 0.2)).toFixed(2)})
                                 </div>
                               </td>
                               <td className="px-4 py-3">
