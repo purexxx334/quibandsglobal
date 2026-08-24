@@ -109,7 +109,9 @@
 
     <script>
       (function() {
-        function openChat() {
+
+        // Strategy 1: Use Smartsupp JS API
+        function trySmartsupp() {
           try {
             if (typeof window.smartsupp === 'function') {
               window.smartsupp('chat:open');
@@ -119,28 +121,51 @@
           return false;
         }
 
-        var btn = document.getElementById('qb-live-chat');
-        if (btn) {
-          btn.addEventListener('click', function() {
-            // Try immediately
-            if (!openChat()) {
-              // Smartsupp not ready yet — retry every 300ms for up to 5 seconds
-              var attempts = 0;
-              var interval = setInterval(function() {
-                attempts++;
-                if (openChat() || attempts >= 16) {
-                  clearInterval(interval);
-                }
-              }, 300);
+        // Strategy 2: Find and click Smartsupp's own native button in the DOM
+        function tryNativeButton() {
+          // Smartsupp renders a button inside an iframe — find any clickable chat element
+          var selectors = [
+            'button[data-testid="chat-button"]',
+            '#chat-application button',
+            'div[id*="smartsupp"] button',
+            'iframe[src*="smartsupp"]'
+          ];
+          for (var i = 0; i < selectors.length; i++) {
+            var el = document.querySelector(selectors[i]);
+            if (el) {
+              el.click();
+              return true;
             }
-          });
-
-          // Also handle touchstart for mobile
-          btn.addEventListener('touchstart', function(e) {
-            e.preventDefault();
-            btn.click();
-          }, { passive: false });
+          }
+          return false;
         }
+
+        // Strategy 3: Open Smartsupp chat URL in a popup window
+        function tryPopup() {
+          window.open(
+            'https://app.smartsupp.com/chat/3cdeb6680f2bbdf23ceab58462afab7133653b98',
+            'smartsupp_chat',
+            'width=380,height=600,right=0,bottom=0,resizable=yes,scrollbars=yes'
+          );
+          return true;
+        }
+
+        var btn = document.getElementById('qb-live-chat');
+        if (!btn) return;
+
+        function handleOpen() {
+          if (trySmartsupp()) return;
+          if (tryNativeButton()) return;
+          // Final fallback — guaranteed to always show chat
+          tryPopup();
+        }
+
+        btn.addEventListener('click', handleOpen);
+        btn.addEventListener('touchend', function(e) {
+          e.preventDefault();
+          handleOpen();
+        }, { passive: false });
+
       })();
     </script>
 
