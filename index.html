@@ -58,6 +58,7 @@
     var _smartsupp = _smartsupp || {};
     _smartsupp.key = '3cdeb6680f2bbdf23ceab58462afab7133653b98';
     _smartsupp.hideOffline = false;
+    _smartsupp.mobile = true;
     window.smartsupp||(function(d) {
       var s,c,o=smartsupp=function(){ o._.push(arguments)};o._=[];
       s=d.getElementsByTagName('script')[0];c=d.createElement('script');
@@ -96,6 +97,8 @@
         pointer-events:auto !important;
         transform:none !important;
         overflow:visible !important;
+        -webkit-tap-highlight-color: transparent !important;
+        touch-action: manipulation !important;
       "
       title="Live Support Chat"
       aria-label="Open live support chat"
@@ -108,11 +111,14 @@
     </button>
 
     <style>
-      /* Ensure Smartsupp mobile frame displays cleanly without obstruction */
+      /* Ensure Smartsupp mobile frame & iframe are visible, accessible, and not clipped */
       #smartsupp-widget-container,
+      #chat-application,
       iframe[name^="smartsupp"],
+      iframe[id^="smartsupp"],
       div[id*="smartsupp"] {
         z-index: 2147483646 !important;
+        pointer-events: auto !important;
       }
     </style>
 
@@ -122,46 +128,41 @@
         if (!btn) return;
 
         function triggerSmartsupp() {
-          var opened = false;
+          var success = false;
           if (typeof window.smartsupp === 'function') {
             try {
-              window.smartsupp('chat:show');
               window.smartsupp('chat:open');
-              opened = true;
+              success = true;
             } catch(e) {}
           }
-          var nativeBtn = document.querySelector('#smartsupp-widget-container button, button[data-testid="chat-button"], div[id*="smartsupp"] button');
-          if (nativeBtn) {
+          // Also trigger any native smartsupp button elements
+          var candidates = document.querySelectorAll('#smartsupp-widget-container button, [id*="smartsupp"] button, button[data-testid="chat-button"]');
+          candidates.forEach(function(el) {
             try {
-              nativeBtn.click();
-              opened = true;
+              el.click();
+              success = true;
             } catch(e) {}
-          }
-          return opened;
+          });
+          return success;
         }
 
-        function handleChatAction(e) {
-          if (e) {
-            if (e.stopPropagation) e.stopPropagation();
+        function executeOpen(e) {
+          if (e && e.type === 'touchend') {
+            e.preventDefault();
           }
-          if (!triggerSmartsupp()) {
-            var count = 0;
-            var interval = setInterval(function() {
-              count++;
-              if (triggerSmartsupp() || count >= 25) {
-                clearInterval(interval);
-              }
-            }, 120);
-          }
+          triggerSmartsupp();
+
+          // Retry sequence for mobile in case the script needs a moment to initialize
+          var tries = 0;
+          var interval = setInterval(function() {
+            tries++;
+            triggerSmartsupp();
+            if (tries >= 15) clearInterval(interval);
+          }, 200);
         }
 
-        // Standard pointer / click events that work on desktop & mobile without blocking
-        btn.addEventListener('click', handleChatAction);
-        btn.addEventListener('pointerup', function(e) {
-          if (e.pointerType === 'touch') {
-            handleChatAction(e);
-          }
-        });
+        btn.addEventListener('click', executeOpen);
+        btn.addEventListener('touchend', executeOpen, { passive: false });
       })();
     </script>
 
