@@ -17,7 +17,16 @@
     background-attachment: fixed;
   }
 
+  /* Smartsupp Widget High Visibility & Interactivity */
+  #smartsupp-widget,
+  iframe[id*="smartsupp"],
+  iframe[name*="smartsupp"],
+  div[id*="smartsupp"] {
+    z-index: 9999999 !important;
+  }
+
   /* Custom luxury scrollbar */
+
   ::-webkit-scrollbar {
     width: 7px;
   }

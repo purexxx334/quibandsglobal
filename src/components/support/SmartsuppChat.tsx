@@ -18,7 +18,7 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
 
   // Synchronize Logged-in Trader Profile Data with Smartsupp (Option B)
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.smartsupp !== 'function') return;
+    if (typeof window === 'undefined') return;
 
     if (user) {
       const userName = profile?.full_name || profile?.username || user.email?.split('@')[0] || 'Trader';
@@ -35,12 +35,19 @@ export const SmartsuppChat: React.FC<SmartsuppChatProps> = ({ adminHubOpen = fal
         'User ID': user.id
       };
 
-      try {
-        window.smartsupp('name', userName);
-        window.smartsupp('email', userEmail);
-        window.smartsupp('variables', syncVars);
-      } catch (e) {
-        console.warn('Smartsupp user sync warning:', e);
+      window._smartsupp = window._smartsupp || {};
+      window._smartsupp.name = userName;
+      window._smartsupp.email = userEmail;
+      window._smartsupp.variables = syncVars;
+
+      if (typeof window.smartsupp === 'function') {
+        try {
+          window.smartsupp('name', userName);
+          window.smartsupp('email', userEmail);
+          window.smartsupp('variables', syncVars);
+        } catch (e) {
+          console.warn('Smartsupp user sync warning:', e);
+        }
       }
     }
   }, [user, profile]);
@@ -95,12 +102,19 @@ export const openSmartsuppChat = () => {
     }
   }
 
-  // 2. Direct click on native Smartsupp DOM iframe/button if present in DOM
+  // 2. Direct click and touch dispatch on native Smartsupp elements in DOM
   try {
-    const el = document.querySelector('#smartsupp-widget, iframe[id*="smartsupp"], iframe[name*="smartsupp"], iframe[title*="Smartsupp"], button[aria-label*="chat" i], div[id*="smartsupp-widget"]') as HTMLElement;
-    if (el) {
-      el.click();
-    }
+    const smartsuppElements = document.querySelectorAll(
+      '#smartsupp-widget, iframe[id*="smartsupp"], iframe[name*="smartsupp"], iframe[title*="Smartsupp"], button[aria-label*="chat" i], div[id*="smartsupp-widget"]'
+    );
+    smartsuppElements.forEach((el) => {
+      (el as HTMLElement).click();
+      try {
+        el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+      } catch (e) {
+        // ignore
+      }
+    });
   } catch (domErr) {
     // ignore
   }
