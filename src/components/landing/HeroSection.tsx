@@ -82,7 +82,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAuth, onOpenCalc
               className="gold-gradient-btn w-full sm:w-auto px-8 py-4 rounded-xl text-base font-semibold shadow-gold-md flex items-center justify-center gap-3 transition-transform active:scale-95"
             >
               <Zap className="w-5 h-5 fill-current" />
-              <span>Start Cloud Mining</span>
+              <span>Start Mining</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
