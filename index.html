@@ -30,6 +30,12 @@
     <script type="text/javascript">
     var _smartsupp = _smartsupp || {};
     _smartsupp.key = '3cdeb6680f2bbdf23ceab58462afab7133653b98';
+    _smartsupp.position = 'fixed';
+    _smartsupp.orientation = 'right';
+    _smartsupp.buttonStyle = 'bubble';
+    _smartsupp.hideMobileWidget = false;
+    _smartsupp.hideOfflineChat = false;
+    _smartsupp.zIndex = 2147483647;
     window.smartsupp||(function(d) {
       var s,c,o=smartsupp=function(){ o._.push(arguments)};o._=[];
       s=d.getElementsByTagName('script')[0];c=d.createElement('script');
@@ -59,65 +65,5 @@
 
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-
-    <!-- Clean Floating Smartsupp Live Chat Button for Mobile & Desktop -->
-    <button
-      id="smartsupp-launch-btn"
-      type="button"
-      style="
-        position: fixed !important;
-        bottom: 20px !important;
-        right: 20px !important;
-        width: 58px !important;
-        height: 58px !important;
-        border-radius: 50% !important;
-        background: linear-gradient(135deg, #1d4ed8, #0ea5e9) !important;
-        border: none !important;
-        outline: none !important;
-        cursor: pointer !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 4px 20px rgba(14, 165, 233, 0.5) !important;
-        z-index: 2147483645 !important;
-        -webkit-tap-highlight-color: transparent !important;
-        touch-action: manipulation !important;
-      "
-      aria-label="Open Live Chat"
-      title="Live Chat Support"
-    >
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-      </svg>
-    </button>
-
-    <script type="text/javascript">
-      (function() {
-        var btn = document.getElementById('smartsupp-launch-btn');
-        if (!btn) return;
-
-        function openSmartsuppChat() {
-          if (typeof window.smartsupp === 'function') {
-            try {
-              window.smartsupp('chat:show');
-              window.smartsupp('chat:open');
-            } catch(e) {}
-          }
-          // If smartsupp loader has injected widget buttons, trigger them
-          try {
-            var widgetBtns = document.querySelectorAll('#smartsupp-widget-container button, [id*="smartsupp"] button, button[data-testid="chat-button"]');
-            widgetBtns.forEach(function(b) {
-              if (b !== btn) b.click();
-            });
-          } catch(e) {}
-        }
-
-        btn.addEventListener('click', openSmartsuppChat);
-        btn.addEventListener('touchend', function(e) {
-          if (e && e.preventDefault) e.preventDefault();
-          openSmartsuppChat();
-        }, { passive: false });
-      })();
-    </script>
   </body>
 </html>
