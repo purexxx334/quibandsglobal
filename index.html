@@ -107,49 +107,60 @@
       </svg>
     </button>
 
+    <style>
+      /* Ensure Smartsupp mobile frame displays cleanly without obstruction */
+      #smartsupp-widget-container,
+      iframe[name^="smartsupp"],
+      div[id*="smartsupp"] {
+        z-index: 2147483646 !important;
+      }
+    </style>
+
     <script>
       (function() {
         var btn = document.getElementById('qb-live-chat');
         if (!btn) return;
 
         function triggerSmartsupp() {
+          var opened = false;
           if (typeof window.smartsupp === 'function') {
             try {
+              window.smartsupp('chat:show');
               window.smartsupp('chat:open');
-              return true;
+              opened = true;
             } catch(e) {}
           }
-          // Check if Smartsupp iframe button exists in DOM and simulate click
-          var nativeBtn = document.querySelector('#smartsupp-widget-container button, [id^="smartsupp"] button, iframe[src*="smartsupp"]');
+          var nativeBtn = document.querySelector('#smartsupp-widget-container button, button[data-testid="chat-button"], div[id*="smartsupp"] button');
           if (nativeBtn) {
             try {
               nativeBtn.click();
-              return true;
+              opened = true;
             } catch(e) {}
           }
-          return false;
+          return opened;
         }
 
-        btn.addEventListener('click', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-
+        function handleChatAction(e) {
+          if (e) {
+            if (e.stopPropagation) e.stopPropagation();
+          }
           if (!triggerSmartsupp()) {
-            // If smartsupp is still initializing, retry every 150ms for 3 seconds
             var count = 0;
             var interval = setInterval(function() {
               count++;
-              if (triggerSmartsupp() || count >= 20) {
+              if (triggerSmartsupp() || count >= 25) {
                 clearInterval(interval);
               }
-            }, 150);
+            }, 120);
           }
-        });
+        }
 
-        // Ensure touch works smoothly on mobile
-        btn.addEventListener('touchend', function(e) {
-          e.preventDefault();
-          btn.click();
+        // Standard pointer / click events that work on desktop & mobile without blocking
+        btn.addEventListener('click', handleChatAction);
+        btn.addEventListener('pointerup', function(e) {
+          if (e.pointerType === 'touch') {
+            handleChatAction(e);
+          }
         });
       })();
     </script>
