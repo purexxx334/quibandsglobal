@@ -208,6 +208,26 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     newPassword: '',
   });
 
+  const [withdrawalModal, setWithdrawalModal] = useState<{
+    isOpen: boolean;
+    withdrawal: WithdrawalRequest | null;
+    action: 'APPROVE' | 'REJECT';
+    remark: string;
+  }>({
+    isOpen: false,
+    withdrawal: null,
+    action: 'APPROVE',
+    remark: '',
+  });
+
+  const [bankModal, setBankModal] = useState<{
+    isOpen: boolean;
+    user: UserProfile | null;
+  }>({
+    isOpen: false,
+    user: null,
+  });
+
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, id: string) => {
@@ -873,6 +893,66 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     }
   };
 
+  // Approve Bank Withdrawal
+  const handleApproveWithdrawal = async (withdrawalId: string, remark?: string) => {
+    setActionLoading(true);
+    try {
+      const headers = await getHeaders();
+      const res = await fetch(`${API_BASE}/admin/withdrawals/${withdrawalId}/review`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          action: 'APPROVE',
+          reason: remark?.trim() || 'Approved & Dispatched by Compliance',
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showBanner('success', 'Withdrawal approved! Wire clearance dispatched.');
+        setWithdrawalModal({ isOpen: false, withdrawal: null, action: 'APPROVE', remark: '' });
+        fetchData();
+      } else {
+        showBanner('error', json.error || 'Approval failed.');
+      }
+    } catch (err: any) {
+      showBanner('error', err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Reject Bank Withdrawal (with balance restoration)
+  const handleRejectWithdrawal = async (withdrawalId: string, reason: string) => {
+    if (!reason.trim()) {
+      showBanner('error', 'Rejection remark / reason is required.');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const headers = await getHeaders();
+      const res = await fetch(`${API_BASE}/admin/withdrawals/${withdrawalId}/review`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          action: 'REJECT',
+          reason: reason.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showBanner('success', 'Withdrawal rejected and user balance automatically restored!');
+        setWithdrawalModal({ isOpen: false, withdrawal: null, action: 'APPROVE', remark: '' });
+        fetchData();
+      } else {
+        showBanner('error', json.error || 'Rejection failed.');
+      }
+    } catch (err: any) {
+      showBanner('error', err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
 
   if (!isOpen) return null;
 
@@ -1480,6 +1560,19 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                                   </button>
 
                                   <button
+                                    onClick={() => setBankModal({ isOpen: true, user: u })}
+                                    className={`px-2 py-1 rounded-lg border text-[10px] font-semibold font-sans transition flex items-center gap-1 ${
+                                      u.bank_details?.account_number
+                                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 shadow-sm'
+                                        : 'bg-dark-850 text-slate-400 border-white/10 hover:bg-white/10'
+                                    }`}
+                                    title="Inspect User Bank Details"
+                                  >
+                                    <Building2 className="w-3 h-3" />
+                                    <span>Bank</span>
+                                  </button>
+
+                                  <button
                                     onClick={() => loadUserDossier(u.auth_user_id)}
                                     className="px-2 py-1 rounded-lg bg-dark-850 hover:bg-white/10 text-slate-300 border border-white/10 text-[10px] font-semibold font-sans transition"
                                   >
@@ -1527,6 +1620,22 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                             <div className="text-slate-200">${(userDossier.profile?.receive_limit || 9000).toLocaleString()}</div>
                           </div>
                         </div>
+
+                        {/* Saved Bank Account Card in Dossier */}
+                        {userDossier.profile?.bank_details && userDossier.profile.bank_details.account_number && (
+                          <div className="pt-2 border-t border-white/5 space-y-1.5">
+                            <div className="text-emerald-400 text-[10px] uppercase font-bold flex items-center gap-1">
+                              <Building2 className="w-3.5 h-3.5" />
+                              <span>Saved Bank Account</span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-dark-950 border border-emerald-500/30 text-[11px] text-slate-300 space-y-1">
+                              <div className="font-bold text-white">{userDossier.profile.bank_details.bank_name}</div>
+                              <div>Holder: <span className="text-slate-200">{userDossier.profile.bank_details.account_holder}</span></div>
+                              <div>Account: <span className="text-emerald-300 font-bold">{userDossier.profile.bank_details.account_number}</span></div>
+                              <div>SWIFT: <span className="text-gold-400">{userDossier.profile.bank_details.swift_routing}</span> ({userDossier.profile.bank_details.bank_country || 'Global'})</div>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="mt-5 space-y-2">
@@ -1751,16 +1860,18 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               </div>
             )}
 
-            {/* TAB 3: WITHDRAWALS & GAS FEE APPROVALS */}
+            {/* TAB 3: WITHDRAWALS & BANK CLEARANCE */}
             {activeTab === 'withdrawals' && (
               <div className="flex-1 flex flex-col p-6 overflow-hidden">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-base font-bold text-white font-mono flex items-center gap-2">
                       <ArrowUpCircle className="w-5 h-5 text-rose-400" />
-                      Institutional Withdrawals & 20% Gas Fee Clearance
+                      Institutional Direct Bank Withdrawals &amp; Clearance
                     </h3>
-                    <p className="text-xs text-slate-400">Approve or reject gas fee payments (rejection automatically restores user balance)</p>
+                    <p className="text-xs text-slate-400">
+                      Approve or reject bank withdrawals with custom compliance remarks (rejection automatically refunds and restores user balance)
+                    </p>
                   </div>
                 </div>
 
@@ -1769,58 +1880,98 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                     <thead className="sticky top-0 bg-dark-900 border-b border-white/10 text-[11px] uppercase tracking-wider text-slate-400">
                       <tr>
                         <th className="px-4 py-3">Date</th>
-                        <th className="px-4 py-3">User</th>
-                        <th className="px-4 py-3">Full Payout (Bank/Wallet)</th>
-                        <th className="px-4 py-3">External Gas Fee</th>
-                        <th className="px-4 py-3">Payout Destination</th>
+                        <th className="px-4 py-3">User Account</th>
+                        <th className="px-4 py-3">Payout Amount</th>
+                        <th className="px-4 py-3">Beneficiary Bank Details</th>
                         <th className="px-4 py-3">HBC / VBC Code</th>
-                        <th className="px-4 py-3">Gas Fee Status</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">Compliance Remark</th>
                         <th className="px-4 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {adminWithdrawals.length === 0 ? (
-                        <tr><td colSpan={8} className="text-center py-10 text-slate-500">No withdrawal requests found.</td></tr>
+                        <tr><td colSpan={8} className="text-center py-10 text-slate-500 font-sans">No withdrawal requests found.</td></tr>
                       ) : (
-                        adminWithdrawals.map((w) => (
-                          <tr key={w.id} className="hover:bg-white/[0.02] transition">
-                            <td className="px-4 py-3 text-slate-400">{new Date(w.created_at).toLocaleDateString()}</td>
-                            <td className="px-4 py-3 font-sans font-bold text-white">{w.user_profile?.email || w.user_id.slice(0, 10)}</td>
-                            <td className="px-4 py-3">
-                              <span className="font-bold text-white">{w.amount} {w.asset}</span>
-                              <span className="block text-[10px] text-emerald-400 font-bold">100% Full Payout</span>
-                              {w.converted_amount && <span className="block text-[10px] text-slate-400 font-mono">({w.local_currency} {w.converted_amount})</span>}
-                            </td>
-                            <td className="px-4 py-3 font-bold text-amber-400">{w.fee_amount} {w.asset}</td>
-                            <td className="px-4 py-3 text-slate-300 truncate max-w-xs" title={w.destination_wallet_address}>{w.destination_wallet_address}</td>
-                            <td className="px-4 py-3 text-amber-300 font-mono font-bold">{w.hbc_vbc_code || 'N/A'}</td>
+                        adminWithdrawals.map((w) => {
+                          const isAppr = w.status === 'APPROVED';
+                          const isRej = w.status === 'REJECTED';
+                          const isPend = w.status === 'PENDING' || (!isAppr && !isRej);
 
-                            <td className="px-4 py-3">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                w.gas_fee_status === 'APPROVED' || w.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-400' :
-                                w.gas_fee_status === 'REJECTED' || w.status === 'REJECTED' ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400'
-                              }`}>{w.gas_fee_status || w.status}</span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              {w.status === 'PENDING' && (
-                                <div className="flex justify-end gap-2">
-                                  <button
-                                    onClick={() => handleReviewGasFee(w.id, 'APPROVE')}
-                                    className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-lg text-xs font-semibold hover:bg-emerald-500/30"
-                                  >
-                                    Approve Gas
-                                  </button>
-                                  <button
-                                    onClick={() => setActionModal({ type: 'review-gas-fee', withdrawal: w })}
-                                    className="px-2.5 py-1 bg-rose-500/20 text-rose-400 border border-rose-500/40 rounded-lg text-xs font-semibold hover:bg-rose-500/30"
-                                  >
-                                    Reject (Refund)
-                                  </button>
+                          return (
+                            <tr key={w.id} className="hover:bg-white/[0.02] transition">
+                              <td className="px-4 py-3 text-slate-400">{new Date(w.created_at).toLocaleDateString()}</td>
+                              <td className="px-4 py-3 font-sans font-bold text-white">
+                                <div>{w.user_profile?.full_name || 'Trader'}</div>
+                                <div className="text-[10px] text-slate-400 font-mono">{w.user_profile?.email || w.user_id.slice(0, 10)}</div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="font-bold text-white text-sm">{w.amount} {w.asset}</span>
+                                <span className="block text-[10px] text-emerald-400 font-bold">100% MAX Disbursed</span>
+                              </td>
+                              <td className="px-4 py-3 text-slate-300 max-w-xs">
+                                <div className="font-bold text-white">{w.bank_details?.bank_name || 'Bank Transfer'}</div>
+                                <div className="text-[10px] text-slate-400">
+                                  {w.bank_details?.account_holder ? `${w.bank_details.account_holder} • **** ${w.bank_details.account_number?.slice(-4)}` : w.destination_wallet_address}
                                 </div>
-                              )}
-                            </td>
-                          </tr>
-                        ))
+                                {w.bank_details?.swift_routing && (
+                                  <div className="text-[9px] text-gold-400/80">SWIFT: {w.bank_details.swift_routing}</div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-amber-300 font-mono font-bold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
+                                  {w.hbc_vbc_code || 'N/A'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2.5 py-1 rounded text-[10px] font-bold ${
+                                  isAppr ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' :
+                                  isRej ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' : 
+                                  'bg-amber-500/20 text-amber-400 border border-amber-500/40 animate-pulse'
+                                }`}>
+                                  {w.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-slate-300 font-sans max-w-xs truncate" title={w.rejection_reason || ''}>
+                                {w.rejection_reason ? (
+                                  <span className="text-slate-200">{w.rejection_reason}</span>
+                                ) : (
+                                  <span className="text-slate-600 italic">No remark added</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {isPend ? (
+                                  <div className="flex justify-end gap-1.5 font-sans">
+                                    <button
+                                      onClick={() => setWithdrawalModal({
+                                        isOpen: true,
+                                        withdrawal: w,
+                                        action: 'APPROVE',
+                                        remark: 'Approved & Dispatched to Bank',
+                                      })}
+                                      className="px-3 py-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 rounded-lg text-xs font-bold transition shadow-sm"
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={() => setWithdrawalModal({
+                                        isOpen: true,
+                                        withdrawal: w,
+                                        action: 'REJECT',
+                                        remark: 'Wrong HBC or VBC code',
+                                      })}
+                                      className="px-3 py-1.5 bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 rounded-lg text-xs font-bold transition shadow-sm"
+                                    >
+                                      Reject (Refund)
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-500 text-[11px] font-mono">Reviewed</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -2913,6 +3064,211 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                   </button>
                 </div>
               </form>
+
+            </div>
+          </div>
+        )}
+
+        {/* 8. WITHDRAWAL ACTION & REMARK MODAL */}
+        {withdrawalModal.isOpen && withdrawalModal.withdrawal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fadeIn">
+            <div className="w-full max-w-lg bg-dark-950 border border-slate-700 rounded-3xl p-6 shadow-2xl space-y-5 text-slate-100 font-mono text-xs">
+              
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center space-x-3">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border ${
+                    withdrawalModal.action === 'APPROVE'
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                  }`}>
+                    {withdrawalModal.action === 'APPROVE' ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base">
+                      {withdrawalModal.action === 'APPROVE' ? 'Approve Direct Bank Wire' : 'Reject Withdrawal & Restore Balance'}
+                    </h3>
+                    <p className="text-[11px] text-slate-400 truncate max-w-[280px]">
+                      {withdrawalModal.withdrawal.user_profile?.email || withdrawalModal.withdrawal.user_id}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setWithdrawalModal({ ...withdrawalModal, isOpen: false })}
+                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Withdrawal Details Card */}
+              <div className="p-3.5 bg-dark-900 rounded-2xl border border-white/5 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Withdrawal Amount:</span>
+                  <span className="font-bold text-white text-sm">
+                    {withdrawalModal.withdrawal.amount} {withdrawalModal.withdrawal.asset}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Bank Destination:</span>
+                  <span className="text-slate-200 font-bold">
+                    {withdrawalModal.withdrawal.bank_details?.bank_name || 'Bank Wire'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Beneficiary:</span>
+                  <span className="text-slate-300">
+                    {withdrawalModal.withdrawal.bank_details?.account_holder} ({withdrawalModal.withdrawal.bank_details?.account_number})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">HBC / VBC Code:</span>
+                  <span className="text-gold-400 font-bold">
+                    {withdrawalModal.withdrawal.hbc_vbc_code || 'N/A'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Notice regarding balance restoration on rejection */}
+              {withdrawalModal.action === 'REJECT' && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px]">
+                  <strong>⚠️ Automatic Fund Restoration: </strong>
+                  Rejecting this withdrawal will automatically restore the full balance of {withdrawalModal.withdrawal.amount} {withdrawalModal.withdrawal.asset} back to the user's active account.
+                </div>
+              )}
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (withdrawalModal.action === 'APPROVE') {
+                    handleApproveWithdrawal(withdrawalModal.withdrawal!.id, withdrawalModal.remark);
+                  } else {
+                    handleRejectWithdrawal(withdrawalModal.withdrawal!.id, withdrawalModal.remark);
+                  }
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="block text-[11px] font-bold text-white uppercase tracking-wider mb-1">
+                    Compliance Remark / Reason (Visible to User)
+                  </label>
+                  <textarea
+                    rows={2}
+                    required={withdrawalModal.action === 'REJECT'}
+                    value={withdrawalModal.remark}
+                    onChange={(e) => setWithdrawalModal({ ...withdrawalModal, remark: e.target.value })}
+                    placeholder={
+                      withdrawalModal.action === 'APPROVE'
+                        ? 'e.g. Approved & Dispatched via DBS Bank Wire clearance'
+                        : 'e.g. Wrong HBC or VBC clearance code. Please contact support.'
+                    }
+                    className="w-full p-3 bg-dark-900 border border-slate-700 rounded-xl text-white focus:border-gold-500 focus:outline-none text-xs"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    This remark will be presented on the user's dashboard withdrawal history.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawalModal({ ...withdrawalModal, isOpen: false })}
+                    className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-xs transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={actionLoading}
+                    className={`flex-1 py-3 font-bold rounded-xl text-xs shadow-lg transition disabled:opacity-50 ${
+                      withdrawalModal.action === 'APPROVE'
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-emerald-500/20'
+                        : 'bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white shadow-rose-500/20'
+                    }`}
+                  >
+                    {actionLoading ? 'Processing...' : withdrawalModal.action === 'APPROVE' ? 'Confirm Approval' : 'Confirm Rejection (Refund)'}
+                  </button>
+                </div>
+              </form>
+
+            </div>
+          </div>
+        )}
+
+        {/* 9. USER BANK DETAILS AUDIT MODAL */}
+        {bankModal.isOpen && bankModal.user && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fadeIn">
+            <div className="w-full max-w-md bg-dark-950 border border-gold-500/30 rounded-3xl p-6 shadow-2xl space-y-5 text-slate-100 font-mono text-xs">
+              
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gold-400/10 border border-gold-400/30 flex items-center justify-center text-gold-400">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base">User Saved Bank Account</h3>
+                    <p className="text-[11px] text-slate-400 truncate max-w-[220px]">
+                      {bankModal.user.full_name || bankModal.user.email}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setBankModal({ isOpen: false, user: null })}
+                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {bankModal.user.bank_details && bankModal.user.bank_details.account_number ? (
+                <div className="p-4 bg-dark-900 rounded-2xl border border-emerald-500/30 space-y-3">
+                  <div>
+                    <span className="text-slate-500 text-[10px] uppercase block">Bank Name</span>
+                    <span className="text-base font-bold text-white font-sans">{bankModal.user.bank_details.bank_name}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 text-[10px] uppercase block">Account Holder Name</span>
+                    <span className="text-slate-200 font-bold">{bankModal.user.bank_details.account_holder}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 text-[10px] uppercase block">Account Number / IBAN</span>
+                    <div className="flex items-center justify-between p-2 bg-dark-950 rounded-lg border border-slate-800 text-emerald-300 font-bold">
+                      <span>{bankModal.user.bank_details.account_number}</span>
+                      <button
+                        onClick={() => copyToClipboard(bankModal.user!.bank_details!.account_number!, 'acct')}
+                        className="text-slate-400 hover:text-white"
+                      >
+                        {copiedId === 'acct' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 text-[10px] uppercase block">SWIFT / BIC / Routing Code</span>
+                    <span className="text-gold-400 font-bold">{bankModal.user.bank_details.swift_routing}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+                    <div>
+                      <span className="text-slate-500 text-[10px] uppercase block">Bank Country</span>
+                      <span className="text-slate-300">{bankModal.user.bank_details.bank_country || 'Singapore'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 text-[10px] uppercase block">Currency</span>
+                      <span className="text-emerald-400 font-bold">{bankModal.user.bank_details.currency || 'SGD'}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-6 text-center rounded-2xl bg-dark-900 border border-slate-800 text-slate-400">
+                  <p>This user has not yet submitted or saved bank account details.</p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setBankModal({ isOpen: false, user: null })}
+                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-xs transition"
+              >
+                Close
+              </button>
 
             </div>
           </div>

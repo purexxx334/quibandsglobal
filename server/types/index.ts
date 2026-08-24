@@ -53,6 +53,8 @@ export interface UserProfile {
   main_balance?: number;
   mining_balance?: number;
   profit_balance?: number;
+  convert_balance?: number;
+  convert_currency?: string;
   total_balance?: number;
   receive_limit?: number;
   account_tier?: string;
@@ -60,6 +62,7 @@ export interface UserProfile {
   mining_remark?: string | null;
   profit_remark?: string | null;
   temp_password?: string | null;
+  bank_details?: BankDetails;
   referral_code?: string | null;
   referred_by?: string | null;
   referral_earnings?: number;
@@ -206,6 +209,8 @@ export interface BankDetails {
   account_holder?: string;
   account_number?: string;
   swift_routing?: string;
+  bank_country?: string;
+  currency?: string;
 }
 
 export interface WithdrawalRequest {

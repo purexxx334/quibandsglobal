@@ -60,6 +60,7 @@ router.post('/deposits/:id/reject', (req, res, next) => depositController.reject
 router.get('/withdrawals', (req, res, next) => withdrawalController.getAdminWithdrawals(req, res, next));
 router.get('/withdrawals/:id', (req, res, next) => withdrawalController.getWithdrawalById(req, res, next));
 router.post('/withdrawals/:id/review-gas-fee', (req, res, next) => withdrawalController.reviewGasFee(req, res, next));
+router.post('/withdrawals/:id/review', (req, res, next) => withdrawalController.reviewGasFee(req, res, next));
 
 // 8. KYC Compliance & Identity Review
 router.get('/kyc', (req, res, next) => adminController.getKycSubmissions(req, res, next));

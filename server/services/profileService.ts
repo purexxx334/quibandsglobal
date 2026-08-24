@@ -45,6 +45,7 @@ export class ProfileService {
 
     return {
       ...profile,
+      bank_details: profile.bank_details || profile.metadata?.bank_details,
       role: user.role,
     };
   }
@@ -54,12 +55,32 @@ export class ProfileService {
    */
   async updateProfile(
     userId: string,
-    updates: Partial<Pick<UserProfile, 'full_name' | 'username' | 'avatar_url' | 'phone_number' | 'country' | 'address' | 'city' | 'postal_code' | 'dob'>>
+    updates: any
   ): Promise<UserProfile> {
+    const { bank_details, ...regularUpdates } = updates;
+
+    let metadataUpdates: Record<string, any> = {};
+    if (bank_details) {
+      const { data: existing } = await supabaseAdmin
+        .from('profiles')
+        .select('metadata')
+        .eq('auth_user_id', userId)
+        .maybeSingle();
+
+      const existingMeta = existing?.metadata || {};
+      metadataUpdates = {
+        metadata: {
+          ...existingMeta,
+          bank_details,
+        },
+      };
+    }
+
     const { data: updated, error } = await supabaseAdmin
       .from('profiles')
       .update({
-        ...updates,
+        ...regularUpdates,
+        ...metadataUpdates,
         updated_at: new Date().toISOString(),
       })
       .eq('auth_user_id', userId)
@@ -70,7 +91,10 @@ export class ProfileService {
       throw new Error(`Failed to update profile: ${error.message}`);
     }
 
-    return updated;
+    return {
+      ...updated,
+      bank_details: updated.bank_details || updated.metadata?.bank_details || bank_details,
+    };
   }
 
 }

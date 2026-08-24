@@ -83,6 +83,7 @@ export class AdminService {
         referral_code: p.referral_code || null,
         referral_earnings: Number(p.referral_earnings || 0),
         referral_count: referralCountMap.get(p.auth_user_id) || 0,
+        bank_details: p.bank_details || p.metadata?.bank_details,
         role: roleMap.get(p.auth_user_id) || 'user',
       };
     });

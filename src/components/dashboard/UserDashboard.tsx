@@ -467,13 +467,16 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
               </button>
             )}
 
-            <button
-              type="button"
-              className="px-5 py-3 rounded-2xl bg-slate-800/90 hover:bg-slate-800 text-slate-300 hover:text-white font-bold text-xs border border-slate-700/80 transition-all flex items-center gap-2 transform active:scale-95 cursor-pointer"
-            >
-              <ArrowUpCircle className="w-4 h-4 text-slate-400" />
-              <span>Withdraw</span>
-            </button>
+            {onOpenWithdrawal && (
+              <button
+                type="button"
+                onClick={() => onOpenWithdrawal(mainBalanceUsd, profitBalanceUsd)}
+                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-dark-950 font-bold text-xs shadow-md transition-all flex items-center gap-2 transform active:scale-95 cursor-pointer"
+              >
+                <ArrowUpCircle className="w-4 h-4" />
+                <span>Withdraw</span>
+              </button>
+            )}
 
             <button
               onClick={fetchDashboardData}
@@ -921,64 +924,94 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
               ) : (
                 <div className="space-y-3">
                   {withdrawals.map((w) => {
-                    const isApproved = w.status === 'APPROVED' || w.gas_fee_status === 'APPROVED';
-                    const isPending = w.status === 'PENDING' && w.gas_fee_status !== 'APPROVED';
-                    const isRejected = w.status === 'REJECTED' || w.gas_fee_status === 'REJECTED';
+                    const isApproved = w.status === 'APPROVED';
+                    const isRejected = w.status === 'REJECTED';
+                    const isPending = w.status === 'PENDING' || (!isApproved && !isRejected);
 
                     return (
-                      <div key={w.id} className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-3">
+                      <div key={w.id} className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-3 hover:border-slate-700 transition">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <div>
-                            <span className="font-bold text-white text-base">
-                              {w.amount} {w.asset}
-                            </span>
-                            {w.converted_amount && (
-                              <span className="text-xs text-slate-400 font-mono ml-2">
-                                ({w.local_currency || 'USD'} {Number(w.converted_amount).toLocaleString()})
-                              </span>
-                            )}
+                          <div className="flex items-center gap-2.5">
+                            <div className={`p-2 rounded-xl border ${
+                              isApproved ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
+                              isRejected ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' :
+                              'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                            }`}>
+                              <Building2 className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-white text-base font-mono">
+                                  {w.amount} {w.asset}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-dark-900 border border-slate-800 text-slate-300">
+                                  Direct Bank Wire
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-400 font-mono">
+                                {new Date(w.created_at).toLocaleString()}
+                              </p>
+                            </div>
                           </div>
 
                           <div className="flex items-center space-x-2">
                             {isPending && (
-                              <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center space-x-1">
+                              <span className="px-3 py-1 rounded-full text-xs font-bold font-mono bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center space-x-1.5 animate-pulse">
                                 <Clock className="w-3.5 h-3.5" />
-                                <span>PENDING GAS FEE REVIEW</span>
+                                <span>PENDING CLEARANCE</span>
                               </span>
                             )}
                             {isApproved && (
-                              <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center space-x-1">
+                              <span className="px-3 py-1 rounded-full text-xs font-bold font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center space-x-1.5">
                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>GAS FEE APPROVED</span>
+                                <span>APPROVED &amp; DISPATCHED</span>
                               </span>
                             )}
                             {isRejected && (
-                              <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 flex items-center space-x-1">
+                              <span className="px-3 py-1 rounded-full text-xs font-bold font-mono bg-rose-500/15 text-rose-400 border border-rose-500/30 flex items-center space-x-1.5">
                                 <XCircle className="w-3.5 h-3.5" />
-                                <span>REJECTED & REFUNDED</span>
+                                <span>REJECTED &amp; REFUNDED</span>
                               </span>
                             )}
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-slate-400 pt-2 border-t border-slate-900 font-mono">
-                          <div><span className="text-slate-500">20% Fee:</span> {w.fee_amount} {w.asset}</div>
-                          <div><span className="text-slate-500">Net Payout:</span> {w.net_amount} {w.asset}</div>
-                          <div><span className="text-slate-500">Payout Mode:</span> {w.payout_method || 'BANK'}</div>
-                          <div><span className="text-slate-500">Date:</span> {new Date(w.created_at).toLocaleDateString()}</div>
+                        {/* Beneficiary Details & Clearance Code Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs text-slate-300 p-3 bg-dark-900/80 rounded-xl border border-slate-900 font-mono">
+                          <div>
+                            <span className="text-slate-500 block text-[10px]">BENEFICIARY BANK:</span>
+                            <span className="font-bold text-white">
+                              {w.bank_details?.bank_name || w.destination_wallet_address.split(':')[0] || 'Bank Wire'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block text-[10px]">ACCOUNT / BENEFICIARY:</span>
+                            <span className="text-slate-200 truncate block">
+                              {w.bank_details?.account_holder ? `${w.bank_details.account_holder} (${w.bank_details.account_number})` : w.destination_wallet_address}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block text-[10px]">HBC / VBC CODE:</span>
+                            <span className="font-bold text-gold-400">
+                              {w.hbc_vbc_code || 'N/A'}
+                            </span>
+                          </div>
                         </div>
 
-                        {/* Post-Approval Active Withdrawal Button */}
-                        {isApproved && onOpenWithdrawal && (
-                          <div className="pt-2 flex items-center justify-between border-t border-slate-800">
-                            <span className="text-xs text-emerald-400 font-medium">Clearance Ready</span>
-                            <button
-                              onClick={() => onOpenWithdrawal(mainBalanceUsd, profitBalanceUsd)}
-                              className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-xs shadow-md flex items-center space-x-1"
-                            >
-                              <span>Withdraw Funds</span>
-                              <ChevronRight className="w-4 h-4" />
-                            </button>
+                        {/* Admin Remark / Rejection Reason banner */}
+                        {w.rejection_reason && (
+                          <div className={`p-2.5 rounded-xl border text-xs font-mono flex items-start gap-2 ${
+                            isApproved 
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' 
+                              : isRejected 
+                              ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' 
+                              : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                          }`}>
+                            <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <strong className="uppercase font-bold tracking-wider">Compliance Remark: </strong>
+                              <span>{w.rejection_reason}</span>
+                            </div>
                           </div>
                         )}
                       </div>
