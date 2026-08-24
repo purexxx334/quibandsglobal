@@ -33,7 +33,8 @@ import {
   ShieldAlert,
   Edit3,
   Gift,
-  Coins
+  Coins,
+  Building2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { DepositRequest, WithdrawalRequest, UserNotification, Transaction } from '../../types';
@@ -949,7 +950,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
                                 </span>
                               </div>
                               <p className="text-xs text-slate-400 font-mono">
-                                {new Date(w.created_at).toLocaleString()}
+                                {w.created_at ? new Date(w.created_at).toLocaleString() : 'Just now'}
                               </p>
                             </div>
                           </div>
