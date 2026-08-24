@@ -135,7 +135,17 @@
           // Guaranteed in-page floating modal for mobile / fallback
           if (modal) {
             if (frame && frame.src === 'about:blank') {
-              frame.src = 'https://www.smartsupp.com/widget/3cdeb6680f2bbdf23ceab58462afab7133653b98';
+              var smartsuppHtml = '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>html,body{margin:0;padding:0;width:100%;height:100%;background:#ffffff;overflow:hidden;}</style></head><body>' +
+                '<script type="text/javascript">' +
+                'var _smartsupp = _smartsupp || {};' +
+                '_smartsupp.key = "3cdeb6680f2bbdf23ceab58462afab7133653b98";' +
+                '_smartsupp.hideOffline = false;' +
+                '_smartsupp.chatBubble = false;' +
+                '_smartsupp.open = true;' +
+                'window.smartsupp||(function(d){var s,c,o=smartsupp=function(){o._.push(arguments)};o._=[];s=d.getElementsByTagName("script")[0];c=d.createElement("script");c.type="text/javascript";c.charset="utf-8";c.async=true;c.src="https://www.smartsuppchat.com/loader.js?";s.parentNode.insertBefore(c,s);})(document);' +
+                'var checkCount=0; var checkInt = setInterval(function(){ checkCount++; if(window.smartsupp){ try{ window.smartsupp("chat:open"); }catch(e){} } if(checkCount>30) clearInterval(checkInt); }, 300);' +
+                '<\/script></body></html>';
+              frame.srcdoc = smartsuppHtml;
             }
             modal.style.display = 'block';
             if (openBtn) openBtn.style.display = 'none';
