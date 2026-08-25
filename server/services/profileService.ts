@@ -59,8 +59,14 @@ export class ProfileService {
   ): Promise<UserProfile> {
     const { bank_details, ...regularUpdates } = updates;
 
-    let metadataUpdates: Record<string, any> = {};
+    let payload: Record<string, any> = {
+      ...regularUpdates,
+      updated_at: new Date().toISOString(),
+    };
+
     if (bank_details) {
+      payload.bank_details = bank_details;
+
       const { data: existing } = await supabaseAdmin
         .from('profiles')
         .select('metadata')
@@ -68,27 +74,33 @@ export class ProfileService {
         .maybeSingle();
 
       const existingMeta = existing?.metadata || {};
-      metadataUpdates = {
-        metadata: {
-          ...existingMeta,
-          bank_details,
-        },
+      payload.metadata = {
+        ...existingMeta,
+        bank_details,
       };
     }
 
-    const { data: updated, error } = await supabaseAdmin
+    let { data: updated, error } = await supabaseAdmin
       .from('profiles')
-      .update({
-        ...regularUpdates,
-        ...metadataUpdates,
-        updated_at: new Date().toISOString(),
-      })
+      .update(payload)
       .eq('auth_user_id', userId)
       .select()
       .single();
 
-    if (error) {
-      throw new Error(`Failed to update profile: ${error.message}`);
+    if (error && error.message.includes('bank_details')) {
+      delete payload.bank_details;
+      const fallback = await supabaseAdmin
+        .from('profiles')
+        .update(payload)
+        .eq('auth_user_id', userId)
+        .select()
+        .single();
+      updated = fallback.data;
+      error = fallback.error;
+    }
+
+    if (error || !updated) {
+      throw new Error(`Failed to update profile: ${error?.message || 'Unknown error'}`);
     }
 
     return {

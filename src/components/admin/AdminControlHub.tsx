@@ -48,7 +48,8 @@ import {
   MessageSquare,
   Terminal,
   Coins,
-  Info
+  Info,
+  AlertCircle
 } from 'lucide-react';
 
 import { AdminSupportChatTab } from './AdminSupportChatTab';
@@ -56,6 +57,7 @@ import { AdminSupportChatTab } from './AdminSupportChatTab';
 import { useAuth } from '../../context/AuthContext';
 import { 
   UserProfile, 
+  BankDetails,
   SecurityLog, 
   AdminNotification, 
   DepositAddress, 
@@ -226,9 +228,13 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
   const [bankModal, setBankModal] = useState<{
     isOpen: boolean;
     user: UserProfile | null;
+    bankDetails?: BankDetails | null;
+    title?: string;
   }>({
     isOpen: false,
     user: null,
+    bankDetails: null,
+    title: '',
   });
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -1591,17 +1597,22 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                                   </button>
 
                                   <button
-                                    onClick={() => setBankModal({ isOpen: true, user: u })}
-                                    className={`px-2 py-1 rounded-lg border text-[10px] font-semibold font-sans transition flex items-center gap-1 ${
-                                      u.bank_details?.account_number
-                                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 shadow-sm'
-                                        : 'bg-dark-850 text-slate-400 border-white/10 hover:bg-white/10'
-                                    }`}
-                                    title="Inspect User Bank Details"
-                                  >
-                                    <Building2 className="w-3 h-3" />
-                                    <span>Bank</span>
-                                  </button>
+                                     onClick={() => setBankModal({
+                                       isOpen: true,
+                                       user: u,
+                                       bankDetails: u.bank_details,
+                                       title: `${u.full_name || u.email}'s Bank Account`
+                                     })}
+                                     className={`px-2 py-1 rounded-lg border text-[10px] font-semibold font-sans transition flex items-center gap-1 ${
+                                       u.bank_details?.account_number
+                                         ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 shadow-sm'
+                                         : 'bg-dark-850 text-slate-400 border-white/10 hover:bg-white/10'
+                                     }`}
+                                     title="Inspect User Full Bank Details"
+                                   >
+                                     <Building2 className="w-3 h-3" />
+                                     <span>{u.bank_details?.account_number ? 'Bank ✓' : 'Bank'}</span>
+                                   </button>
 
                                   <button
                                     onClick={() => loadUserDossier(u.auth_user_id)}
@@ -1661,15 +1672,42 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                         {/* Saved Bank Account Card in Dossier */}
                         {userDossier.profile?.bank_details && userDossier.profile.bank_details.account_number && (
                           <div className="pt-2 border-t border-white/5 space-y-1.5">
-                            <div className="text-emerald-400 text-[10px] uppercase font-bold flex items-center gap-1">
-                              <Building2 className="w-3.5 h-3.5" />
-                              <span>Saved Bank Account</span>
+                            <div className="flex items-center justify-between">
+                              <div className="text-emerald-400 text-[10px] uppercase font-bold flex items-center gap-1">
+                                <Building2 className="w-3.5 h-3.5" />
+                                <span>Saved Bank Account</span>
+                              </div>
+                              <button
+                                onClick={() => setBankModal({
+                                  isOpen: true,
+                                  user: userDossier.profile,
+                                  bankDetails: userDossier.profile.bank_details,
+                                  title: `${userDossier.profile.full_name || userDossier.profile.email}'s Bank Account`
+                                })}
+                                className="text-[10px] text-emerald-300 hover:text-emerald-200 underline font-sans"
+                              >
+                                View Full
+                              </button>
                             </div>
                             <div className="p-2.5 rounded-lg bg-dark-950 border border-emerald-500/30 text-[11px] text-slate-300 space-y-1">
-                              <div className="font-bold text-white">{userDossier.profile.bank_details.bank_name}</div>
-                              <div>Holder: <span className="text-slate-200">{userDossier.profile.bank_details.account_holder}</span></div>
-                              <div>Account: <span className="text-emerald-300 font-bold">{userDossier.profile.bank_details.account_number}</span></div>
-                              <div>SWIFT: <span className="text-gold-400">{userDossier.profile.bank_details.swift_routing}</span> ({userDossier.profile.bank_details.bank_country || 'Global'})</div>
+                              <div className="font-bold text-white flex items-center justify-between">
+                                <span>{userDossier.profile.bank_details.bank_name}</span>
+                                <span className="text-[10px] text-emerald-400 font-mono font-bold">{userDossier.profile.bank_details.currency || 'SGD'}</span>
+                              </div>
+                              <div>Holder: <span className="text-slate-200 font-semibold">{userDossier.profile.bank_details.account_holder}</span></div>
+                              <div className="flex items-center justify-between bg-dark-900 px-2 py-1 rounded border border-white/5">
+                                <span>Account: <strong className="text-emerald-300 font-mono">{userDossier.profile.bank_details.account_number}</strong></span>
+                                <button
+                                  onClick={() => copyToClipboard(userDossier.profile.bank_details?.account_number || '', 'dossier-acct')}
+                                  className="text-slate-400 hover:text-white"
+                                  title="Copy Account Number"
+                                >
+                                  {copiedId === 'dossier-acct' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                </button>
+                              </div>
+                              {userDossier.profile.bank_details.swift_routing && (
+                                <div>SWIFT: <span className="text-gold-400 font-mono font-bold">{userDossier.profile.bank_details.swift_routing}</span> ({userDossier.profile.bank_details.bank_country || 'Global'})</div>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1947,9 +1985,26 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                                 <span className="block text-[10px] text-emerald-400 font-bold">100% MAX Disbursed</span>
                               </td>
                               <td className="px-4 py-3 text-slate-300 max-w-xs">
-                                <div className="font-bold text-white">{w.bank_details?.bank_name || 'Bank Transfer'}</div>
+                                <div className="flex items-center justify-between">
+                                  <div className="font-bold text-white truncate max-w-[150px]">{w.bank_details?.bank_name || 'Bank Transfer'}</div>
+                                  {w.bank_details && w.bank_details.account_number && (
+                                    <button
+                                      onClick={() => setBankModal({
+                                        isOpen: true,
+                                        user: null,
+                                        bankDetails: w.bank_details,
+                                        title: `Withdrawal Wire Details: ${w.user_profile?.full_name || 'Trader'} (${w.amount} ${w.asset})`
+                                      })}
+                                      className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 font-sans font-bold flex items-center gap-1 transition"
+                                      title="Inspect Full Wire Information"
+                                    >
+                                      <Building2 className="w-2.5 h-2.5" />
+                                      <span>Full Bank</span>
+                                    </button>
+                                  )}
+                                </div>
                                 <div className="text-[10px] text-slate-400">
-                                  {w.bank_details?.account_holder ? `${w.bank_details.account_holder} • **** ${w.bank_details.account_number?.slice(-4)}` : w.destination_wallet_address}
+                                  {w.bank_details?.account_holder ? `${w.bank_details.account_holder} • ${w.bank_details.account_number}` : w.destination_wallet_address}
                                 </div>
                                 {w.bank_details?.swift_routing && (
                                   <div className="text-[9px] text-gold-400/80">SWIFT: {w.bank_details.swift_routing}</div>
@@ -3284,28 +3339,85 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               </div>
 
               {/* Withdrawal Details Card */}
-              <div className="p-3.5 bg-dark-900 rounded-2xl border border-white/5 space-y-2">
-                <div className="flex justify-between">
+              <div className="p-4 bg-dark-900 rounded-2xl border border-white/5 space-y-3">
+                <div className="flex justify-between items-center pb-2 border-b border-white/5">
                   <span className="text-slate-400">Withdrawal Amount:</span>
-                  <span className="font-bold text-white text-sm">
+                  <span className="font-bold text-emerald-400 text-base font-mono">
                     {withdrawalModal.withdrawal.amount} {withdrawalModal.withdrawal.asset}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Bank Destination:</span>
-                  <span className="text-slate-200 font-bold">
-                    {withdrawalModal.withdrawal.bank_details?.bank_name || 'Bank Wire'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Beneficiary:</span>
-                  <span className="text-slate-300">
-                    {withdrawalModal.withdrawal.bank_details?.account_holder} ({withdrawalModal.withdrawal.bank_details?.account_number})
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">HBC / VBC Code:</span>
-                  <span className="text-gold-400 font-bold">
+
+                {/* Full Bank Wire Destination Box */}
+                {withdrawalModal.withdrawal.bank_details && withdrawalModal.withdrawal.bank_details.account_number ? (
+                  <div className="p-3 bg-dark-950 rounded-xl border border-emerald-500/30 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                      <span className="flex items-center gap-1">
+                        <Building2 className="w-3.5 h-3.5" />
+                        <span>Payout Bank Destination</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const bd = withdrawalModal.withdrawal!.bank_details!;
+                          const text = `=== WIRE TRANSFER PAYOUT ===\nBeneficiary: ${bd.account_holder || ''}\nBank Name: ${bd.bank_name || ''}\nAccount/IBAN: ${bd.account_number || ''}\nSWIFT/BIC: ${bd.swift_routing || ''}\nCountry: ${bd.bank_country || 'Singapore'}\nCurrency: ${bd.currency || 'SGD'}\nAmount: ${withdrawalModal.withdrawal!.amount} ${withdrawalModal.withdrawal!.asset}`;
+                          copyToClipboard(text, 'wire-all-modal');
+                        }}
+                        className="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-sans font-bold flex items-center gap-1 transition"
+                      >
+                        {copiedId === 'wire-all-modal' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>Copy All Details</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div>
+                        <span className="text-slate-500 text-[10px] block">Bank Name</span>
+                        <span className="text-white font-bold">{withdrawalModal.withdrawal.bank_details.bank_name}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 text-[10px] block">Account Holder</span>
+                        <span className="text-slate-200 font-bold">{withdrawalModal.withdrawal.bank_details.account_holder}</span>
+                      </div>
+                    </div>
+
+                    <div className="p-2 bg-dark-900 rounded-lg border border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-500 text-[9px] block">ACCOUNT NUMBER / IBAN</span>
+                        <span className="text-emerald-300 font-bold font-mono text-xs">{withdrawalModal.withdrawal.bank_details.account_number}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(withdrawalModal.withdrawal!.bank_details!.account_number!, 'acct-num-modal')}
+                        className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white"
+                        title="Copy Account Number"
+                      >
+                        {copiedId === 'acct-num-modal' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div>
+                        <span className="text-slate-500 text-[10px] block">SWIFT / BIC / ROUTING</span>
+                        <span className="text-gold-400 font-bold font-mono">{withdrawalModal.withdrawal.bank_details.swift_routing || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 text-[10px] block">Country / Currency</span>
+                        <span className="text-slate-300">{withdrawalModal.withdrawal.bank_details.bank_country || 'Singapore'} ({withdrawalModal.withdrawal.bank_details.currency || 'SGD'})</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Destination:</span>
+                    <span className="text-slate-200 font-mono text-xs font-bold truncate max-w-[200px]">
+                      {withdrawalModal.withdrawal.destination_wallet_address || 'Manual Transfer'}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex justify-between pt-1">
+                  <span className="text-slate-400">Clearance Code (HBC/VBC):</span>
+                  <span className="text-amber-400 font-bold font-mono">
                     {withdrawalModal.withdrawal.hbc_vbc_code || 'N/A'}
                   </span>
                 </div>
@@ -3378,9 +3490,9 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         )}
 
         {/* 9. USER BANK DETAILS AUDIT MODAL */}
-        {bankModal.isOpen && bankModal.user && (
+        {bankModal.isOpen && (
           <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fadeIn">
-            <div className="w-full max-w-md bg-dark-950 border border-gold-500/30 rounded-3xl p-6 shadow-2xl space-y-5 text-slate-100 font-mono text-xs">
+            <div className="w-full max-w-lg bg-dark-950 border border-gold-500/30 rounded-3xl p-6 shadow-2xl space-y-5 text-slate-100 font-mono text-xs">
               
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center space-x-3">
@@ -3388,66 +3500,141 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                     <Building2 className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-base">User Saved Bank Account</h3>
-                    <p className="text-[11px] text-slate-400 truncate max-w-[220px]">
-                      {bankModal.user.full_name || bankModal.user.email}
+                    <h3 className="font-bold text-white text-base">Full Bank Wire Account Details</h3>
+                    <p className="text-[11px] text-slate-400 truncate max-w-[280px]">
+                      {bankModal.title || bankModal.user?.full_name || bankModal.user?.email || 'User Bank Record'}
                     </p>
                   </div>
                 </div>
                 <button
-                  onClick={() => setBankModal({ isOpen: false, user: null })}
-                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
+                  onClick={() => setBankModal({ isOpen: false, user: null, bankDetails: null, title: '' })}
+                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {bankModal.user.bank_details && bankModal.user.bank_details.account_number ? (
-                <div className="p-4 bg-dark-900 rounded-2xl border border-emerald-500/30 space-y-3">
-                  <div>
-                    <span className="text-slate-500 text-[10px] uppercase block">Bank Name</span>
-                    <span className="text-base font-bold text-white font-sans">{bankModal.user.bank_details.bank_name}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 text-[10px] uppercase block">Account Holder Name</span>
-                    <span className="text-slate-200 font-bold">{bankModal.user.bank_details.account_holder}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 text-[10px] uppercase block">Account Number / IBAN</span>
-                    <div className="flex items-center justify-between p-2 bg-dark-950 rounded-lg border border-slate-800 text-emerald-300 font-bold">
-                      <span>{bankModal.user.bank_details.account_number}</span>
+              {(() => {
+                const details = bankModal.bankDetails || bankModal.user?.bank_details;
+                if (!details || !details.account_number) {
+                  return (
+                    <div className="p-8 text-center rounded-2xl bg-dark-900 border border-slate-800 text-slate-400 space-y-2">
+                      <AlertCircle className="w-8 h-8 text-slate-500 mx-auto" />
+                      <p className="font-sans text-sm">This user has not yet submitted or saved bank account details.</p>
+                    </div>
+                  );
+                }
+
+                const fullWireText = `=== BANK WIRE TRANSFER DETAILS ===\nBeneficiary Name: ${details.account_holder || bankModal.user?.full_name || ''}\nBank Name: ${details.bank_name || ''}\nAccount Number / IBAN: ${details.account_number || ''}\nSWIFT / BIC / Routing: ${details.swift_routing || ''}\nBank Country: ${details.bank_country || 'Singapore'}\nSettlement Currency: ${details.currency || 'SGD'}`;
+
+                return (
+                  <div className="space-y-4">
+                    {/* Action Bar */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Verified Saved Banking Details</span>
+                      </span>
                       <button
-                        onClick={() => copyToClipboard(bankModal.user!.bank_details!.account_number!, 'acct')}
-                        className="text-slate-400 hover:text-white"
+                        onClick={() => copyToClipboard(fullWireText, 'copy-all-wire')}
+                        className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-gold-500 to-amber-600 text-dark-950 font-bold text-xs shadow-md hover:from-gold-400 hover:to-amber-500 flex items-center gap-1.5 transition"
                       >
-                        {copiedId === 'acct' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copiedId === 'copy-all-wire' ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-dark-950" />
+                            <span>Copied All!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 text-dark-950" />
+                            <span>Copy Full Wire Info</span>
+                          </>
+                        )}
                       </button>
                     </div>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 text-[10px] uppercase block">SWIFT / BIC / Routing Code</span>
-                    <span className="text-gold-400 font-bold">{bankModal.user.bank_details.swift_routing}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
-                    <div>
-                      <span className="text-slate-500 text-[10px] uppercase block">Bank Country</span>
-                      <span className="text-slate-300">{bankModal.user.bank_details.bank_country || 'Singapore'}</span>
+
+                    <div className="p-4 bg-dark-900 rounded-2xl border border-emerald-500/30 space-y-3.5">
+                      {/* Bank Name */}
+                      <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                        <div>
+                          <span className="text-slate-500 text-[10px] uppercase block">Bank Name</span>
+                          <span className="text-base font-bold text-white font-sans">{details.bank_name}</span>
+                        </div>
+                        <button
+                          onClick={() => copyToClipboard(details.bank_name || '', 'bank_name')}
+                          className="p-1.5 rounded-lg bg-dark-950 border border-slate-800 text-slate-400 hover:text-white transition"
+                          title="Copy Bank Name"
+                        >
+                          {copiedId === 'bank_name' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+
+                      {/* Beneficiary Name */}
+                      <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                        <div>
+                          <span className="text-slate-500 text-[10px] uppercase block">Beneficiary / Account Holder</span>
+                          <span className="text-sm font-bold text-slate-100">{details.account_holder || bankModal.user?.full_name}</span>
+                        </div>
+                        <button
+                          onClick={() => copyToClipboard(details.account_holder || bankModal.user?.full_name || '', 'holder')}
+                          className="p-1.5 rounded-lg bg-dark-950 border border-slate-800 text-slate-400 hover:text-white transition"
+                          title="Copy Account Holder"
+                        >
+                          {copiedId === 'holder' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+
+                      {/* Account Number / IBAN */}
+                      <div className="space-y-1">
+                        <span className="text-slate-500 text-[10px] uppercase block">Account Number / IBAN</span>
+                        <div className="flex items-center justify-between p-3 bg-dark-950 rounded-xl border border-emerald-500/40 text-emerald-300 font-bold font-mono text-sm shadow-inner">
+                          <span className="select-all tracking-wider">{details.account_number}</span>
+                          <button
+                            onClick={() => copyToClipboard(details.account_number || '', 'acct')}
+                            className="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-sans text-xs flex items-center gap-1 transition"
+                          >
+                            {copiedId === 'acct' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{copiedId === 'acct' ? 'Copied' : 'Copy'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* SWIFT / BIC / Routing Code */}
+                      <div className="flex items-center justify-between pt-1">
+                        <div>
+                          <span className="text-slate-500 text-[10px] uppercase block">SWIFT / BIC / Routing Code</span>
+                          <span className="text-gold-400 font-bold font-mono text-sm">{details.swift_routing || 'N/A'}</span>
+                        </div>
+                        {details.swift_routing && (
+                          <button
+                            onClick={() => copyToClipboard(details.swift_routing || '', 'swift')}
+                            className="p-1.5 rounded-lg bg-dark-950 border border-slate-800 text-slate-400 hover:text-white transition"
+                            title="Copy SWIFT"
+                          >
+                            {copiedId === 'swift' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Country & Settlement Currency */}
+                      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/5">
+                        <div className="p-2.5 rounded-xl bg-dark-950 border border-white/5">
+                          <span className="text-slate-500 text-[10px] uppercase block">Bank Country</span>
+                          <span className="text-slate-200 font-bold">{details.bank_country || 'Singapore'}</span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-dark-950 border border-white/5">
+                          <span className="text-slate-500 text-[10px] uppercase block">Settlement Currency</span>
+                          <span className="text-emerald-400 font-bold font-mono text-sm">{details.currency || 'SGD'}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-slate-500 text-[10px] uppercase block">Currency</span>
-                      <span className="text-emerald-400 font-bold">{bankModal.user.bank_details.currency || 'SGD'}</span>
-                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="p-6 text-center rounded-2xl bg-dark-900 border border-slate-800 text-slate-400">
-                  <p>This user has not yet submitted or saved bank account details.</p>
-                </div>
-              )}
+                );
+              })()}
 
               <button
                 type="button"
-                onClick={() => setBankModal({ isOpen: false, user: null })}
+                onClick={() => setBankModal({ isOpen: false, user: null, bankDetails: null, title: '' })}
                 className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-xs transition"
               >
                 Close

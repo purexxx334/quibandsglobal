@@ -24,6 +24,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { BankDetails } from '../../types';
+import { API_BASE } from '../../config/api';
 
 interface WithdrawalModalProps {
   isOpen: boolean;
@@ -127,7 +128,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
       const token = await getAuthToken();
       if (!token) return;
 
-      const res = await fetch('/api/profile', {
+      const res = await fetch(`${API_BASE}/profile`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -211,7 +212,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
       };
 
       // Persist to user profile
-      const res = await fetch('/api/profile', {
+      const res = await fetch(`${API_BASE}/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -285,7 +286,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
         },
       };
 
-      const res = await fetch('/api/withdrawals', {
+      const res = await fetch(`${API_BASE}/withdrawals`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

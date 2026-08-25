@@ -11,7 +11,8 @@ import {
   Camera, 
   Save, 
   CheckCircle, 
-  AlertCircle 
+  AlertCircle,
+  Building2 
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -41,6 +42,13 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [dob, setDob] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
 
+  const [bankName, setBankName] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [swiftRouting, setSwiftRouting] = useState('');
+  const [bankCountry, setBankCountry] = useState('Singapore');
+  const [bankCurrency, setBankCurrency] = useState('SGD');
+
   const [saving, setSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -55,6 +63,17 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       setPostalCode(profile.postal_code || '');
       setDob(profile.dob || '');
       setAvatarUrl(profile.avatar_url || '');
+
+      if (profile.bank_details) {
+        setBankName(profile.bank_details.bank_name || '');
+        setAccountHolder(profile.bank_details.account_holder || profile.full_name || '');
+        setAccountNumber(profile.bank_details.account_number || '');
+        setSwiftRouting(profile.bank_details.swift_routing || '');
+        setBankCountry(profile.bank_details.bank_country || 'Singapore');
+        setBankCurrency(profile.bank_details.currency || 'SGD');
+      } else if (profile.full_name) {
+        setAccountHolder(profile.full_name);
+      }
     }
   }, [profile, isOpen]);
 
@@ -67,6 +86,16 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
     try {
       const token = session?.access_token || (await supabase.auth.getSession()).data?.session?.access_token;
+      
+      const bankData = (accountNumber.trim() || bankName.trim()) ? {
+        bank_name: bankName.trim(),
+        account_holder: accountHolder.trim() || fullName.trim(),
+        account_number: accountNumber.trim(),
+        swift_routing: swiftRouting.trim(),
+        bank_country: bankCountry,
+        currency: bankCurrency,
+      } : undefined;
+
       const res = await fetch(`${API_BASE}/profile`, {
         method: 'PUT',
         headers: {
@@ -83,6 +112,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           postal_code: postalCode,
           dob,
           avatar_url: avatarUrl,
+          bank_details: bankData,
         }),
       });
 
@@ -283,6 +313,95 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   placeholder="e.g. EC2A 4NE"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-slate-800 focus:border-gold-400 text-white text-xs outline-none transition-colors"
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Institutional Bank Wire & Payout Destination */}
+          <div className="space-y-4 pt-2 border-t border-slate-800/80">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400 font-mono flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Saved Bank Account (Payout Destination)</span>
+              </h3>
+              <span className="text-[10px] text-slate-400 font-mono">For Wire Withdrawals</span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-dark-900/90 border border-emerald-500/20 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Bank Name</label>
+                  <input
+                    type="text"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    placeholder="e.g. DBS Bank, Barclays, Chase"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-dark-950 border border-slate-800 focus:border-emerald-400 text-white text-xs outline-none transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Account Holder Name</label>
+                  <input
+                    type="text"
+                    value={accountHolder}
+                    onChange={(e) => setAccountHolder(e.target.value)}
+                    placeholder="e.g. Alexander Hamilton"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-dark-950 border border-slate-800 focus:border-emerald-400 text-white text-xs outline-none transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Account Number / IBAN</label>
+                  <input
+                    type="text"
+                    value={accountNumber}
+                    onChange={(e) => setAccountNumber(e.target.value)}
+                    placeholder="e.g. 012-345678-9 or GB82..."
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-dark-950 border border-slate-800 focus:border-emerald-400 text-white text-xs outline-none font-mono transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">SWIFT / BIC / Routing Code</label>
+                  <input
+                    type="text"
+                    value={swiftRouting}
+                    onChange={(e) => setSwiftRouting(e.target.value)}
+                    placeholder="e.g. DBSSSGSG or 123456789"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-dark-950 border border-slate-800 focus:border-emerald-400 text-white text-xs outline-none font-mono uppercase transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Bank Country</label>
+                  <input
+                    type="text"
+                    value={bankCountry}
+                    onChange={(e) => setBankCountry(e.target.value)}
+                    placeholder="e.g. Singapore, United Kingdom"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-dark-950 border border-slate-800 focus:border-emerald-400 text-white text-xs outline-none transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Settlement Currency</label>
+                  <select
+                    value={bankCurrency}
+                    onChange={(e) => setBankCurrency(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-dark-950 border border-slate-800 focus:border-emerald-400 text-white text-xs outline-none transition-colors font-mono"
+                  >
+                    <option value="SGD">SGD (Singapore Dollar)</option>
+                    <option value="USD">USD (US Dollar)</option>
+                    <option value="EUR">EUR (Euro)</option>
+                    <option value="GBP">GBP (British Pound)</option>
+                    <option value="CAD">CAD (Canadian Dollar)</option>
+                    <option value="AUD">AUD (Australian Dollar)</option>
+                    <option value="JPY">JPY (Japanese Yen)</option>
+                    <option value="CHF">CHF (Swiss Franc)</option>
+                    <option value="AED">AED (UAE Dirham)</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
