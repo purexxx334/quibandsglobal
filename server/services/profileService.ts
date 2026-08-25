@@ -97,6 +97,40 @@ export class ProfileService {
     };
   }
 
+  /**
+   * Sync active live mining balance and main balance to database
+   */
+  async syncMiningState(
+    userId: string,
+    miningBalance: number
+  ): Promise<{ success: boolean; mining_balance: number; main_balance: number }> {
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('deposit_balance, mining_balance, profit_balance, total_deposited')
+      .eq('auth_user_id', userId)
+      .maybeSingle();
+
+    const depositBal = Number(profile?.deposit_balance !== undefined ? profile.deposit_balance : (profile?.total_deposited || 0));
+    const profitBal = Number(profile?.profit_balance || 0);
+    const newMiningBal = Number(miningBalance || 0);
+    const newMainBal = depositBal + newMiningBal + profitBal;
+
+    await supabaseAdmin
+      .from('profiles')
+      .update({
+        mining_balance: newMiningBal,
+        main_balance: newMainBal,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('auth_user_id', userId);
+
+    return {
+      success: true,
+      mining_balance: newMiningBal,
+      main_balance: newMainBal,
+    };
+  }
+
 }
 
 export const profileService = new ProfileService();

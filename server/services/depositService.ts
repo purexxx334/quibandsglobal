@@ -224,9 +224,14 @@ export class DepositService {
 
       if (wallet) {
         newBalance = Number(wallet.balance) + Number(deposit.amount);
+        const oldDep = Number(wallet.deposit_balance !== undefined ? wallet.deposit_balance : wallet.balance || 0);
         await supabaseAdmin
           .from('wallets')
-          .update({ balance: newBalance, updated_at: new Date().toISOString() })
+          .update({ 
+            balance: newBalance, 
+            deposit_balance: oldDep + Number(deposit.amount),
+            updated_at: new Date().toISOString() 
+          })
           .eq('id', walletId);
       }
     } else {
@@ -236,6 +241,7 @@ export class DepositService {
           user_id: deposit.user_id,
           currency: deposit.asset,
           balance: Number(deposit.amount),
+          deposit_balance: Number(deposit.amount),
           locked_balance: 0,
           is_active: true,
         })
@@ -244,6 +250,30 @@ export class DepositService {
 
       if (createdWallet) walletId = createdWallet.id;
     }
+
+    // Update profile deposit_balance, main_balance, and total_deposited
+    const { data: userProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('deposit_balance, main_balance, mining_balance, profit_balance, total_deposited')
+      .eq('auth_user_id', deposit.user_id)
+      .maybeSingle();
+
+    const currentDep = Number(userProfile?.deposit_balance !== undefined ? userProfile.deposit_balance : (userProfile?.total_deposited || 0));
+    const newDepBal = currentDep + Number(deposit.amount);
+    const currentMining = Number(userProfile?.mining_balance || 0);
+    const currentProfit = Number(userProfile?.profit_balance || 0);
+    const newMainBal = newDepBal + currentMining + currentProfit;
+    const newTotalDep = Number(userProfile?.total_deposited || 0) + Number(deposit.amount);
+
+    await supabaseAdmin
+      .from('profiles')
+      .update({
+        deposit_balance: newDepBal,
+        main_balance: newMainBal,
+        total_deposited: newTotalDep,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('auth_user_id', deposit.user_id);
 
     // 2. Mark deposit as APPROVED
     const { error: updateError } = await supabaseAdmin

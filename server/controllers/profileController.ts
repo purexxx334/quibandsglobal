@@ -64,6 +64,32 @@ export class ProfileController {
     }
   }
 
+  /**
+   * POST /api/profile/sync-mining
+   * Syncs current user's live mining balance and main balance
+   */
+  async syncMining(req: AuthenticatedRequest, res: Response<ApiResponse>, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      const { mining_balance } = req.body;
+      const result = await profileService.syncMiningState(req.user.id, Number(mining_balance || 0));
+
+      return res.status(200).json({
+        success: true,
+        message: 'Mining state synchronized successfully',
+        data: result,
+      });
+    } catch (err) {
+      return next(err);
+    }
+  }
+
 }
 
 export const profileController = new ProfileController();

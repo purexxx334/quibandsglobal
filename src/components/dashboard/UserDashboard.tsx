@@ -43,6 +43,7 @@ import { EditProfileModal } from './EditProfileModal';
 import { KycModal } from './KycModal';
 import { ReferralModal } from './ReferralModal';
 import { InvestmentReturnsTable } from './InvestmentReturnsTable';
+import { getMiningConfigForDeposit } from '../../utils/miningEngine';
 import { API_BASE } from '../../config/api';
 
 
@@ -80,14 +81,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   const [kycModalOpen, setKycModalOpen] = useState(false);
   const [referralModalOpen, setReferralModalOpen] = useState(false);
 
-
-  // Live Miner Engine (5 Hours Cycle = 18,000s, $5.00 Target Yield)
-  const SESSION_TOTAL_SECONDS = 18000; // 5 hours
-  const SESSION_TARGET_YIELD = 5.00; // $5.00 per session
-
+  // Live Miner Engine States
   const [liveMiningBalance, setLiveMiningBalance] = useState<number>(0);
-  const [sessionSecondsLeft, setSessionSecondsLeft] = useState<number>(SESSION_TOTAL_SECONDS);
-  const [sessionTotalSeconds] = useState<number>(SESSION_TOTAL_SECONDS);
+  const [sessionSecondsLeft, setSessionSecondsLeft] = useState<number>(12600);
   const [sessionBlockNumber, setSessionBlockNumber] = useState<number>(884219);
   const [sessionYieldEarned, setSessionYieldEarned] = useState<number>(0);
   const [sessionStatus, setSessionStatus] = useState<'ACTIVE' | 'SOLVING' | 'NEW_CYCLE'>('ACTIVE');
@@ -202,68 +198,98 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   }, [user?.id]);
 
   // Determine if user has activated mining by making a deposit or having positive balance
-  const hasApprovedDeposit = Boolean(
-    deposits.some((d) => d.status === 'APPROVED') ||
-    (profile?.total_deposited !== undefined && Number(profile.total_deposited) > 0) ||
-    (profile?.main_balance !== undefined && Number(profile.main_balance) > 0) ||
-    (wallets['USDT'] !== undefined && wallets['USDT'] > 0)
-  );
+  // Financial Balances Calculation
+  const activeProfile = freshProfile || profile;
+  const depositBalanceUsd = Number(activeProfile?.deposit_balance !== undefined ? activeProfile.deposit_balance : (wallets['USDT'] || 0));
+  const miningBalanceUsd = liveMiningBalance > 0 ? liveMiningBalance : Number(activeProfile?.mining_balance !== undefined ? activeProfile.mining_balance : (activeProfile?.profit_balance || 0));
+  const profitBalanceUsd = Number(activeProfile?.profit_balance !== undefined ? activeProfile.profit_balance : 0);
+  // Main balance = Total of Capital (Deposit Balance) + Profit (Current Mining Balance / Amount Mined)
+  const mainBalanceUsd = Number(activeProfile?.main_balance !== undefined ? activeProfile.main_balance : (depositBalanceUsd + miningBalanceUsd));
+  const convertBalance = Number(activeProfile?.convert_balance || 0);
+  const convertCurrency = activeProfile?.convert_currency || 'SGD';
+  const receiveLimitUsd = Number(activeProfile?.receive_limit || 9000.00);
+  const accountTier = activeProfile?.account_tier || 'BASIC';
+
+  // Dynamic Tier Calculation directly matching Investment Returns Table
+  const miningConfig = getMiningConfigForDeposit(depositBalanceUsd);
+  const hasApprovedDeposit = Boolean(depositBalanceUsd > 0 || deposits.some((d) => d.status === 'APPROVED'));
+  const sessionTotalSeconds = miningConfig.sessionDurationSeconds;
+
+  // Calculate session percentage
+  const sessionPercent = Math.min(100, Math.max(0, Math.round(((sessionTotalSeconds - sessionSecondsLeft) / sessionTotalSeconds) * 100)));
+
+  // Format time remaining as hh:mm:ss
+  const formatTime = (totalSec: number) => {
+    const hrs = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Periodic background database sync for live mined profit
+  const lastSyncTimeRef = useRef<number>(Date.now());
+  const syncMiningToBackend = async (currentMinedBalance: number) => {
+    try {
+      const headers = await getHeaders();
+      await fetch(`${API_BASE}/profile/sync-mining`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ mining_balance: currentMinedBalance }),
+      });
+    } catch (e) {
+      console.debug('Background mining sync deferred:', e);
+    }
+  };
 
   // =========================================================================
-  // PERSISTENT USER-SCOPED MINING INITIALIZATION ACROSS LOGINS & REFRESHES
+  // PERSISTENT USER-SCOPED MINING: NEVER RESTARTS ACROSS LOGINS/LOGOUTS & OFFLINE
   // =========================================================================
   useEffect(() => {
     if (!user?.id) return;
     const uid = user.id;
 
     if (!hasApprovedDeposit) {
-      // New user or user with 0 deposits: Miner stays in STANDBY
-      setLiveMiningBalance(Number(profile?.mining_balance || 0));
-      setSessionSecondsLeft(SESSION_TOTAL_SECONDS);
+      // User with $0 deposit: Miner strictly stays in STANDBY
+      setLiveMiningBalance(Number(activeProfile?.mining_balance || 0));
+      setSessionSecondsLeft(sessionTotalSeconds);
       setSessionYieldEarned(0);
       setHashrateSpeed(0);
       return;
     }
 
-    // User has active deposit: Restore saved state and seamlessly resume from where they stopped
-    const savedSec = localStorage.getItem(`quibands_miner_${uid}_seconds_left`);
-    const savedYield = localStorage.getItem(`quibands_miner_${uid}_yield_earned`);
-    const savedBlock = localStorage.getItem(`quibands_miner_${uid}_block_num`);
-    const savedBalance = localStorage.getItem(`quibands_miner_${uid}_mining_balance`);
-    const savedTime = localStorage.getItem(`quibands_miner_${uid}_last_active`);
-
-    let secLeft = savedSec ? Math.min(SESSION_TOTAL_SECONDS, Math.max(1, parseInt(savedSec, 10))) : SESSION_TOTAL_SECONDS;
-    let yEarned = savedYield ? parseFloat(savedYield) : 0;
-    let bNum = savedBlock ? parseInt(savedBlock, 10) : 884219;
-    let mBal = savedBalance ? parseFloat(savedBalance) : Number(profile?.mining_balance || 0);
-
-    // If user was offline, advance the session timer and yield naturally
-    if (savedTime) {
-      const now = Date.now();
-      const elapsed = Math.max(0, Math.floor((now - parseInt(savedTime, 10)) / 1000));
-      if (elapsed > 0) {
-        const basePerSec = SESSION_TARGET_YIELD / SESSION_TOTAL_SECONDS;
-        const totalYieldGained = +(elapsed * basePerSec).toFixed(6);
-        mBal += totalYieldGained;
-
-        if (elapsed >= secLeft) {
-          const sessionsCompleted = Math.floor(elapsed / SESSION_TOTAL_SECONDS);
-          bNum += sessionsCompleted;
-          secLeft = Math.max(1, SESSION_TOTAL_SECONDS - (elapsed % SESSION_TOTAL_SECONDS));
-          yEarned = +((elapsed % SESSION_TOTAL_SECONDS) * basePerSec).toFixed(5);
-        } else {
-          secLeft = Math.max(1, secLeft - elapsed);
-          yEarned = +(yEarned + elapsed * basePerSec).toFixed(5);
-        }
-      }
+    // Determine continuous timestamp origin for this user's cloud rig
+    let savedStartTime = localStorage.getItem(`quibands_miner_${uid}_start_time`);
+    if (!savedStartTime) {
+      // Determine origin from earliest approved deposit, profile creation, or fallback
+      const approvedDep = deposits.find((d) => d.status === 'APPROVED');
+      const origin = approvedDep?.created_at 
+        ? new Date(approvedDep.created_at).getTime() 
+        : (activeProfile?.created_at ? new Date(activeProfile.created_at).getTime() : Date.now() - 3600000);
+      savedStartTime = String(origin);
+      localStorage.setItem(`quibands_miner_${uid}_start_time`, savedStartTime);
     }
 
+    const startTime = parseInt(savedStartTime, 10);
+    const now = Date.now();
+    const totalElapsedSeconds = Math.max(0, Math.floor((now - startTime) / 1000));
+
+    // Calculate exact offline progression matching active tier
+    const cyclesCompleted = Math.floor(totalElapsedSeconds / sessionTotalSeconds);
+    const secondsInCycle = totalElapsedSeconds % sessionTotalSeconds;
+    const secLeft = Math.max(1, sessionTotalSeconds - secondsInCycle);
+    const cycleYield = +(secondsInCycle * miningConfig.profitPerSecond).toFixed(5);
+    const totalYieldAccrued = +(totalElapsedSeconds * miningConfig.profitPerSecond).toFixed(6);
+
+    const initialBase = Number(activeProfile?.mining_balance || 0);
+    const effectiveMinedBalance = Math.max(initialBase, +totalYieldAccrued.toFixed(6));
+
     setSessionSecondsLeft(secLeft);
-    setSessionYieldEarned(yEarned);
-    setSessionBlockNumber(bNum);
-    setLiveMiningBalance(mBal);
+    setSessionYieldEarned(cycleYield);
+    setSessionBlockNumber(884219 + cyclesCompleted);
+    setSharesAccepted(248 + Math.floor(totalElapsedSeconds / 15));
+    setLiveMiningBalance(effectiveMinedBalance);
     setHashrateSpeed(142.84);
-  }, [user?.id, hasApprovedDeposit, profile?.mining_balance]);
+  }, [user?.id, hasApprovedDeposit, sessionTotalSeconds, miningConfig.profitPerSecond]);
 
   // =========================================================================
   // LIVE MINER ENGINE: Starts ONLY after deposit and persists continuously
@@ -273,14 +299,17 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
     const uid = user.id;
 
     const interval = setInterval(() => {
-      const basePerSec = SESSION_TARGET_YIELD / SESSION_TOTAL_SECONDS;
-      const microVariance = (Math.random() - 0.5) * 0.000030;
-      const microIncrement = +(basePerSec + microVariance).toFixed(7);
+      const basePerSec = miningConfig.profitPerSecond;
+      const microVariance = (Math.random() - 0.5) * (basePerSec * 0.05);
+      const microIncrement = +(basePerSec + microVariance).toFixed(6);
+
+      let currentBal = 0;
 
       // Increment live balance and session yield
       setLiveMiningBalance((prev) => {
         const next = +(prev + microIncrement).toFixed(6);
         localStorage.setItem(`quibands_miner_${uid}_mining_balance`, String(next));
+        currentBal = next;
         return next;
       });
 
@@ -315,14 +344,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
           setSessionBlockNumber(nextBlock);
           localStorage.setItem(`quibands_miner_${uid}_block_num`, String(nextBlock));
 
-          setSolvedNotification(`5-Hour Mining Session Complete! Block #${sessionBlockNumber} Verified: +$5.00 USDT yield credited. Next 5h session started.`);
-          setTimeout(() => setSolvedNotification(null), 5000);
+          setSolvedNotification(`${miningConfig.timeRangeText} Mining Cycle Complete! Block #${sessionBlockNumber} Verified: +$${miningConfig.targetSessionYield.toLocaleString(undefined, { minimumFractionDigits: 2 })} USDT credited. Next cycle initialized.`);
+          setTimeout(() => setSolvedNotification(null), 6000);
 
           setSessionYieldEarned(0);
           localStorage.setItem(`quibands_miner_${uid}_yield_earned`, '0');
           setSessionStatus('ACTIVE');
-          localStorage.setItem(`quibands_miner_${uid}_seconds_left`, String(SESSION_TOTAL_SECONDS));
-          return SESSION_TOTAL_SECONDS;
+          localStorage.setItem(`quibands_miner_${uid}_seconds_left`, String(sessionTotalSeconds));
+          return sessionTotalSeconds;
         }
         const nextSec = prevSec - 1;
         if (nextSec % 10 === 0) {
@@ -333,34 +362,16 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
       // Persist timestamp of last active heartbeat
       localStorage.setItem(`quibands_miner_${uid}_last_active`, String(Date.now()));
+
+      // Periodic database sync every 20 seconds
+      if (Date.now() - lastSyncTimeRef.current > 20000 && currentBal > 0) {
+        lastSyncTimeRef.current = Date.now();
+        syncMiningToBackend(currentBal);
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [hasApprovedDeposit, user?.id, SESSION_TOTAL_SECONDS, SESSION_TARGET_YIELD, sessionBlockNumber]);
-
-
-  // Financial Balances Calculation
-  const activeProfile = freshProfile || profile;
-  const depositBalanceUsd = Number(activeProfile?.deposit_balance !== undefined ? activeProfile.deposit_balance : (wallets['USDT'] || 0));
-  const miningBalanceUsd = liveMiningBalance > 0 ? liveMiningBalance : Number(activeProfile?.mining_balance !== undefined ? activeProfile.mining_balance : (activeProfile?.profit_balance || 0));
-  const profitBalanceUsd = Number(activeProfile?.profit_balance !== undefined ? activeProfile.profit_balance : 0);
-  // Main balance = Total of Capital (Deposit Balance) + Profit (Current Mining Balance / Amount Mined)
-  const mainBalanceUsd = Number(activeProfile?.main_balance !== undefined ? activeProfile.main_balance : (depositBalanceUsd + miningBalanceUsd));
-  const convertBalance = Number(activeProfile?.convert_balance || 0);
-  const convertCurrency = activeProfile?.convert_currency || 'SGD';
-  const receiveLimitUsd = Number(activeProfile?.receive_limit || 9000.00);
-  const accountTier = activeProfile?.account_tier || 'BASIC';
-
-  // Calculate session percentage
-  const sessionPercent = Math.min(100, Math.max(0, Math.round(((sessionTotalSeconds - sessionSecondsLeft) / sessionTotalSeconds) * 100)));
-
-  // Format time remaining as hh:mm:ss
-  const formatTime = (totalSec: number) => {
-    const hrs = Math.floor(totalSec / 3600);
-    const mins = Math.floor((totalSec % 3600) / 60);
-    const secs = totalSec % 60;
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, [hasApprovedDeposit, user?.id, sessionTotalSeconds, miningConfig.profitPerSecond, sessionBlockNumber, miningConfig.targetSessionYield, miningConfig.timeRangeText]);
 
 
   return (
@@ -542,16 +553,22 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
                   <span>Current Mining Balance</span>
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-bold">
-                  MINED SO FAR
+                  TOTAL MINED
                 </span>
               </div>
               <div>
                 <div className="text-2xl sm:text-3xl font-black text-emerald-300 font-mono tracking-tight">
                   ${miningBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                <div className="text-[11px] text-emerald-400/80 flex items-center gap-1 mt-1 font-mono">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Accrued Mining Yield (Profit)</span>
+                <div className="text-[11px] text-emerald-400/80 flex items-center gap-1.5 mt-1 font-mono">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>
+                    {hasApprovedDeposit ? (
+                      <>Live Session: +${sessionYieldEarned.toFixed(2)} &bull; {miningConfig.hourlyRateText}</>
+                    ) : (
+                      <>All-Time Assets Mined So Far (Standby)</>
+                    )}
+                  </span>
                 </div>
               </div>
             </div>
@@ -582,7 +599,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
                   ${mainBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <div className="text-[11px] text-gold-400/80 flex items-center gap-1 mt-1 font-mono">
-                  <span>Total Capital + Mined Profit</span>
+                  <span>Capital (${depositBalanceUsd.toLocaleString()}) + Profit (${miningBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
                 </div>
               </div>
             </div>
@@ -669,26 +686,26 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
             </div>
 
             <div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                 <h3 className="text-base font-extrabold text-white flex items-center gap-1.5 font-mono">
                   <span>QUIBANDS CLOUD RIG &bull; ASSET MINER</span>
                 </h3>
                 {hasApprovedDeposit ? (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-mono">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>SESSION ONLINE</span>
+                    <span>MINING: ${miningConfig.tierInvestment.toLocaleString()} TIER &bull; {miningConfig.timeRangeText}</span>
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1 font-mono">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                    <span>STANDBY (AWAITING DEPOSIT)</span>
+                    <span>STANDBY (AWAITING INITIAL DEPOSIT)</span>
                   </span>
                 )}
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
                 {hasApprovedDeposit 
-                  ? 'Active 5-hour hashing session yielding $5.00 auto-credited to your account' 
-                  : 'Cluster is in standby mode. Make an initial deposit to allocate ASIC computing power and begin live automated hashing.'}
+                  ? `Active ${miningConfig.timeRangeText} hashing cycle yielding target profit of $${miningConfig.targetSessionYield.toLocaleString(undefined, { minimumFractionDigits: 2 })} (${miningConfig.hourlyRateText})` 
+                  : 'Mining cluster is currently in standby. Make an initial deposit according to the Investment Rates Table below to initiate automated cloud mining.'}
               </p>
             </div>
           </div>
@@ -730,60 +747,60 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
               {hasApprovedDeposit ? formatTime(sessionSecondsLeft) : 'Paused'}
             </div>
             <div className="text-[10px] text-slate-500 font-mono">
-              {hasApprovedDeposit ? 'Cycle: 5h 00m \u2022 Auto-restarts' : 'Cycle: 5h 00m (Standby)'}
+              {hasApprovedDeposit ? `Cycle: ${miningConfig.timeRangeText} \u2022 Auto-restarts` : `Cycle: ${miningConfig.timeRangeText} (Standby)`}
             </div>
           </div>
 
           {/* Card 2: Current Block Yield */}
           <div className="p-4 rounded-2xl bg-dark-900/80 border border-slate-800 space-y-1.5">
             <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-              <span>Session Yield Rate</span>
+              <span>Session Yield Earned</span>
               <DollarSign className={`w-3.5 h-3.5 ${hasApprovedDeposit ? 'text-emerald-400' : 'text-slate-500'}`} />
             </div>
             <div className={`text-2xl font-black font-mono tracking-tight ${hasApprovedDeposit ? 'text-emerald-400' : 'text-slate-400'}`}>
               ${hasApprovedDeposit ? sessionYieldEarned.toFixed(4) : '0.0000'}
             </div>
             <div className="text-[10px] text-emerald-500 font-mono">
-              Target: ${SESSION_TARGET_YIELD.toFixed(2)} / 5h session
+              Target: ${miningConfig.targetSessionYield.toLocaleString(undefined, { minimumFractionDigits: 2 })} / session
             </div>
           </div>
 
-          {/* Card 3: Realtime Hashrate */}
+          {/* Card 3: Hourly Profit Rate */}
           <div className="p-4 rounded-2xl bg-dark-900/80 border border-slate-800 space-y-1.5">
             <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-              <span>Active Hashrate</span>
+              <span>Hourly Profit Rate</span>
               <Radio className={`w-3.5 h-3.5 ${hasApprovedDeposit ? 'text-cyan-400 animate-pulse' : 'text-slate-500'}`} />
             </div>
-            <div className={`text-2xl font-black font-mono tracking-tight ${hasApprovedDeposit ? 'text-cyan-400' : 'text-slate-400'}`}>
-              {hasApprovedDeposit ? hashrateSpeed : '0.00'} <span className="text-xs font-semibold text-slate-400">TH/s</span>
+            <div className={`text-xl sm:text-2xl font-black font-mono tracking-tight ${hasApprovedDeposit ? 'text-cyan-400' : 'text-slate-400'}`}>
+              {hasApprovedDeposit ? miningConfig.hourlyRateText : '$0.00 /h'}
             </div>
             <div className="text-[10px] text-slate-500 font-mono">
-              {hasApprovedDeposit ? `Shares: ${sharesAccepted} valid` : 'ASIC Cluster Unallocated'}
+              {hasApprovedDeposit ? `Tier ROI: ${miningConfig.roiText}` : 'ASIC Cluster Unallocated'}
             </div>
           </div>
 
-          {/* Card 4: Block Hashing Target */}
+          {/* Card 4: Total Assets Mined So Far */}
           <div className="p-4 rounded-2xl bg-dark-900/80 border border-slate-800 space-y-1.5">
             <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-              <span>Active Target Block</span>
+              <span>All-Time Assets Mined</span>
               <Server className={`w-3.5 h-3.5 ${hasApprovedDeposit ? 'text-purple-400' : 'text-slate-500'}`} />
             </div>
             <div className="text-2xl font-black text-purple-300 font-mono tracking-tight">
-              {hasApprovedDeposit ? `#${sessionBlockNumber}` : 'Standby'}
+              ${miningBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="text-[10px] text-slate-500 font-mono truncate" title={activeNonce}>
-              {hasApprovedDeposit ? `Nonce: ${activeNonce}` : 'Awaiting Initial Deposit'}
+            <div className="text-[10px] text-purple-400/80 font-mono truncate">
+              {hasApprovedDeposit ? `Block #${sessionBlockNumber} \u2022 ${sharesAccepted} Valid Shares` : 'Awaiting Initial Deposit'}
             </div>
           </div>
 
         </div>
 
-        {/* Progress Bar for 5-Hour Session */}
+        {/* Progress Bar for Session Duration */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs font-mono">
             <span className="text-slate-400">Session Progress</span>
             <span className={hasApprovedDeposit ? 'text-emerald-400 font-bold' : 'text-slate-500'}>
-              {hasApprovedDeposit ? `${(((SESSION_TOTAL_SECONDS - sessionSecondsLeft) / SESSION_TOTAL_SECONDS) * 100).toFixed(1)}% Completed` : '0.0% (Standby)'}
+              {hasApprovedDeposit ? `${sessionPercent}% Completed (${miningConfig.timeRangeText} Cycle)` : '0.0% (Standby)'}
             </span>
           </div>
           <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
@@ -791,7 +808,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
               className={`h-full transition-all duration-1000 rounded-full ${
                 hasApprovedDeposit ? 'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-500' : 'bg-slate-800'
               }`}
-              style={{ width: hasApprovedDeposit ? `${Math.min(100, Math.max(1, ((SESSION_TOTAL_SECONDS - sessionSecondsLeft) / SESSION_TOTAL_SECONDS) * 100))}%` : '0%' }}
+              style={{ width: `${sessionPercent}%` }}
             />
           </div>
         </div>
