@@ -1,11 +1,4 @@
 import React from 'react';
-import { 
-  DollarSign, 
-  TrendingUp, 
-  Percent, 
-  Clock, 
-  Gauge
-} from 'lucide-react';
 
 export interface InvestmentRateRow {
   investment: string;
@@ -177,27 +170,27 @@ interface InvestmentReturnsTableProps {
 
 export const InvestmentReturnsTable: React.FC<InvestmentReturnsTableProps> = ({ onSelectDepositPlan }) => {
   return (
-    <div id="investment-returns-matrix" className="rounded-3xl bg-[#0a0c10] border-2 border-[#caa34d]/60 p-4 sm:p-7 shadow-2xl space-y-6 relative overflow-hidden">
+    <div id="investment-returns-matrix" className="rounded-2xl bg-[#090b0e] border border-[#caa34d]/50 p-3 sm:p-5 shadow-xl space-y-3.5 relative overflow-hidden">
       
       {/* 1. Header Banner matching the picture with Gold Bitcoin Badges */}
-      <div className="text-center space-y-2 pb-2">
-        <div className="inline-flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
+      <div className="text-center space-y-1">
+        <div className="inline-flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
           
           {/* Left Gold Bitcoin Coin */}
-          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-[#8f6d23] via-[#e5be59] to-[#fff3a8] p-[2px] shadow-lg shadow-[#caa34d]/20 flex items-center justify-center shrink-0">
-            <div className="w-full h-full rounded-full bg-[#121008] border border-[#e5be59]/40 flex items-center justify-center text-[#e5be59] font-black text-base sm:text-xl">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-[#8f6d23] via-[#e5be59] to-[#fff3a8] p-[1.5px] shadow-sm flex items-center justify-center shrink-0">
+            <div className="w-full h-full rounded-full bg-[#121008] border border-[#e5be59]/40 flex items-center justify-center text-[#e5be59] font-black text-xs sm:text-sm">
               ₿
             </div>
           </div>
 
-          <h2 className="text-lg sm:text-2xl md:text-3xl font-black tracking-wider uppercase font-['Outfit']">
+          <h2 className="text-sm sm:text-lg md:text-xl font-black tracking-wide uppercase font-['Outfit']">
             <span className="text-white">INVESTMENT RETURNS, </span>
             <span className="text-[#caa34d]">ROI &amp; HOURLY RATE</span>
           </h2>
 
           {/* Right Gold Bitcoin Coin */}
-          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-[#8f6d23] via-[#e5be59] to-[#fff3a8] p-[2px] shadow-lg shadow-[#caa34d]/20 flex items-center justify-center shrink-0">
-            <div className="w-full h-full rounded-full bg-[#121008] border border-[#e5be59]/40 flex items-center justify-center text-[#e5be59] font-black text-base sm:text-xl">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-[#8f6d23] via-[#e5be59] to-[#fff3a8] p-[1.5px] shadow-sm flex items-center justify-center shrink-0">
+            <div className="w-full h-full rounded-full bg-[#121008] border border-[#e5be59]/40 flex items-center justify-center text-[#e5be59] font-black text-xs sm:text-sm">
               ₿
             </div>
           </div>
@@ -205,89 +198,76 @@ export const InvestmentReturnsTable: React.FC<InvestmentReturnsTableProps> = ({ 
         </div>
       </div>
 
-      {/* 2. Exact Table from the picture */}
-      <div className="overflow-x-auto rounded-xl border border-[#caa34d]/40 shadow-2xl bg-[#05070a]">
-        <table className="w-full text-center border-collapse font-mono">
+      {/* 2. Compact Scrollable Table Container */}
+      <div className="overflow-x-auto max-h-[380px] overflow-y-auto rounded-xl border border-[#caa34d]/40 shadow-inner bg-[#040608] custom-scrollbar">
+        <table className="w-full text-center border-collapse font-mono text-[11px] sm:text-xs">
           
-          {/* Header Row */}
-          <thead>
-            <tr className="border-b border-[#caa34d]/40 bg-[#0c0e14] text-[11px] sm:text-xs">
+          {/* Sticky Header Row */}
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b border-[#caa34d]/40 bg-[#0d1017]">
               
               {/* Col 1: Investment (USD) */}
-              <th className="py-3 sm:py-4 px-2 sm:px-4 border-r border-[#caa34d]/40 text-center font-bold">
-                <div className="flex flex-col items-center justify-center gap-1 text-[#caa34d]">
-                  <div className="w-6 h-6 rounded-full bg-[#caa34d]/10 flex items-center justify-center text-xs font-black border border-[#caa34d]/30">
-                    💰
-                  </div>
+              <th className="py-2.5 px-2 sm:px-3 border-r border-[#caa34d]/40 text-center font-bold">
+                <div className="flex items-center justify-center gap-1 text-[#caa34d]">
+                  <span className="text-[11px]">💰</span>
                   <div>
-                    <span className="block tracking-wide font-extrabold text-white text-[11px] sm:text-xs">INVESTMENT</span>
-                    <span className="block text-[9px] sm:text-[10px] text-slate-400 font-normal">(USD)</span>
+                    <span className="block font-bold text-white text-[10px] sm:text-[11px] leading-tight">INVESTMENT</span>
+                    <span className="block text-[8px] text-slate-400 font-normal leading-none">(USD)</span>
                   </div>
                 </div>
               </th>
 
               {/* Col 2: Total Return (USD) */}
-              <th className="py-3 sm:py-4 px-2 sm:px-4 border-r border-[#caa34d]/40 text-center font-bold">
-                <div className="flex flex-col items-center justify-center gap-1 text-[#caa34d]">
-                  <div className="w-6 h-6 rounded-full bg-[#caa34d]/10 flex items-center justify-center text-xs border border-[#caa34d]/30">
-                    📊
-                  </div>
+              <th className="py-2.5 px-2 sm:px-3 border-r border-[#caa34d]/40 text-center font-bold">
+                <div className="flex items-center justify-center gap-1 text-[#caa34d]">
+                  <span className="text-[11px]">📈</span>
                   <div>
-                    <span className="block tracking-wide font-extrabold text-white text-[11px] sm:text-xs">TOTAL RETURN</span>
-                    <span className="block text-[9px] sm:text-[10px] text-slate-400 font-normal">(USD)</span>
+                    <span className="block font-bold text-white text-[10px] sm:text-[11px] leading-tight">TOTAL RETURN</span>
+                    <span className="block text-[8px] text-slate-400 font-normal leading-none">(USD)</span>
                   </div>
                 </div>
               </th>
 
               {/* Col 3: Net Profit (USD) */}
-              <th className="py-3 sm:py-4 px-2 sm:px-4 border-r border-[#caa34d]/40 text-center font-bold">
-                <div className="flex flex-col items-center justify-center gap-1 text-[#caa34d]">
-                  <div className="w-6 h-6 rounded-full bg-[#caa34d]/10 flex items-center justify-center text-xs border border-[#caa34d]/30 text-[#caa34d]">
-                    💲
-                  </div>
+              <th className="py-2.5 px-2 sm:px-3 border-r border-[#caa34d]/40 text-center font-bold">
+                <div className="flex items-center justify-center gap-1 text-[#caa34d]">
+                  <span className="text-[11px] text-[#caa34d]">💲</span>
                   <div>
-                    <span className="block tracking-wide font-extrabold text-white text-[11px] sm:text-xs">NET PROFIT</span>
-                    <span className="block text-[9px] sm:text-[10px] text-slate-400 font-normal">(USD)</span>
-                    <span className="block text-[8px] text-slate-500 font-normal">(RETURN - INVESTMENT)</span>
+                    <span className="block font-bold text-white text-[10px] sm:text-[11px] leading-tight">NET PROFIT</span>
+                    <span className="block text-[8px] text-slate-400 font-normal leading-none">(RETURN - INVESTMENT)</span>
                   </div>
                 </div>
               </th>
 
               {/* Col 4: % ROI */}
-              <th className="py-3 sm:py-4 px-2 sm:px-4 border-r border-[#caa34d]/40 text-center font-bold">
-                <div className="flex flex-col items-center justify-center gap-1 text-[#caa34d]">
-                  <div className="w-6 h-6 rounded-full bg-[#caa34d]/10 flex items-center justify-center text-xs border border-[#caa34d]/30 text-[#caa34d]">
-                    %
-                  </div>
+              <th className="py-2.5 px-2 sm:px-3 border-r border-[#caa34d]/40 text-center font-bold">
+                <div className="flex items-center justify-center gap-1 text-[#caa34d]">
+                  <span className="text-[11px] font-bold text-[#caa34d]">%</span>
                   <div>
-                    <span className="block tracking-wide font-extrabold text-[#caa34d] text-[11px] sm:text-xs">ROI</span>
-                    <span className="block text-[8px] text-slate-400 font-normal">(PROFIT PERCENTAGE)</span>
+                    <span className="block font-bold text-[#caa34d] text-[10px] sm:text-[11px] leading-tight">ROI</span>
+                    <span className="block text-[8px] text-slate-400 font-normal leading-none">(PROFIT %)</span>
                   </div>
                 </div>
               </th>
 
               {/* Col 5: Time */}
-              <th className="py-3 sm:py-4 px-2 sm:px-4 border-r border-[#caa34d]/40 text-center font-bold">
-                <div className="flex flex-col items-center justify-center gap-1 text-[#caa34d]">
-                  <div className="w-6 h-6 rounded-full bg-[#caa34d]/10 flex items-center justify-center text-xs border border-[#caa34d]/30">
-                    🕒
-                  </div>
+              <th className="py-2.5 px-2 sm:px-3 border-r border-[#caa34d]/40 text-center font-bold">
+                <div className="flex items-center justify-center gap-1 text-[#caa34d]">
+                  <span className="text-[11px]">🕒</span>
                   <div>
-                    <span className="block tracking-wide font-extrabold text-white text-[11px] sm:text-xs">TIME</span>
-                    <span className="block text-[8px] text-slate-400 font-normal">(MAX DURATION)</span>
+                    <span className="block font-bold text-white text-[10px] sm:text-[11px] leading-tight">TIME</span>
+                    <span className="block text-[8px] text-slate-400 font-normal leading-none">(MAX DURATION)</span>
                   </div>
                 </div>
               </th>
 
               {/* Col 6: Profit per hour (USD) */}
-              <th className="py-3 sm:py-4 px-2 sm:px-4 text-center font-bold">
-                <div className="flex flex-col items-center justify-center gap-1 text-[#caa34d]">
-                  <div className="w-6 h-6 rounded-full bg-[#caa34d]/10 flex items-center justify-center text-xs border border-[#caa34d]/30">
-                    ⚡
-                  </div>
+              <th className="py-2.5 px-2 sm:px-3 text-center font-bold">
+                <div className="flex items-center justify-center gap-1 text-[#caa34d]">
+                  <span className="text-[11px]">⚡</span>
                   <div>
-                    <span className="block tracking-wide font-extrabold text-white text-[11px] sm:text-xs">PROFIT PER HOUR</span>
-                    <span className="block text-[9px] sm:text-[10px] text-slate-400 font-normal">(USD)</span>
+                    <span className="block font-bold text-white text-[10px] sm:text-[11px] leading-tight">PROFIT / HOUR</span>
+                    <span className="block text-[8px] text-slate-400 font-normal leading-none">(USD)</span>
                   </div>
                 </div>
               </th>
@@ -295,40 +275,40 @@ export const InvestmentReturnsTable: React.FC<InvestmentReturnsTableProps> = ({ 
             </tr>
           </thead>
 
-          {/* Table Body with Exact Colors & Grid */}
-          <tbody className="divide-y divide-[#caa34d]/30 text-xs sm:text-sm">
+          {/* Compact Table Body */}
+          <tbody className="divide-y divide-[#caa34d]/25">
             {INVESTMENT_RATES_DATA.map((row, idx) => (
               <tr 
                 key={idx}
-                className="hover:bg-[#caa34d]/10 transition-colors duration-150"
+                className="hover:bg-[#caa34d]/10 transition-colors duration-100"
               >
                 {/* Investment in Gold */}
-                <td className="py-3 sm:py-3.5 px-2 sm:px-4 font-black text-[#caa34d] text-sm sm:text-base border-r border-[#caa34d]/30 whitespace-nowrap">
+                <td className="py-1.5 sm:py-2 px-2 sm:px-3 font-bold text-[#caa34d] text-xs sm:text-sm border-r border-[#caa34d]/25 whitespace-nowrap">
                   {row.investment}
                 </td>
 
                 {/* Total Return in White */}
-                <td className="py-3 sm:py-3.5 px-2 sm:px-4 font-semibold text-white border-r border-[#caa34d]/30 whitespace-nowrap">
+                <td className="py-1.5 sm:py-2 px-2 sm:px-3 font-medium text-white border-r border-[#caa34d]/25 whitespace-nowrap">
                   {row.totalReturn}
                 </td>
 
                 {/* Net Profit in White */}
-                <td className="py-3 sm:py-3.5 px-2 sm:px-4 font-semibold text-white border-r border-[#caa34d]/30 whitespace-nowrap">
+                <td className="py-1.5 sm:py-2 px-2 sm:px-3 font-medium text-white border-r border-[#caa34d]/25 whitespace-nowrap">
                   {row.netProfit}
                 </td>
 
                 {/* ROI in Vibrant Green */}
-                <td className="py-3 sm:py-3.5 px-2 sm:px-4 font-black text-[#4ade80] border-r border-[#caa34d]/30 whitespace-nowrap">
+                <td className="py-1.5 sm:py-2 px-2 sm:px-3 font-bold text-[#4ade80] border-r border-[#caa34d]/25 whitespace-nowrap">
                   {row.roi}
                 </td>
 
                 {/* Time in White */}
-                <td className="py-3 sm:py-3.5 px-2 sm:px-4 font-semibold text-white border-r border-[#caa34d]/30 whitespace-nowrap">
+                <td className="py-1.5 sm:py-2 px-2 sm:px-3 font-medium text-white border-r border-[#caa34d]/25 whitespace-nowrap">
                   {row.time}
                 </td>
 
                 {/* Profit Per Hour in Vibrant Green */}
-                <td className="py-3 sm:py-3.5 px-2 sm:px-4 font-black text-[#4ade80] whitespace-nowrap">
+                <td className="py-1.5 sm:py-2 px-2 sm:px-3 font-bold text-[#4ade80] whitespace-nowrap">
                   {row.profitPerHour}
                 </td>
               </tr>
@@ -337,14 +317,14 @@ export const InvestmentReturnsTable: React.FC<InvestmentReturnsTableProps> = ({ 
         </table>
       </div>
 
-      {/* Optional Deposit Action Trigger */}
+      {/* Optional Compact Deposit Action Button */}
       {onSelectDepositPlan && (
-        <div className="pt-2 text-center">
+        <div className="text-center pt-1">
           <button
             onClick={onSelectDepositPlan}
-            className="px-6 py-3 rounded-2xl bg-gradient-to-r from-[#e5be59] via-[#caa34d] to-[#9b7b2c] hover:from-[#f3ce6d] hover:to-[#b38f38] text-dark-950 font-black text-xs font-mono uppercase tracking-wider shadow-lg shadow-[#caa34d]/20 transition-all transform active:scale-95 cursor-pointer"
+            className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#e5be59] via-[#caa34d] to-[#9b7b2c] hover:from-[#f3ce6d] hover:to-[#b38f38] text-dark-950 font-bold text-xs font-mono uppercase tracking-wider shadow-md shadow-[#caa34d]/15 transition-all transform active:scale-95 cursor-pointer"
           >
-            Deposit &amp; Allocate Mining Power
+            Deposit &amp; Start Mining
           </button>
         </div>
       )}
