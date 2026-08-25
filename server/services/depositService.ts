@@ -186,17 +186,7 @@ export class DepositService {
     if (!depositId) throw new Error('Deposit ID is required.');
     if (!adminId) throw new Error('Admin ID is required.');
 
-    // Try executing stored procedure
-    const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc('approve_deposit_request', {
-      p_deposit_id: depositId,
-      p_admin_id: adminId,
-    });
-
-    if (!rpcError && rpcResult) {
-      return rpcResult;
-    }
-
-    // Fallback atomic execution
+    // 1. Fetch deposit request and verify status
     const { data: deposit, error: fetchError } = await supabaseAdmin
       .from('deposit_requests')
       .select('*')
@@ -211,37 +201,38 @@ export class DepositService {
       throw new Error(`Cannot approve deposit. Current status is already '${deposit.status}'.`);
     }
 
-    // 1. Ensure user wallet exists
+    const depositAmount = Number(deposit.amount);
+
+    // 2. Ensure user wallet exists and credit both balance and deposit_balance
     let walletId = deposit.wallet_id;
-    let newBalance = Number(deposit.amount);
+    let newWalletBalance = depositAmount;
 
-    if (walletId) {
-      const { data: wallet } = await supabaseAdmin
+    const { data: existingWallet } = await supabaseAdmin
+      .from('wallets')
+      .select('*')
+      .eq('user_id', deposit.user_id)
+      .maybeSingle();
+
+    if (existingWallet) {
+      walletId = existingWallet.id;
+      newWalletBalance = Number(existingWallet.balance || 0) + depositAmount;
+      const oldDep = Number(existingWallet.deposit_balance !== undefined ? existingWallet.deposit_balance : existingWallet.balance || 0);
+      await supabaseAdmin
         .from('wallets')
-        .select('*')
-        .eq('id', walletId)
-        .single();
-
-      if (wallet) {
-        newBalance = Number(wallet.balance) + Number(deposit.amount);
-        const oldDep = Number(wallet.deposit_balance !== undefined ? wallet.deposit_balance : wallet.balance || 0);
-        await supabaseAdmin
-          .from('wallets')
-          .update({ 
-            balance: newBalance, 
-            deposit_balance: oldDep + Number(deposit.amount),
-            updated_at: new Date().toISOString() 
-          })
-          .eq('id', walletId);
-      }
+        .update({ 
+          balance: newWalletBalance, 
+          deposit_balance: oldDep + depositAmount,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', existingWallet.id);
     } else {
       const { data: createdWallet } = await supabaseAdmin
         .from('wallets')
         .insert({
           user_id: deposit.user_id,
-          currency: deposit.asset,
-          balance: Number(deposit.amount),
-          deposit_balance: Number(deposit.amount),
+          currency: deposit.asset || 'USDT',
+          balance: depositAmount,
+          deposit_balance: depositAmount,
           locked_balance: 0,
           is_active: true,
         })
@@ -251,31 +242,52 @@ export class DepositService {
       if (createdWallet) walletId = createdWallet.id;
     }
 
-    // Update profile deposit_balance, main_balance, and total_deposited
-    const { data: userProfile } = await supabaseAdmin
+    // 3. Update profile deposit_balance, main_balance, and total_deposited
+    let { data: userProfile } = await supabaseAdmin
       .from('profiles')
-      .select('deposit_balance, main_balance, mining_balance, profit_balance, total_deposited')
+      .select('id, auth_user_id, deposit_balance, main_balance, mining_balance, profit_balance, total_deposited')
       .eq('auth_user_id', deposit.user_id)
       .maybeSingle();
 
+    if (!userProfile) {
+      const { data: profById } = await supabaseAdmin
+        .from('profiles')
+        .select('id, auth_user_id, deposit_balance, main_balance, mining_balance, profit_balance, total_deposited')
+        .eq('id', deposit.user_id)
+        .maybeSingle();
+      userProfile = profById;
+    }
+
     const currentDep = Number(userProfile?.deposit_balance !== undefined ? userProfile.deposit_balance : (userProfile?.total_deposited || 0));
-    const newDepBal = currentDep + Number(deposit.amount);
+    const newDepBal = currentDep + depositAmount;
     const currentMining = Number(userProfile?.mining_balance || 0);
     const currentProfit = Number(userProfile?.profit_balance || 0);
     const newMainBal = newDepBal + currentMining + currentProfit;
-    const newTotalDep = Number(userProfile?.total_deposited || 0) + Number(deposit.amount);
+    const newTotalDep = Number(userProfile?.total_deposited || 0) + depositAmount;
 
-    await supabaseAdmin
-      .from('profiles')
-      .update({
-        deposit_balance: newDepBal,
-        main_balance: newMainBal,
-        total_deposited: newTotalDep,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('auth_user_id', deposit.user_id);
+    if (userProfile) {
+      await supabaseAdmin
+        .from('profiles')
+        .update({
+          deposit_balance: newDepBal,
+          main_balance: newMainBal,
+          total_deposited: newTotalDep,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userProfile.id);
+    } else {
+      await supabaseAdmin
+        .from('profiles')
+        .update({
+          deposit_balance: newDepBal,
+          main_balance: newMainBal,
+          total_deposited: newTotalDep,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('auth_user_id', deposit.user_id);
+    }
 
-    // 2. Mark deposit as APPROVED
+    // 4. Mark deposit as APPROVED
     const { error: updateError } = await supabaseAdmin
       .from('deposit_requests')
       .update({
