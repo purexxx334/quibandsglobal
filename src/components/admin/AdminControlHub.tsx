@@ -2388,215 +2388,227 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
         {/* 1. FINANCIAL BALANCES & LIMITS EDITOR MODAL */}
         {actionModal.type === 'edit-financials' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-            <div className="w-full max-w-xl bg-dark-950 border border-gold-500/40 rounded-2xl p-6 shadow-2xl space-y-4 my-8">
-              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
+            <div className="w-full max-w-xl max-h-[90vh] flex flex-col bg-dark-950 border border-gold-500/40 rounded-2xl shadow-2xl overflow-hidden my-auto">
+              
+              {/* Sticky Modal Header */}
+              <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/10 shrink-0 bg-dark-950">
                 <div className="flex items-center space-x-2">
                   <DollarSign className="w-5 h-5 text-gold-400" />
-                  <h3 className="font-bold text-white text-base font-mono">Edit Financial Balances & Limits</h3>
+                  <h3 className="font-bold text-white text-base font-mono">Edit Financial Balances &amp; Limits</h3>
                 </div>
-                <button onClick={() => setActionModal({ type: null })} className="text-slate-400 hover:text-white">
+                <button 
+                  onClick={() => setActionModal({ type: null })} 
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+                  title="Close modal"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleSaveFinancials} className="space-y-4 text-xs font-sans">
-                <div className="p-3 bg-dark-900 rounded-xl border border-white/5 text-slate-300 flex items-center justify-between flex-wrap gap-2">
-                  <div>
-                    User: <strong>{actionModal.targetUser?.email || actionModal.userId}</strong>
-                  </div>
-                  {actionModal.targetUser?.phone_number && (
-                    <div className="text-amber-300 font-mono text-[11px] flex items-center gap-1">
-                      <Smartphone className="w-3 h-3 text-amber-400" />
-                      <span>{actionModal.targetUser.phone_number}</span>
+              {/* Scrollable Form Content */}
+              <form onSubmit={handleSaveFinancials} className="flex flex-col flex-1 overflow-hidden">
+                <div className="p-4 sm:p-5 space-y-4 text-xs font-sans overflow-y-auto flex-1 custom-scrollbar">
+                  
+                  {/* Target User Info Card */}
+                  <div className="p-3 bg-dark-900 rounded-xl border border-white/5 text-slate-300 flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      User: <strong className="text-white">{actionModal.targetUser?.email || actionModal.userId}</strong>
                     </div>
-                  )}
-                </div>
-
-                {/* 1. Deposit Balance (Capital) */}
-                <div className="p-3.5 bg-dark-900 rounded-xl border border-cyan-500/20 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="font-bold text-cyan-400 uppercase tracking-wider text-[11px]">1. Deposit Balance ($ USD Capital)</label>
-                    <span className="text-slate-400 text-[10px]">Active Capital Deposited</span>
+                    {actionModal.targetUser?.phone_number && (
+                      <div className="text-amber-300 font-mono text-[11px] flex items-center gap-1">
+                        <Smartphone className="w-3 h-3 text-amber-400" />
+                        <span>{actionModal.targetUser.phone_number}</span>
+                      </div>
+                    )}
                   </div>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={financialDepositBalance}
-                    onChange={(e) => {
-                      const newDep = e.target.value;
-                      setFinancialDepositBalance(newDep);
-                      // Auto-update main balance if desired
-                      const d = parseFloat(newDep) || 0;
-                      const m = parseFloat(financialMiningBalance) || 0;
-                      const p = parseFloat(financialProfitBalance) || 0;
-                      setFinancialMainBalance((d + m + p).toFixed(2));
-                    }}
-                    placeholder="0.00"
-                    className="w-full p-2 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-cyan-500 focus:outline-none"
-                    required
-                  />
-                  <input
-                    type="text"
-                    value={financialDepositRemark}
-                    onChange={(e) => setFinancialDepositRemark(e.target.value)}
-                    placeholder="Optional remark shown to user on deposit balance"
-                    className="w-full p-2 bg-dark-950 border border-slate-800 rounded-lg text-slate-300 text-xs focus:border-cyan-500 focus:outline-none"
-                  />
-                </div>
 
-                {/* 2. Mining Balance / Amount Mined (Profit) */}
-                <div className="p-3.5 bg-dark-900 rounded-xl border border-emerald-500/20 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="font-bold text-emerald-400 uppercase tracking-wider text-[11px]">2. Mining Balance ($ USD Amount Mined / Profit)</label>
-                    <span className="text-slate-400 text-[10px]">Rig Mined Yield</span>
-                  </div>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={financialMiningBalance}
-                    onChange={(e) => {
-                      const newMin = e.target.value;
-                      setFinancialMiningBalance(newMin);
-                      const d = parseFloat(financialDepositBalance) || 0;
-                      const m = parseFloat(newMin) || 0;
-                      const p = parseFloat(financialProfitBalance) || 0;
-                      setFinancialMainBalance((d + m + p).toFixed(2));
-                    }}
-                    placeholder="0.00"
-                    className="w-full p-2 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-emerald-500 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    value={financialMiningRemark}
-                    onChange={(e) => setFinancialMiningRemark(e.target.value)}
-                    placeholder="Optional remark shown to user on mining balance"
-                    className="w-full p-2 bg-dark-950 border border-slate-800 rounded-lg text-slate-300 text-xs focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-
-                {/* 3. Main Balance (Total: Capital + Profit) */}
-                <div className="p-3.5 bg-dark-900 rounded-xl border border-gold-500/30 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="font-bold text-gold-400 uppercase tracking-wider text-[11px]">3. Main Balance ($ USD Total: Capital + Profit)</label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const d = parseFloat(financialDepositBalance) || 0;
+                  {/* 1. Deposit Balance (Capital) */}
+                  <div className="p-3.5 bg-dark-900 rounded-xl border border-cyan-500/30 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="font-bold text-cyan-400 uppercase tracking-wider text-[11px]">1. Deposit Balance ($ USD Capital)</label>
+                      <span className="text-slate-400 text-[10px]">Active Capital Deposited</span>
+                    </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={financialDepositBalance}
+                      onChange={(e) => {
+                        const newDep = e.target.value;
+                        setFinancialDepositBalance(newDep);
+                        // Auto-update main balance if desired
+                        const d = parseFloat(newDep) || 0;
                         const m = parseFloat(financialMiningBalance) || 0;
                         const p = parseFloat(financialProfitBalance) || 0;
                         setFinancialMainBalance((d + m + p).toFixed(2));
                       }}
-                      className="px-2 py-0.5 rounded bg-gold-400/10 hover:bg-gold-400/20 text-gold-400 border border-gold-400/30 text-[10px] font-bold font-mono transition"
-                      title="Calculate Main Balance = Deposit + Mining + Profit"
-                    >
-                      ⚡ Auto-Sum: Capital + Profit
-                    </button>
+                      placeholder="0.00"
+                      className="w-full p-2.5 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-cyan-500 focus:outline-none"
+                      required
+                    />
+                    <input
+                      type="text"
+                      value={financialDepositRemark}
+                      onChange={(e) => setFinancialDepositRemark(e.target.value)}
+                      placeholder="Optional remark shown to user on deposit balance"
+                      className="w-full p-2 bg-dark-950 border border-slate-800 rounded-lg text-slate-300 text-xs focus:border-cyan-500 focus:outline-none"
+                    />
                   </div>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={financialMainBalance}
-                    onChange={(e) => setFinancialMainBalance(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full p-2 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-gold-500 focus:outline-none"
-                    required
-                  />
-                  <input
-                    type="text"
-                    value={financialBalanceRemark}
-                    onChange={(e) => setFinancialBalanceRemark(e.target.value)}
-                    placeholder="Optional remark shown to user on main balance"
-                    className="w-full p-2 bg-dark-950 border border-slate-800 rounded-lg text-slate-300 text-xs focus:border-gold-500 focus:outline-none"
-                  />
-                </div>
 
-                {/* 4. Profit Balance (Realized Trading/Dividends) */}
-                <div className="p-3.5 bg-dark-900 rounded-xl border border-indigo-500/20 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="font-bold text-indigo-400 uppercase tracking-wider text-[11px]">4. Profit Balance ($ USD Realized Returns)</label>
-                    <span className="text-slate-400 text-[10px]">Dividends / Extra Returns</span>
-                  </div>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={financialProfitBalance}
-                    onChange={(e) => setFinancialProfitBalance(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full p-2 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-indigo-500 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    value={financialProfitRemark}
-                    onChange={(e) => setFinancialProfitRemark(e.target.value)}
-                    placeholder="Optional remark shown to user on profit balance"
-                    className="w-full p-2 bg-dark-950 border border-slate-800 rounded-lg text-slate-300 text-xs focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-
-                {/* 4. Convert Balance (Local Mine Asset) */}
-                <div className="p-3.5 bg-dark-900 rounded-xl border border-white/5 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="font-bold text-teal-400 uppercase tracking-wider text-[11px]">Convert Balance (Local Mine Asset)</label>
-                    <span className="text-slate-400 text-[10px]">Converted Mine</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  {/* 2. Mining Balance / Amount Mined (Profit) */}
+                  <div className="p-3.5 bg-dark-900 rounded-xl border border-emerald-500/30 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="font-bold text-emerald-400 uppercase tracking-wider text-[11px]">2. Mining Balance ($ USD Amount Mined / Profit)</label>
+                      <span className="text-slate-400 text-[10px]">Rig Mined Yield</span>
+                    </div>
                     <input
                       type="number"
                       step="0.01"
-                      value={financialConvertBalance}
-                      onChange={(e) => setFinancialConvertBalance(e.target.value)}
+                      value={financialMiningBalance}
+                      onChange={(e) => {
+                        const newMin = e.target.value;
+                        setFinancialMiningBalance(newMin);
+                        const d = parseFloat(financialDepositBalance) || 0;
+                        const m = parseFloat(newMin) || 0;
+                        const p = parseFloat(financialProfitBalance) || 0;
+                        setFinancialMainBalance((d + m + p).toFixed(2));
+                      }}
                       placeholder="0.00"
-                      className="col-span-2 p-2 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-teal-500 focus:outline-none"
+                      className="w-full p-2.5 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-emerald-500 focus:outline-none"
                     />
-                    <select
-                      value={financialConvertCurrency}
-                      onChange={(e) => setFinancialConvertCurrency(e.target.value)}
-                      className="p-2 bg-dark-950 border border-slate-700 rounded-lg text-white text-xs font-mono font-bold focus:border-teal-500 focus:outline-none"
-                    >
-                      <option value="SGD">SGD Mine (S$)</option>
-                      <option value="EUR">EUR Mine (€)</option>
-                      <option value="GBP">GBP Mine (£)</option>
-                      <option value="CAD">CAD Mine (CA$)</option>
-                      <option value="AUD">AUD Mine (A$)</option>
-                      <option value="JPY">JPY Mine (¥)</option>
-                      <option value="CHF">CHF Mine (CHF)</option>
-                      <option value="AED">AED Mine (AED)</option>
-                      <option value="USD">USD Mine ($)</option>
-                    </select>
+                    <input
+                      type="text"
+                      value={financialMiningRemark}
+                      onChange={(e) => setFinancialMiningRemark(e.target.value)}
+                      placeholder="Optional remark shown to user on mining balance"
+                      className="w-full p-2 bg-dark-950 border border-slate-800 rounded-lg text-slate-300 text-xs focus:border-emerald-500 focus:outline-none"
+                    />
                   </div>
-                </div>
 
-                {/* 5. Receive Limit & Account Tier */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">Receive / Withdrawal Limit ($)</label>
+                  {/* 3. Main Balance (Total: Capital + Profit) */}
+                  <div className="p-3.5 bg-dark-900 rounded-xl border border-gold-500/40 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="font-bold text-gold-400 uppercase tracking-wider text-[11px]">3. Main Balance ($ USD Total: Capital + Profit)</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = parseFloat(financialDepositBalance) || 0;
+                          const m = parseFloat(financialMiningBalance) || 0;
+                          const p = parseFloat(financialProfitBalance) || 0;
+                          setFinancialMainBalance((d + m + p).toFixed(2));
+                        }}
+                        className="px-2 py-0.5 rounded bg-gold-400/10 hover:bg-gold-400/20 text-gold-400 border border-gold-400/30 text-[10px] font-bold font-mono transition"
+                        title="Calculate Main Balance = Deposit + Mining + Profit"
+                      >
+                        ⚡ Auto-Sum: Capital + Profit
+                      </button>
+                    </div>
                     <input
                       type="number"
-                      step="100"
-                      value={financialReceiveLimit}
-                      onChange={(e) => setFinancialReceiveLimit(e.target.value)}
-                      placeholder="9000"
-                      className="w-full p-2 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-gold-500 focus:outline-none"
+                      step="0.01"
+                      value={financialMainBalance}
+                      onChange={(e) => setFinancialMainBalance(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full p-2.5 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-gold-500 focus:outline-none"
                       required
                     />
+                    <input
+                      type="text"
+                      value={financialBalanceRemark}
+                      onChange={(e) => setFinancialBalanceRemark(e.target.value)}
+                      placeholder="Optional remark shown to user on main balance"
+                      className="w-full p-2 bg-dark-950 border border-slate-800 rounded-lg text-slate-300 text-xs focus:border-gold-500 focus:outline-none"
+                    />
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">Account Tier</label>
-                    <select
-                      value={financialAccountTier}
-                      onChange={(e) => setFinancialAccountTier(e.target.value)}
-                      className="w-full p-2 bg-dark-950 border border-slate-700 rounded-lg text-white text-xs focus:border-gold-500 focus:outline-none"
-                    >
-                      <option value="BASIC">BASIC (Standard $9k Limit)</option>
-                      <option value="BRONZE">BRONZE ($20k Limit)</option>
-                      <option value="GOLD">GOLD ($50k Limit)</option>
-                      <option value="PREMIUM">PREMIUM (Unlimited)</option>
-                    </select>
+
+                  {/* 4. Profit Balance (Realized Trading/Dividends) */}
+                  <div className="p-3.5 bg-dark-900 rounded-xl border border-indigo-500/30 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="font-bold text-indigo-400 uppercase tracking-wider text-[11px]">4. Profit Balance ($ USD Realized Returns)</label>
+                      <span className="text-slate-400 text-[10px]">Dividends / Extra Returns</span>
+                    </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={financialProfitBalance}
+                      onChange={(e) => setFinancialProfitBalance(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full p-2.5 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-indigo-500 focus:outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={financialProfitRemark}
+                      onChange={(e) => setFinancialProfitRemark(e.target.value)}
+                      placeholder="Optional remark shown to user on profit balance"
+                      className="w-full p-2 bg-dark-950 border border-slate-800 rounded-lg text-slate-300 text-xs focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* 5. Convert Balance (Local Mine Asset) */}
+                  <div className="p-3.5 bg-dark-900 rounded-xl border border-white/10 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="font-bold text-teal-400 uppercase tracking-wider text-[11px]">5. Convert Balance (Local Mine Asset)</label>
+                      <span className="text-slate-400 text-[10px]">Converted Mine</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={financialConvertBalance}
+                        onChange={(e) => setFinancialConvertBalance(e.target.value)}
+                        placeholder="0.00"
+                        className="col-span-2 p-2.5 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-teal-500 focus:outline-none"
+                      />
+                      <select
+                        value={financialConvertCurrency}
+                        onChange={(e) => setFinancialConvertCurrency(e.target.value)}
+                        className="p-2.5 bg-dark-950 border border-slate-700 rounded-lg text-white text-xs font-mono font-bold focus:border-teal-500 focus:outline-none"
+                      >
+                        <option value="SGD">SGD Mine (S$)</option>
+                        <option value="EUR">EUR Mine (€)</option>
+                        <option value="GBP">GBP Mine (£)</option>
+                        <option value="CAD">CAD Mine (CA$)</option>
+                        <option value="AUD">AUD Mine (A$)</option>
+                        <option value="JPY">JPY Mine (¥)</option>
+                        <option value="CHF">CHF Mine (CHF)</option>
+                        <option value="AED">AED Mine (AED)</option>
+                        <option value="USD">USD Mine ($)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 6. Receive Limit & Account Tier */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-300 mb-1">Receive / Withdrawal Limit ($)</label>
+                      <input
+                        type="number"
+                        step="100"
+                        value={financialReceiveLimit}
+                        onChange={(e) => setFinancialReceiveLimit(e.target.value)}
+                        placeholder="9000"
+                        className="w-full p-2.5 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-gold-500 focus:outline-none"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-300 mb-1">Account Tier</label>
+                      <select
+                        value={financialAccountTier}
+                        onChange={(e) => setFinancialAccountTier(e.target.value)}
+                        className="w-full p-2.5 bg-dark-950 border border-slate-700 rounded-lg text-white text-xs focus:border-gold-500 focus:outline-none"
+                      >
+                        <option value="BASIC">BASIC (Standard $9k Limit)</option>
+                        <option value="BRONZE">BRONZE ($20k Limit)</option>
+                        <option value="GOLD">GOLD ($50k Limit)</option>
+                        <option value="PREMIUM">PREMIUM (Unlimited)</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex gap-2 pt-2">
+                {/* Sticky Modal Footer */}
+                <div className="p-4 border-t border-white/10 shrink-0 bg-dark-950 flex gap-2">
                   <button
                     type="submit"
                     disabled={actionLoading}
@@ -2619,10 +2631,10 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
         {/* 2. REJECT GAS FEE MODAL */}
         {actionModal.type === 'review-gas-fee' && actionModal.withdrawal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className="w-full max-w-md bg-dark-950 border border-rose-500/40 rounded-2xl p-6 shadow-2xl space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                <h3 className="font-bold text-white text-base font-mono">Reject Gas Fee & Restore Balance</h3>
+                <h3 className="font-bold text-white text-base font-mono">Reject Gas Fee &amp; Restore Balance</h3>
                 <button onClick={() => setActionModal({ type: null })} className="text-slate-400 hover:text-white">
                   <X className="w-5 h-5" />
                 </button>
@@ -2664,7 +2676,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
         {/* 3. REJECT DEPOSIT MODAL */}
         {actionModal.type === 'reject-deposit' && actionModal.deposit && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className="w-full max-w-md bg-dark-950 border border-rose-500/40 rounded-2xl p-6 shadow-2xl space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <h3 className="font-bold text-white text-base font-mono">Reject Deposit Request</h3>
@@ -2704,7 +2716,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         )}
 
         {selectedKyc && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
             <div className="w-full max-w-4xl bg-dark-950 border border-gold-500/40 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto custom-scrollbar">
               
               {/* Header */}
@@ -2715,7 +2727,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold text-white font-mono">KYC Identity Dossier & Pictures</h3>
+                      <h3 className="text-lg font-bold text-white font-mono">KYC Identity Dossier &amp; Pictures</h3>
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold font-mono ${
                         selectedKyc.status === 'VERIFIED' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
                         selectedKyc.status === 'REJECTED' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
@@ -2769,7 +2781,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                     <strong className="text-white">{selectedKyc.address}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-[10px]">CITY & POSTAL CODE</span>
+                    <span className="text-slate-500 block text-[10px]">CITY &amp; POSTAL CODE</span>
                     <strong className="text-white">{selectedKyc.city || 'N/A'}, {selectedKyc.postal_code || ''}</strong>
                   </div>
                 </div>
@@ -2787,7 +2799,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-gold-400 font-mono flex items-center gap-2">
                     <Camera className="w-4 h-4" />
-                    <span>Uploaded Document Photos & Proof-of-Life Selfie</span>
+                    <span>Uploaded Document Photos &amp; Proof-of-Life Selfie</span>
                   </h4>
                   <span className="text-[11px] text-slate-400 font-mono">Click any image to zoom / inspect in full resolution</span>
                 </div>
@@ -2913,7 +2925,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
         {/* 5. FULL-SCREEN IMAGE LIGHTBOX MODAL */}
         {lightboxImage && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-lg animate-fadeIn">
+          <div className="fixed inset-0 z-[9999999] flex items-center justify-center p-4 bg-black/95 backdrop-blur-lg animate-fadeIn">
             <div className="relative max-w-5xl max-h-[90vh] flex flex-col items-center">
               
               <div className="w-full flex items-center justify-between pb-3 text-white text-xs font-mono">
@@ -2943,7 +2955,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
         {/* 6. DEPOSIT ADDRESS EDITOR MODAL */}
         {depositModal.isOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
             <div className="w-full max-w-lg bg-dark-950 border border-cyan-500/40 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5">
               
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
@@ -3068,7 +3080,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
         {/* 7. USER PASSWORD & CREDENTIALS MODAL */}
         {passModal.isOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
             <div className="w-full max-w-md bg-dark-950 border border-gold-500/40 rounded-3xl p-6 shadow-2xl space-y-5">
               
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
@@ -3151,7 +3163,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
         {/* 8. WITHDRAWAL ACTION & REMARK MODAL */}
         {withdrawalModal.isOpen && withdrawalModal.withdrawal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fadeIn">
             <div className="w-full max-w-lg bg-dark-950 border border-slate-700 rounded-3xl p-6 shadow-2xl space-y-5 text-slate-100 font-mono text-xs">
               
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
@@ -3276,7 +3288,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
         {/* 9. USER BANK DETAILS AUDIT MODAL */}
         {bankModal.isOpen && bankModal.user && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fadeIn">
             <div className="w-full max-w-md bg-dark-950 border border-gold-500/30 rounded-3xl p-6 shadow-2xl space-y-5 text-slate-100 font-mono text-xs">
               
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
