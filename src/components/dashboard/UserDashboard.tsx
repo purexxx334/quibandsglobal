@@ -249,39 +249,51 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
     const uid = user.id;
 
     if (!hasApprovedDeposit) {
-      // User with $0 deposit: Miner strictly stays in STANDBY
+      // User with $0 deposit: Miner strictly stays in STANDBY at 0
       setLiveMiningBalance(Number(activeProfile?.mining_balance || 0));
       setSessionSecondsLeft(sessionTotalSeconds);
       setSessionYieldEarned(0);
       setHashrateSpeed(0);
+      // Clear any stale local start time so the next deposit starts freshly at 0
+      localStorage.removeItem(`quibands_miner_${uid}_start_time`);
+      localStorage.removeItem(`quibands_miner_${uid}_last_active`);
       return;
     }
 
-    // Determine continuous timestamp origin for this user's cloud rig
+    const now = Date.now();
     let savedStartTime = localStorage.getItem(`quibands_miner_${uid}_start_time`);
+    const dbMiningBal = Number(activeProfile?.mining_balance || 0);
+
     if (!savedStartTime) {
-      // Determine origin from earliest approved deposit, profile creation, or fallback
-      const approvedDep = deposits.find((d) => d.status === 'APPROVED');
-      const origin = approvedDep?.created_at 
-        ? new Date(approvedDep.created_at).getTime() 
-        : (activeProfile?.created_at ? new Date(activeProfile.created_at).getTime() : Date.now() - 3600000);
-      savedStartTime = String(origin);
+      // User just deposited and starts mining freshly from 0.00 (or from admin-configured DB balance)
+      savedStartTime = String(now);
       localStorage.setItem(`quibands_miner_${uid}_start_time`, savedStartTime);
+      localStorage.setItem(`quibands_miner_${uid}_last_active`, savedStartTime);
+      localStorage.setItem(`quibands_miner_${uid}_seconds_left`, String(sessionTotalSeconds));
+      localStorage.setItem(`quibands_miner_${uid}_yield_earned`, '0');
+      localStorage.setItem(`quibands_miner_${uid}_mining_balance`, String(dbMiningBal));
+
+      setSessionSecondsLeft(sessionTotalSeconds);
+      setSessionYieldEarned(0);
+      setSessionBlockNumber(884219);
+      setSharesAccepted(248);
+      setLiveMiningBalance(dbMiningBal);
+      setHashrateSpeed(142.84);
+      return;
     }
 
+    // Existing active miner: Calculate continuous progression including offline time
     const startTime = parseInt(savedStartTime, 10);
-    const now = Date.now();
     const totalElapsedSeconds = Math.max(0, Math.floor((now - startTime) / 1000));
 
-    // Calculate exact offline progression matching active tier
+    // Calculate exact progression matching active tier
     const cyclesCompleted = Math.floor(totalElapsedSeconds / sessionTotalSeconds);
     const secondsInCycle = totalElapsedSeconds % sessionTotalSeconds;
     const secLeft = Math.max(1, sessionTotalSeconds - secondsInCycle);
     const cycleYield = +(secondsInCycle * miningConfig.profitPerSecond).toFixed(5);
     const totalYieldAccrued = +(totalElapsedSeconds * miningConfig.profitPerSecond).toFixed(6);
 
-    const initialBase = Number(activeProfile?.mining_balance || 0);
-    const effectiveMinedBalance = Math.max(initialBase, +totalYieldAccrued.toFixed(6));
+    const effectiveMinedBalance = +(dbMiningBal + totalYieldAccrued).toFixed(6);
 
     setSessionSecondsLeft(secLeft);
     setSessionYieldEarned(cycleYield);
@@ -289,7 +301,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
     setSharesAccepted(248 + Math.floor(totalElapsedSeconds / 15));
     setLiveMiningBalance(effectiveMinedBalance);
     setHashrateSpeed(142.84);
-  }, [user?.id, hasApprovedDeposit, sessionTotalSeconds, miningConfig.profitPerSecond]);
+  }, [user?.id, hasApprovedDeposit, sessionTotalSeconds, miningConfig.profitPerSecond, activeProfile?.mining_balance]);
 
   // =========================================================================
   // LIVE MINER ENGINE: Starts ONLY after deposit and persists continuously
