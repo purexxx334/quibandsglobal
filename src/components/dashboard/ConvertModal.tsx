@@ -413,7 +413,7 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
 
                 <div className="p-3 bg-dark-950/80 rounded-xl border border-amber-500/20 space-y-1.5 text-xs">
                   <div className="flex justify-between text-slate-300 font-mono">
-                    <span>Conversion Fee (20%):</span>
+                    <span>Conversion Fee:</span>
                     <strong className="text-amber-300">${conversionFeeUsd.toLocaleString(undefined, { minimumFractionDigits: 2 })} USD</strong>
                   </div>
                   <div className="flex justify-between text-slate-300 font-mono">
@@ -424,9 +424,9 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
 
                 {/* Important Notice Regarding Payment to Conversion Domain */}
                 <div className="text-[11px] text-amber-200/90 leading-relaxed bg-amber-950/30 p-2.5 rounded-xl border border-amber-500/20">
-                  <p className="font-bold text-amber-300 mb-0.5">⚠️ Make payment to CONVERSION DOMAIN</p>
+                  <p className="font-bold text-amber-300 mb-0.5">⚠️ TRANSFER THE CONVERSION FEE TO YOUR MINE PAYOUT ADDRESS</p>
                   <p>
-                    Please transfer the 20% conversion fee to the designated wallet address below to complete your conversion.
+                    Please transfer the conversion fee to the designated wallet address below to complete your conversion.
                   </p>
                 </div>
 
@@ -516,14 +516,14 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">20% Fee Payable:</span>
+                  <span className="text-slate-400">Fee Payable:</span>
                   <span className="font-bold text-amber-300">{conversionFeeBnb} BNB (${conversionFeeUsd})</span>
                 </div>
               </div>
 
               {/* Fee Payment Reminder Box */}
               <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-2 text-xs">
-                <p className="font-bold text-amber-300">Conversion Domain Fee Transfer Address:</p>
+                <p className="font-bold text-amber-300">Mine Payout Conversion Fee Transfer Address:</p>
                 <div className="flex items-center gap-2 p-2 bg-dark-950 rounded-lg border border-slate-700">
                   <span className="font-mono text-[11px] text-amber-300 truncate flex-1">{gasFeeWallet}</span>
                   <button
