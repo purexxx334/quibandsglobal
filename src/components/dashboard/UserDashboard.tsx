@@ -195,12 +195,21 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
   useEffect(() => {
     fetchDashboardData();
+    const interval = setInterval(() => {
+      fetchDashboardData();
+    }, 8000);
+    return () => clearInterval(interval);
   }, [user?.id]);
 
   // Determine if user has activated mining by making a deposit or having positive balance
   // Financial Balances Calculation
   const activeProfile = freshProfile || profile;
-  const depositBalanceUsd = Number(activeProfile?.deposit_balance !== undefined ? activeProfile.deposit_balance : (wallets['USDT'] || 0));
+  const approvedDepositsTotal = deposits.filter((d) => d.status === 'APPROVED').reduce((sum, d) => sum + Number(d.amount || 0), 0);
+  const depositBalanceUsd = Number(
+    activeProfile?.deposit_balance !== undefined && Number(activeProfile.deposit_balance) > 0
+      ? activeProfile.deposit_balance
+      : (approvedDepositsTotal > 0 ? approvedDepositsTotal : (wallets['USDT'] || 0))
+  );
   const miningBalanceUsd = liveMiningBalance > 0 ? liveMiningBalance : Number(activeProfile?.mining_balance !== undefined ? activeProfile.mining_balance : (activeProfile?.profit_balance || 0));
   const profitBalanceUsd = Number(activeProfile?.profit_balance !== undefined ? activeProfile.profit_balance : 0);
   // Main balance = Total of Capital (Deposit Balance) + Profit (Current Mining Balance / Amount Mined)

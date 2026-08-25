@@ -88,8 +88,8 @@ export class DepositService {
       title: 'New Deposit Request Submitted',
       message: `User submitted a deposit of ${amount} ${asset.toUpperCase()} (${network.toUpperCase()}). TxHash: ${transactionHash.slice(0, 16)}...`,
       severity: 'info',
-      eventType: 'deposit_submitted',
-      relatedUserId: userId,
+      event_type: 'deposit_submitted',
+      related_user_id: userId,
       metadata: { depositId: depositRequest.id, amount, asset, network, transactionHash },
     });
 
@@ -332,7 +332,9 @@ export class DepositService {
         asset: deposit.asset,
         network: deposit.network,
         user_id: deposit.user_id,
-        new_balance: newBalance,
+        new_wallet_balance: newWalletBalance,
+        new_deposit_balance: newDepBal,
+        new_main_balance: newMainBal,
         transaction_hash: deposit.transaction_hash,
       },
     });
@@ -358,7 +360,9 @@ export class DepositService {
       wallet_id: walletId,
       amount: deposit.amount,
       asset: deposit.asset,
-      new_balance: newBalance,
+      new_balance: newWalletBalance,
+      deposit_balance: newDepBal,
+      main_balance: newMainBal,
     };
   }
 
