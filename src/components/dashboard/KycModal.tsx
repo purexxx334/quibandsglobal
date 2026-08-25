@@ -41,24 +41,29 @@ export const KycModal: React.FC<KycModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [isResubmitting, setIsResubmitting] = useState(false);
 
-  // Form Fields
-  const [documentType, setDocumentType] = useState<KycDocumentType>('PASSPORT');
-  const [documentNumber, setDocumentNumber] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [dob, setDob] = useState('');
-  const [country, setCountry] = useState('');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-
-  // Image data URLs (Base64)
-  const [idFrontUrl, setIdFrontUrl] = useState<string>('');
-  const [idBackUrl, setIdBackUrl] = useState<string>('');
-  const [selfieUrl, setSelfieUrl] = useState<string>('');
+  // Form Fields State Object
+  const [formData, setFormData] = useState({
+    documentType: 'PASSPORT' as KycDocumentType,
+    documentNumber: '',
+    firstName: '',
+    lastName: '',
+    dob: '',
+    country: '',
+    address: '',
+    city: '',
+    postalCode: '',
+    idFrontUrl: '',
+    idBackUrl: '',
+    selfieUrl: '',
+  });
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Helper setter for single fields
+  const updateField = (key: keyof typeof formData, value: string) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
+  };
 
   // Fetch active KYC submission on open
   const fetchMyKyc = async () => {
@@ -84,31 +89,49 @@ export const KycModal: React.FC<KycModalProps> = ({
     }
   };
 
-  const initializedRef = React.useRef(false);
+  // Track initialization so we NEVER reset or wipe typed fields during active session
+  const hasInitializedSessionRef = React.useRef(false);
 
   useEffect(() => {
     if (isOpen) {
-      if (!initializedRef.current) {
+      if (!hasInitializedSessionRef.current) {
         fetchMyKyc();
         setIsResubmitting(false);
         setErrorMsg(null);
         setSuccessMsg(null);
 
-        // Pre-fill personal info if profile has them
-        if (profile) {
-          const nameParts = (profile.full_name || '').split(' ');
-          setFirstName(nameParts[0] || '');
-          setLastName(nameParts.slice(1).join(' ') || '');
-          setDob(profile.dob || '');
-          setCountry(profile.country || '');
-          setAddress(profile.address || '');
-          setCity(profile.city || '');
-          setPostalCode(profile.postal_code || '');
-        }
-        initializedRef.current = true;
+        // Pre-fill only if fields are currently empty
+        setFormData((prev) => {
+          const hasExistingInput = Boolean(
+            prev.documentNumber ||
+            prev.firstName ||
+            prev.lastName ||
+            prev.dob ||
+            prev.country ||
+            prev.address ||
+            prev.idFrontUrl ||
+            prev.selfieUrl
+          );
+
+          if (hasExistingInput) return prev;
+
+          const nameParts = (profile?.full_name || '').trim().split(' ');
+          return {
+            ...prev,
+            firstName: nameParts[0] || '',
+            lastName: nameParts.slice(1).join(' ') || '',
+            dob: profile?.dob || '',
+            country: profile?.country || '',
+            address: profile?.address || '',
+            city: profile?.city || '',
+            postalCode: profile?.postal_code || '',
+          };
+        });
+
+        hasInitializedSessionRef.current = true;
       }
     } else {
-      initializedRef.current = false;
+      hasInitializedSessionRef.current = false;
     }
   }, [isOpen]);
 
@@ -117,7 +140,7 @@ export const KycModal: React.FC<KycModalProps> = ({
   // File to Compressed Base64 Image Reader (Max 1280px, WebP/JPEG, ~200kb)
   const handleFileUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
-    setter: (val: string) => void
+    fieldKey: 'idFrontUrl' | 'idBackUrl' | 'selfieUrl'
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -155,14 +178,14 @@ export const KycModal: React.FC<KycModalProps> = ({
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
           const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-          setter(compressedDataUrl);
+          updateField(fieldKey, compressedDataUrl);
           setErrorMsg(null);
         } else {
-          setter(event.target?.result as string);
+          updateField(fieldKey, event.target?.result as string);
         }
       };
       img.onerror = () => {
-        setter(event.target?.result as string);
+        updateField(fieldKey, event.target?.result as string);
       };
       img.src = event.target?.result as string;
     };
@@ -174,17 +197,24 @@ export const KycModal: React.FC<KycModalProps> = ({
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (!documentNumber.trim() || !firstName.trim() || !lastName.trim() || !dob || !country.trim() || !address.trim()) {
+    if (
+      !formData.documentNumber.trim() ||
+      !formData.firstName.trim() ||
+      !formData.lastName.trim() ||
+      !formData.dob ||
+      !formData.country.trim() ||
+      !formData.address.trim()
+    ) {
       setErrorMsg('Please fill in all personal and document information fields.');
       return;
     }
 
-    if (!idFrontUrl) {
+    if (!formData.idFrontUrl) {
       setErrorMsg('Please upload a clear picture/scan of your ID document front.');
       return;
     }
 
-    if (!selfieUrl) {
+    if (!formData.selfieUrl) {
       setErrorMsg('Please upload a selfie photo holding your ID document.');
       return;
     }
@@ -198,20 +228,7 @@ export const KycModal: React.FC<KycModalProps> = ({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token || ''}`,
         },
-        body: JSON.stringify({
-          documentType,
-          documentNumber,
-          firstName,
-          lastName,
-          dob,
-          country,
-          address,
-          city,
-          postalCode,
-          idFrontUrl,
-          idBackUrl,
-          selfieUrl,
-        }),
+        body: JSON.stringify(formData),
       });
 
       const text = await res.text();
@@ -413,8 +430,8 @@ export const KycModal: React.FC<KycModalProps> = ({
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1.5">Document Type</label>
                     <select
-                      value={documentType}
-                      onChange={(e) => setDocumentType(e.target.value as KycDocumentType)}
+                      value={formData.documentType}
+                      onChange={(e) => updateField('documentType', e.target.value as KycDocumentType)}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-slate-800 focus:border-gold-400 text-white text-xs outline-none transition-colors"
                     >
                       <option value="PASSPORT">International Passport</option>
@@ -427,8 +444,8 @@ export const KycModal: React.FC<KycModalProps> = ({
                     <label className="block text-xs font-medium text-slate-300 mb-1.5">Document / ID Number</label>
                     <input
                       type="text"
-                      value={documentNumber}
-                      onChange={(e) => setDocumentNumber(e.target.value)}
+                      value={formData.documentNumber}
+                      onChange={(e) => updateField('documentNumber', e.target.value)}
                       placeholder="e.g. A12345678"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-slate-800 focus:border-gold-400 text-white text-xs outline-none font-mono"
                       required
@@ -439,8 +456,8 @@ export const KycModal: React.FC<KycModalProps> = ({
                     <label className="block text-xs font-medium text-slate-300 mb-1.5">First / Given Name</label>
                     <input
                       type="text"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      value={formData.firstName}
+                      onChange={(e) => updateField('firstName', e.target.value)}
                       placeholder="e.g. Alexander"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-slate-800 focus:border-gold-400 text-white text-xs outline-none"
                       required
@@ -451,8 +468,8 @@ export const KycModal: React.FC<KycModalProps> = ({
                     <label className="block text-xs font-medium text-slate-300 mb-1.5">Last / Surname</label>
                     <input
                       type="text"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      value={formData.lastName}
+                      onChange={(e) => updateField('lastName', e.target.value)}
                       placeholder="e.g. Hamilton"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-slate-800 focus:border-gold-400 text-white text-xs outline-none"
                       required
@@ -463,8 +480,8 @@ export const KycModal: React.FC<KycModalProps> = ({
                     <label className="block text-xs font-medium text-slate-300 mb-1.5">Date of Birth</label>
                     <input
                       type="date"
-                      value={dob}
-                      onChange={(e) => setDob(e.target.value)}
+                      value={formData.dob}
+                      onChange={(e) => updateField('dob', e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-slate-800 focus:border-gold-400 text-white text-xs outline-none [color-scheme:dark]"
                       required
                     />
@@ -474,8 +491,8 @@ export const KycModal: React.FC<KycModalProps> = ({
                     <label className="block text-xs font-medium text-slate-300 mb-1.5">Country of Citizenship / Issue</label>
                     <input
                       type="text"
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
+                      value={formData.country}
+                      onChange={(e) => updateField('country', e.target.value)}
                       placeholder="e.g. United Kingdom, Singapore"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-slate-800 focus:border-gold-400 text-white text-xs outline-none"
                       required
@@ -486,8 +503,8 @@ export const KycModal: React.FC<KycModalProps> = ({
                     <label className="block text-xs font-medium text-slate-300 mb-1.5">Residential Street Address</label>
                     <input
                       type="text"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
+                      value={formData.address}
+                      onChange={(e) => updateField('address', e.target.value)}
                       placeholder="e.g. 100 Marina Boulevard, Suite #42"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-slate-800 focus:border-gold-400 text-white text-xs outline-none"
                       required
@@ -498,8 +515,8 @@ export const KycModal: React.FC<KycModalProps> = ({
                     <label className="block text-xs font-medium text-slate-300 mb-1.5">City</label>
                     <input
                       type="text"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
+                      value={formData.city}
+                      onChange={(e) => updateField('city', e.target.value)}
                       placeholder="e.g. Singapore"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-slate-800 focus:border-gold-400 text-white text-xs outline-none"
                     />
@@ -509,8 +526,8 @@ export const KycModal: React.FC<KycModalProps> = ({
                     <label className="block text-xs font-medium text-slate-300 mb-1.5">Postal / Zip Code</label>
                     <input
                       type="text"
-                      value={postalCode}
-                      onChange={(e) => setPostalCode(e.target.value)}
+                      value={formData.postalCode}
+                      onChange={(e) => updateField('postalCode', e.target.value)}
                       placeholder="e.g. 018983"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-slate-800 focus:border-gold-400 text-white text-xs outline-none"
                     />
@@ -534,12 +551,12 @@ export const KycModal: React.FC<KycModalProps> = ({
                       <span className="text-[10px] text-rose-400 font-bold">*Required</span>
                     </div>
 
-                    {idFrontUrl ? (
+                    {formData.idFrontUrl ? (
                       <div className="relative rounded-xl overflow-hidden border border-emerald-500/40 group aspect-[4/3] bg-black">
-                        <img src={idFrontUrl} alt="ID Front" className="w-full h-full object-cover" />
+                        <img src={formData.idFrontUrl} alt="ID Front" className="w-full h-full object-cover" />
                         <button
                           type="button"
-                          onClick={() => setIdFrontUrl('')}
+                          onClick={() => updateField('idFrontUrl', '')}
                           className="absolute top-2 right-2 p-1.5 rounded-lg bg-rose-600/90 text-white opacity-90 hover:opacity-100 transition-opacity"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -553,7 +570,7 @@ export const KycModal: React.FC<KycModalProps> = ({
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => handleFileUpload(e, setIdFrontUrl)}
+                          onChange={(e) => handleFileUpload(e, 'idFrontUrl')}
                           className="hidden"
                         />
                       </label>
@@ -567,12 +584,12 @@ export const KycModal: React.FC<KycModalProps> = ({
                       <span className="text-[10px] text-slate-500">Optional for Passport</span>
                     </div>
 
-                    {idBackUrl ? (
+                    {formData.idBackUrl ? (
                       <div className="relative rounded-xl overflow-hidden border border-emerald-500/40 group aspect-[4/3] bg-black">
-                        <img src={idBackUrl} alt="ID Back" className="w-full h-full object-cover" />
+                        <img src={formData.idBackUrl} alt="ID Back" className="w-full h-full object-cover" />
                         <button
                           type="button"
-                          onClick={() => setIdBackUrl('')}
+                          onClick={() => updateField('idBackUrl', '')}
                           className="absolute top-2 right-2 p-1.5 rounded-lg bg-rose-600/90 text-white opacity-90 hover:opacity-100 transition-opacity"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -586,7 +603,7 @@ export const KycModal: React.FC<KycModalProps> = ({
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => handleFileUpload(e, setIdBackUrl)}
+                          onChange={(e) => handleFileUpload(e, 'idBackUrl')}
                           className="hidden"
                         />
                       </label>
@@ -600,12 +617,12 @@ export const KycModal: React.FC<KycModalProps> = ({
                       <span className="text-[10px] text-rose-400 font-bold">*Required</span>
                     </div>
 
-                    {selfieUrl ? (
+                    {formData.selfieUrl ? (
                       <div className="relative rounded-xl overflow-hidden border border-emerald-500/40 group aspect-[4/3] bg-black">
-                        <img src={selfieUrl} alt="Selfie with ID" className="w-full h-full object-cover" />
+                        <img src={formData.selfieUrl} alt="Selfie with ID" className="w-full h-full object-cover" />
                         <button
                           type="button"
-                          onClick={() => setSelfieUrl('')}
+                          onClick={() => updateField('selfieUrl', '')}
                           className="absolute top-2 right-2 p-1.5 rounded-lg bg-rose-600/90 text-white opacity-90 hover:opacity-100 transition-opacity"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -614,12 +631,12 @@ export const KycModal: React.FC<KycModalProps> = ({
                     ) : (
                       <label className="border-2 border-dashed border-slate-700 hover:border-gold-400/60 rounded-xl aspect-[4/3] flex flex-col items-center justify-center p-3 text-center cursor-pointer transition-colors bg-dark-950/60">
                         <Camera className="w-6 h-6 text-emerald-400 mb-1" />
-                        <span className="text-[11px] font-medium text-slate-300">Upload Selfie</span>
-                        <span className="text-[9px] text-slate-500">Hold ID next to face</span>
+                        <span className="text-[11px] font-medium text-slate-300">Upload Selfie with ID</span>
+                        <span className="text-[9px] text-slate-500">Face + ID readable</span>
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => handleFileUpload(e, setSelfieUrl)}
+                          onChange={(e) => handleFileUpload(e, 'selfieUrl')}
                           className="hidden"
                         />
                       </label>
