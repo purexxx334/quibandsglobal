@@ -47,7 +47,8 @@ import {
   Edit,
   MessageSquare,
   Terminal,
-  Coins
+  Coins,
+  Info
 } from 'lucide-react';
 
 import { AdminSupportChatTab } from './AdminSupportChatTab';
@@ -430,26 +431,41 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     }
   };
 
-  // Open Deposit Address Editor Modal
-  const openDepositAddressModal = (addr?: DepositAddress) => {
-    if (addr) {
+  // Open Deposit Address Editor Modal (strictly BTC, ERC20, BNB)
+  const openDepositAddressModal = (addr?: DepositAddress | null, defaultCoin?: 'BTC' | 'ERC20' | 'BNB') => {
+    const targetCoin: 'BTC' | 'ERC20' | 'BNB' = defaultCoin || (addr ? (addr.asset as any) : 'BTC');
+    
+    // Find matching existing address in depositAddresses list
+    let existingAddr = addr;
+    if (!existingAddr) {
+      existingAddr = depositAddresses.find(a => {
+        const aUpper = (a.asset || '').toUpperCase();
+        const nUpper = (a.network || '').toUpperCase();
+        if (targetCoin === 'BTC') return aUpper === 'BTC' || aUpper === 'BITCOIN' || nUpper === 'BTC' || nUpper === 'NATIVE';
+        if (targetCoin === 'ERC20') return aUpper === 'ERC20' || nUpper === 'ERC20' || aUpper === 'ETH' || aUpper === 'USDT';
+        if (targetCoin === 'BNB') return aUpper === 'BNB' || aUpper === 'BSC' || nUpper === 'BEP20' || nUpper === 'BNB';
+        return aUpper === targetCoin;
+      }) || null;
+    }
+
+    if (existingAddr) {
       setDepositModal({
         isOpen: true,
         isEdit: true,
-        id: addr.id,
-        asset: addr.asset,
-        network: addr.network,
-        address: addr.address,
-        memoTag: addr.memo_tag || '',
-        notes: addr.notes || '',
-        isActive: addr.is_active,
+        id: existingAddr.id,
+        asset: targetCoin,
+        network: targetCoin === 'BNB' ? 'BEP20' : (targetCoin === 'ERC20' ? 'ERC20' : 'BTC'),
+        address: existingAddr.address,
+        memoTag: existingAddr.memo_tag || '',
+        notes: existingAddr.notes || '',
+        isActive: existingAddr.is_active,
       });
     } else {
       setDepositModal({
         isOpen: true,
         isEdit: false,
-        asset: 'BTC',
-        network: 'BTC',
+        asset: targetCoin,
+        network: targetCoin === 'BNB' ? 'BEP20' : (targetCoin === 'ERC20' ? 'ERC20' : 'BTC'),
         address: '',
         memoTag: '',
         notes: '',
@@ -486,7 +502,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
       const json = await res.json();
       if (json.success) {
-        showBanner('success', `Deposit address for ${depositModal.asset} ${depositModal.isEdit ? 'updated' : 'configured'} successfully.`);
+        showBanner('success', `Deposit address for ${depositModal.asset} saved & active on user dashboard.`);
         setDepositModal((prev) => ({ ...prev, isOpen: false }));
         fetchData();
       } else {
@@ -2281,102 +2297,141 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
             {/* TAB 6: TREASURY DEPOSIT ADDRESSES */}
             {activeTab === 'treasury' && (
-              <div className="flex-1 flex flex-col p-6 overflow-hidden">
-                <div className="flex items-center justify-between mb-4">
+              <div className="flex-1 flex flex-col p-4 sm:p-6 overflow-y-auto custom-scrollbar">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                   <div>
-                    <h3 className="text-base font-bold text-white font-mono flex items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-bold text-white font-mono flex items-center gap-2">
                       <WalletCards className="w-5 h-5 text-cyan-400" />
-                      <span>Treasury & Receiving Deposit Addresses</span>
+                      <span>Deposit Receiving Wallets (BTC, ERC20, BNB)</span>
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Configure and edit destination wallet addresses assigned to users during deposit workflows.
+                      Configure the 3 official deposit receiving addresses that users see when depositing funds.
                     </p>
                   </div>
-
-                  <button
-                    onClick={() => openDepositAddressModal()}
-                    className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl text-xs font-mono flex items-center gap-1.5 transition shadow-md"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Add New Address</span>
-                  </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto border border-white/10 rounded-xl bg-dark-950/80 font-mono text-xs">
-                  <table className="w-full text-left">
-                    <thead className="sticky top-0 bg-dark-900 border-b border-white/10 text-[11px] uppercase tracking-wider text-slate-400">
-                      <tr>
-                        <th className="px-4 py-3">Asset</th>
-                        <th className="px-4 py-3">Network</th>
-                        <th className="px-4 py-3">Destination Address</th>
-                        <th className="px-4 py-3">Memo / Tag</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {depositAddresses.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="text-center py-10 text-slate-500 font-sans">
-                            No deposit addresses configured. Click "Add New Address" above.
-                          </td>
-                        </tr>
-                      ) : (
-                        depositAddresses.map((addr) => (
-                          <tr key={addr.id} className="hover:bg-white/[0.02] transition">
-                            <td className="px-4 py-3 font-bold text-gold-400 text-sm">{addr.asset}</td>
-                            <td className="px-4 py-3 text-slate-300">
-                              <span className="px-2 py-0.5 rounded bg-dark-850 border border-slate-700 text-[11px]">
-                                {addr.network}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-slate-200 select-all font-mono">
-                              <div className="flex items-center gap-2">
-                                <span className="truncate max-w-sm">{addr.address}</span>
-                                <button
-                                  onClick={() => copyToClipboard(addr.address, addr.id)}
-                                  className="text-slate-500 hover:text-white transition"
-                                >
-                                  {copiedId === addr.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                                </button>
+                {/* 3 Dedicated Core Wallet Cards */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                  {([
+                    { 
+                      key: 'BTC' as const, 
+                      name: 'Bitcoin', 
+                      net: 'BTC (Native)', 
+                      icon: '₿', 
+                      color: 'text-amber-400',
+                      badge: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+                      border: 'border-amber-500/30 hover:border-amber-400/60',
+                      bg: 'bg-dark-900/90'
+                    },
+                    { 
+                      key: 'ERC20' as const, 
+                      name: 'Ethereum / USDT', 
+                      net: 'ERC-20 Protocol', 
+                      icon: 'Ξ', 
+                      color: 'text-indigo-400',
+                      badge: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+                      border: 'border-indigo-500/30 hover:border-indigo-400/60',
+                      bg: 'bg-dark-900/90'
+                    },
+                    { 
+                      key: 'BNB' as const, 
+                      name: 'BNB Smart Chain', 
+                      net: 'BEP-20 Protocol', 
+                      icon: '⬡', 
+                      color: 'text-yellow-400',
+                      badge: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
+                      border: 'border-yellow-500/30 hover:border-yellow-400/60',
+                      bg: 'bg-dark-900/90'
+                    },
+                  ] as Array<{ key: 'BTC' | 'ERC20' | 'BNB'; name: string; net: string; icon: string; color: string; badge: string; border: string; bg: string }>).map((coin) => {
+                    const activeAddr = depositAddresses.find(a => {
+                      const aUpper = (a.asset || '').toUpperCase();
+                      const nUpper = (a.network || '').toUpperCase();
+                      if (coin.key === 'BTC') return aUpper === 'BTC' || aUpper === 'BITCOIN' || nUpper === 'BTC' || nUpper === 'NATIVE';
+                      if (coin.key === 'ERC20') return aUpper === 'ERC20' || nUpper === 'ERC20' || aUpper === 'ETH' || aUpper === 'USDT';
+                      if (coin.key === 'BNB') return aUpper === 'BNB' || aUpper === 'BSC' || nUpper === 'BEP20' || nUpper === 'BNB';
+                      return aUpper === coin.key;
+                    });
+
+                    return (
+                      <div key={coin.key} className={`p-5 rounded-2xl ${coin.bg} border ${coin.border} transition-all shadow-xl flex flex-col justify-between space-y-4`}>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-dark-950 border border-white/10 flex items-center justify-center text-xl font-bold font-mono">
+                                <span className={coin.color}>{coin.icon}</span>
                               </div>
-                            </td>
-                            <td className="px-4 py-3 text-slate-400">
-                              {addr.memo_tag ? (
-                                <span className="bg-dark-850 px-2 py-0.5 rounded border border-slate-800 text-[10px] text-amber-300">
-                                  {addr.memo_tag}
+                              <div>
+                                <h4 className="font-bold text-white font-mono text-sm">{coin.name} ({coin.key})</h4>
+                                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${coin.badge}`}>
+                                  {coin.net}
                                 </span>
-                              ) : (
-                                <span className="text-slate-600 font-sans">None</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
+                              </div>
+                            </div>
+
+                            {activeAddr ? (
                               <button
-                                onClick={() => handleToggleDepositAddress(addr)}
-                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition flex items-center gap-1 ${
-                                  addr.is_active 
-                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30' 
+                                onClick={() => handleToggleDepositAddress(activeAddr)}
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold font-mono transition flex items-center gap-1.5 ${
+                                  activeAddr.is_active
+                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30'
                                     : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
                                 }`}
                               >
-                                <span className={`w-1.5 h-1.5 rounded-full ${addr.is_active ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
-                                <span>{addr.is_active ? 'Active' : 'Inactive'}</span>
+                                <span className={`w-1.5 h-1.5 rounded-full ${activeAddr.is_active ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                                <span>{activeAddr.is_active ? 'ACTIVE' : 'INACTIVE'}</span>
                               </button>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <button
-                                onClick={() => openDepositAddressModal(addr)}
-                                className="px-3 py-1.5 bg-dark-850 hover:bg-gold-500/20 text-slate-200 hover:text-gold-400 border border-white/10 hover:border-gold-500/40 rounded-xl text-xs font-semibold transition inline-flex items-center gap-1.5"
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                                <span>Edit Address</span>
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                            ) : (
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                NOT SET
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="p-3 bg-dark-950 rounded-xl border border-white/5 space-y-1.5">
+                            <span className="text-[10px] font-mono uppercase text-slate-500 block">Configured Wallet Address:</span>
+                            {activeAddr?.address ? (
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-mono text-xs text-emerald-300 break-all select-all font-bold">
+                                  {activeAddr.address}
+                                </span>
+                                <button
+                                  onClick={() => copyToClipboard(activeAddr.address, activeAddr.id)}
+                                  className="text-slate-400 hover:text-white p-1 rounded hover:bg-white/5 transition shrink-0"
+                                >
+                                  {copiedId === activeAddr.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-xs font-mono text-slate-500 italic">No address set yet. Click below to add.</span>
+                            )}
+
+                            {activeAddr?.memo_tag && (
+                              <div className="pt-1.5 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
+                                <span className="text-amber-400">Memo/Tag: {activeAddr.memo_tag}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => openDepositAddressModal(activeAddr, coin.key)}
+                          className="w-full py-2.5 bg-gradient-to-r from-gold-400 to-amber-600 hover:from-gold-500 hover:to-amber-700 text-dark-950 font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-1.5 transition shadow-gold-sm"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          <span>{activeAddr ? `Edit ${coin.key} Address` : `Set ${coin.key} Address`}</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="p-4 bg-dark-950/80 border border-cyan-500/30 rounded-2xl text-xs font-mono text-slate-300 flex items-start gap-2.5">
+                  <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="text-white">Instant Synchronization: </strong>
+                    Updating any address above immediately reflects in the user's deposit modal when they choose that option.
+                  </div>
                 </div>
               </div>
             )}
@@ -2953,21 +3008,21 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
           </div>
         )}
 
-        {/* 6. DEPOSIT ADDRESS EDITOR MODAL */}
+        {/* 6. DEPOSIT ADDRESS EDITOR MODAL (EXCLUSIVELY BTC, ERC20, BNB) */}
         {depositModal.isOpen && (
-          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-            <div className="w-full max-w-lg bg-dark-950 border border-cyan-500/40 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5">
+          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fadeIn">
+            <div className="w-full max-w-lg bg-dark-950 border border-gold-500/40 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5">
               
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <div className="w-10 h-10 rounded-2xl bg-gold-400/10 border border-gold-400/30 flex items-center justify-center text-gold-400">
                     <WalletCards className="w-5 h-5" />
                   </div>
                   <div>
                     <h3 className="font-bold text-white text-base font-mono">
-                      {depositModal.isEdit ? 'Edit Deposit Address' : 'Add New Deposit Address'}
+                      {depositModal.isEdit ? `Edit ${depositModal.asset} Deposit Wallet` : `Add ${depositModal.asset} Deposit Wallet`}
                     </h3>
-                    <p className="text-xs text-slate-400">Configure receiving destination address for users.</p>
+                    <p className="text-xs text-slate-400">Receiving destination address for user deposits.</p>
                   </div>
                 </div>
                 <button
@@ -2980,93 +3035,84 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
               <form onSubmit={handleSaveDepositAddress} className="space-y-4 text-xs font-mono">
                 
-                {/* 3 Quick Option Presets */}
+                {/* 3 Dedicated Options Selector */}
                 <div className="space-y-1.5">
                   <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider">
-                    Deposit Option Presets (Click to Auto-Fill):
+                    Select Deposit Cryptocurrency:
                   </label>
                   <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDepositModal({ ...depositModal, asset: 'BTC', network: 'BTC' })}
-                      className={`p-2.5 rounded-xl border text-center font-bold text-xs transition flex flex-col items-center gap-0.5 ${
-                        depositModal.asset === 'BTC'
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
-                          : 'bg-dark-900 border-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <span className="text-amber-400">₿ BTC</span>
-                      <span className="text-[10px] text-slate-400 font-normal">Bitcoin Native</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDepositModal({ ...depositModal, asset: 'ERC20', network: 'ERC20' })}
-                      className={`p-2.5 rounded-xl border text-center font-bold text-xs transition flex flex-col items-center gap-0.5 ${
-                        depositModal.asset === 'ERC20'
-                          ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50 shadow-sm'
-                          : 'bg-dark-900 border-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <span className="text-indigo-400">Ξ ERC20</span>
-                      <span className="text-[10px] text-slate-400 font-normal">USDT / ETH</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDepositModal({ ...depositModal, asset: 'BNB', network: 'BEP20' })}
-                      className={`p-2.5 rounded-xl border text-center font-bold text-xs transition flex flex-col items-center gap-0.5 ${
-                        depositModal.asset === 'BNB'
-                          ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50 shadow-sm'
-                          : 'bg-dark-900 border-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <span className="text-yellow-400">⬡ BNB</span>
-                      <span className="text-[10px] text-slate-400 font-normal">BEP-20 Smart Chain</span>
-                    </button>
-                  </div>
-                </div>
+                    {[
+                      { key: 'BTC', name: 'Bitcoin', net: 'BTC', icon: '₿', color: 'text-amber-400', activeBg: 'bg-amber-500/20 text-amber-300 border-amber-500/50' },
+                      { key: 'ERC20', name: 'USDT / ETH', net: 'ERC20', icon: 'Ξ', color: 'text-indigo-400', activeBg: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50' },
+                      { key: 'BNB', name: 'BNB Chain', net: 'BEP20', icon: '⬡', color: 'text-yellow-400', activeBg: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50' },
+                    ].map((opt) => {
+                      const isChosen = depositModal.asset === opt.key;
+                      return (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => {
+                            // Find existing address for this coin if any
+                            const existing = depositAddresses.find(a => {
+                              const aUpper = (a.asset || '').toUpperCase();
+                              const nUpper = (a.network || '').toUpperCase();
+                              if (opt.key === 'BTC') return aUpper === 'BTC' || aUpper === 'BITCOIN' || nUpper === 'BTC' || nUpper === 'NATIVE';
+                              if (opt.key === 'ERC20') return aUpper === 'ERC20' || nUpper === 'ERC20' || aUpper === 'ETH' || aUpper === 'USDT';
+                              if (opt.key === 'BNB') return aUpper === 'BNB' || aUpper === 'BSC' || nUpper === 'BEP20' || nUpper === 'BNB';
+                              return aUpper === opt.key;
+                            });
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-gold-400 uppercase tracking-wider mb-1">
-                      Asset Symbol
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={depositModal.asset}
-                      onChange={(e) => setDepositModal({ ...depositModal, asset: e.target.value.toUpperCase() })}
-                      placeholder="BTC, ERC20, BNB..."
-                      className="w-full p-3 bg-dark-900 border border-slate-700 rounded-xl text-white uppercase focus:border-gold-500 focus:outline-none font-bold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1">
-                      Blockchain Network
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={depositModal.network}
-                      onChange={(e) => setDepositModal({ ...depositModal, network: e.target.value.toUpperCase() })}
-                      placeholder="BTC, ERC20, BEP20..."
-                      className="w-full p-3 bg-dark-900 border border-slate-700 rounded-xl text-white uppercase focus:border-cyan-500 focus:outline-none font-bold"
-                    />
+                            if (existing) {
+                              setDepositModal({
+                                ...depositModal,
+                                isEdit: true,
+                                id: existing.id,
+                                asset: opt.key,
+                                network: opt.net,
+                                address: existing.address,
+                                memoTag: existing.memo_tag || '',
+                                isActive: existing.is_active,
+                              });
+                            } else {
+                              setDepositModal({
+                                ...depositModal,
+                                isEdit: false,
+                                id: undefined,
+                                asset: opt.key,
+                                network: opt.net,
+                                address: '',
+                                memoTag: '',
+                                isActive: true,
+                              });
+                            }
+                          }}
+                          className={`p-2.5 rounded-xl border text-center font-bold text-xs transition flex flex-col items-center gap-0.5 ${
+                            isChosen ? opt.activeBg + ' shadow-sm' : 'bg-dark-900 border-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <span className={`text-sm ${opt.color}`}>{opt.icon} {opt.key}</span>
+                          <span className="text-[10px] font-normal text-slate-400">{opt.net} Network</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
-                    Destination Wallet Address
+                    Destination Wallet Address for {depositModal.asset} ({depositModal.network})
                   </label>
                   <textarea
                     required
                     rows={2}
                     value={depositModal.address}
                     onChange={(e) => setDepositModal({ ...depositModal, address: e.target.value })}
-                    placeholder="Enter full public wallet address string..."
+                    placeholder={`Paste public ${depositModal.asset} receiving address here...`}
                     className="w-full p-3 bg-dark-900 border border-slate-700 rounded-xl text-emerald-300 focus:border-emerald-500 focus:outline-none font-mono text-xs select-all"
                   />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Users will see this address immediately when depositing {depositModal.asset}.
+                  </p>
                 </div>
 
                 <div>
@@ -3077,7 +3123,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                     type="text"
                     value={depositModal.memoTag}
                     onChange={(e) => setDepositModal({ ...depositModal, memoTag: e.target.value })}
-                    placeholder="Required for XRP/TON/EOS or blank"
+                    placeholder="Optional memo/tag or leave blank"
                     className="w-full p-3 bg-dark-900 border border-slate-700 rounded-xl text-white focus:border-gold-500 focus:outline-none text-xs"
                   />
                 </div>
@@ -3085,7 +3131,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                 <div className="flex items-center justify-between p-3.5 bg-dark-900 rounded-xl border border-white/5">
                   <div>
                     <span className="font-bold text-white block">Active Receiving Status</span>
-                    <span className="text-[11px] text-slate-400">When active, this address is presented to users for deposits.</span>
+                    <span className="text-[11px] text-slate-400">When active, this address is shown to users for deposits.</span>
                   </div>
                   <button
                     type="button"
@@ -3110,10 +3156,10 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                   </button>
                   <button
                     type="submit"
-                    disabled={actionLoading}
-                    className="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl text-xs shadow-lg transition disabled:opacity-50"
+                    disabled={actionLoading || !depositModal.address.trim()}
+                    className="flex-1 py-3 bg-gradient-to-r from-gold-400 to-amber-600 hover:from-gold-500 hover:to-amber-700 text-dark-950 font-bold rounded-xl text-xs shadow-gold transition disabled:opacity-50"
                   >
-                    {actionLoading ? 'Saving Address...' : depositModal.isEdit ? 'Save Address Changes' : 'Create Deposit Address'}
+                    {actionLoading ? 'Saving Address...' : `Save & Update ${depositModal.asset} Address`}
                   </button>
                 </div>
 
