@@ -84,26 +84,33 @@ export const KycModal: React.FC<KycModalProps> = ({
     }
   };
 
+  const initializedRef = React.useRef(false);
+
   useEffect(() => {
     if (isOpen) {
-      fetchMyKyc();
-      setIsResubmitting(false);
-      setErrorMsg(null);
-      setSuccessMsg(null);
+      if (!initializedRef.current) {
+        fetchMyKyc();
+        setIsResubmitting(false);
+        setErrorMsg(null);
+        setSuccessMsg(null);
 
-      // Pre-fill personal info if profile has them
-      if (profile) {
-        const nameParts = (profile.full_name || '').split(' ');
-        setFirstName(nameParts[0] || '');
-        setLastName(nameParts.slice(1).join(' ') || '');
-        setDob(profile.dob || '');
-        setCountry(profile.country || '');
-        setAddress(profile.address || '');
-        setCity(profile.city || '');
-        setPostalCode(profile.postal_code || '');
+        // Pre-fill personal info if profile has them
+        if (profile) {
+          const nameParts = (profile.full_name || '').split(' ');
+          setFirstName(nameParts[0] || '');
+          setLastName(nameParts.slice(1).join(' ') || '');
+          setDob(profile.dob || '');
+          setCountry(profile.country || '');
+          setAddress(profile.address || '');
+          setCity(profile.city || '');
+          setPostalCode(profile.postal_code || '');
+        }
+        initializedRef.current = true;
       }
+    } else {
+      initializedRef.current = false;
     }
-  }, [isOpen, profile]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

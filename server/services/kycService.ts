@@ -6,20 +6,25 @@ export class KycService {
    * Get the current user's KYC submission status & records
    */
   async getUserKyc(userId: string): Promise<KycSubmission | null> {
-    const { data, error } = await supabaseAdmin
-      .from('kyc_submissions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('kyc_submissions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (error) {
-      console.warn(`[KycService] Error fetching user KYC:`, error.message);
+      if (error) {
+        console.warn(`[KycService] Error fetching user KYC:`, error.message);
+        return null;
+      }
+
+      return data;
+    } catch (err: any) {
+      console.warn(`[KycService] Exception fetching user KYC:`, err.message);
       return null;
     }
-
-    return data;
   }
 
   /**
@@ -69,24 +74,28 @@ export class KycService {
     }
 
     // 2. Update user's profile with PENDING KYC status and country/address
-    await supabaseAdmin
-      .from('profiles')
-      .update({
-        kyc_status: 'PENDING',
-        country: data.country.trim(),
-        address: data.address.trim(),
-        city: data.city?.trim() || null,
-        postal_code: data.postalCode?.trim() || null,
-        dob: data.dob.trim(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('auth_user_id', userId);
+    try {
+      await supabaseAdmin
+        .from('profiles')
+        .update({
+          kyc_status: 'PENDING',
+          country: data.country.trim(),
+          address: data.address.trim(),
+          city: data.city?.trim() || null,
+          postal_code: data.postalCode?.trim() || null,
+          dob: data.dob.trim(),
+          updated_at: new Date().toISOString(),
+        })
+        .or(`auth_user_id.eq.${userId},id.eq.${userId}`);
+    } catch (pErr: any) {
+      console.warn('[KycService] Profile update warning:', pErr.message);
+    }
 
     // 3. Create Admin Notification
     try {
       await supabaseAdmin.from('admin_notifications').insert({
         title: 'New KYC Verification Submitted',
-        message: `User submitted ${data.documentType} credentials for KYC verification.`,
+        message: `${data.firstName} ${data.lastName} submitted ${data.documentType} credentials for KYC verification.`,
         severity: 'info',
         event_type: 'kyc_submitted',
         related_user_id: userId,
@@ -103,45 +112,51 @@ export class KycService {
    * Get all KYC submissions for Admin Review
    */
   async getAllKycSubmissions(statusFilter?: string): Promise<KycSubmission[]> {
-    let query = supabaseAdmin
-      .from('kyc_submissions')
-      .select(`
-        *,
-        user_profile:profiles!kyc_submissions_user_id_fkey(*)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (statusFilter && statusFilter !== 'all') {
-      query = query.eq('status', statusFilter);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      // Fallback without foreign key join if needed
-      const { data: rawData, error: rawError } = await supabaseAdmin
+    try {
+      let query = supabaseAdmin
         .from('kyc_submissions')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (rawError) {
-        throw new Error(`Failed to list KYC submissions: ${rawError.message}`);
+      if (statusFilter && statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
       }
 
-      // Populate user profile manually
-      const userIds = [...new Set((rawData || []).map((k: any) => k.user_id))];
-      const { data: profiles } = await supabaseAdmin
-        .from('profiles')
-        .select('*')
-        .in('auth_user_id', userIds);
+      const { data: submissions, error } = await query;
+      if (error) {
+        console.warn('[KycService] Error querying kyc_submissions:', error.message);
+        throw new Error(`Failed to list KYC submissions: ${error.message}`);
+      }
 
-      const profileMap = new Map((profiles || []).map((p: any) => [p.auth_user_id, p]));
-      return (rawData || []).map((k: any) => ({
+      if (!submissions || submissions.length === 0) {
+        return [];
+      }
+
+      // Fetch associated user profiles
+      const userIds = [...new Set(submissions.map((k: any) => k.user_id).filter(Boolean))];
+      let profiles: any[] = [];
+      if (userIds.length > 0) {
+        const { data: profs } = await supabaseAdmin
+          .from('profiles')
+          .select('*')
+          .or(`auth_user_id.in.(${userIds.join(',')}),id.in.(${userIds.join(',')})`);
+        profiles = profs || [];
+      }
+
+      const profileMap = new Map();
+      for (const p of profiles) {
+        if (p.auth_user_id) profileMap.set(p.auth_user_id, p);
+        if (p.id) profileMap.set(p.id, p);
+      }
+
+      return submissions.map((k: any) => ({
         ...k,
-        user_profile: profileMap.get(k.user_id),
+        user_profile: profileMap.get(k.user_id) || null,
       }));
+    } catch (err: any) {
+      console.error('[KycService] getAllKycSubmissions error:', err.message);
+      throw err;
     }
-
-    return data || [];
   }
 
   /**
@@ -183,13 +198,32 @@ export class KycService {
     }
 
     // 3. Update user profile kyc_status
-    await supabaseAdmin
-      .from('profiles')
-      .update({
-        kyc_status: status,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('auth_user_id', submission.user_id);
+    try {
+      await supabaseAdmin
+        .from('profiles')
+        .update({
+          kyc_status: status,
+          updated_at: new Date().toISOString(),
+        })
+        .or(`auth_user_id.eq.${submission.user_id},id.eq.${submission.user_id}`);
+    } catch (pErr: any) {
+      console.warn('[KycService] Profile update warning:', pErr.message);
+    }
+
+    // 4. Create user notification
+    try {
+      await supabaseAdmin.from('user_notifications').insert({
+        user_id: submission.user_id,
+        title: status === 'VERIFIED' ? 'KYC Verification Approved!' : 'KYC Verification Update',
+        message: status === 'VERIFIED'
+          ? 'Congratulations! Your identity credentials have been approved by compliance. Your account is now fully verified.'
+          : `Your KYC verification submission was rejected. Reason: ${rejectionReason || 'Document details did not match or were unreadable.'}. Please re-submit clear documents.`,
+        type: status === 'VERIFIED' ? 'success' : 'warning',
+        is_read: false,
+      });
+    } catch (nErr: any) {
+      console.warn('[KycService] User notification error:', nErr.message);
+    }
 
     return updated;
   }
