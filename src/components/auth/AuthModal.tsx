@@ -10,7 +10,8 @@ import {
   ArrowRight, 
   CheckCircle2, 
   KeyRound, 
-  AlertCircle
+  AlertCircle,
+  Smartphone
 } from 'lucide-react';
 import { AuthMode } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -38,6 +39,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
+    phoneNumber: '',
     password: '',
     confirmPassword: '',
     referralCode: '',
@@ -69,6 +71,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setSuccessMsg('');
 
     if (mode === 'register') {
+      if (!formData.email && !formData.phoneNumber) {
+        setErrorMsg('Please provide either an Email Address or Mobile Number.');
+        return;
+      }
       if (formData.password.length < 6) {
         setErrorMsg('Password must be at least 6 characters long.');
         return;
@@ -83,14 +89,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     try {
       if (mode === 'register') {
-        const res = await signUp(formData.email, formData.password, formData.fullName, formData.referralCode);
+        const res = await signUp(
+          formData.email, 
+          formData.password, 
+          formData.fullName, 
+          formData.referralCode,
+          formData.phoneNumber
+        );
         if (res.error) {
           setErrorMsg(res.error);
           setLoading(false);
           return;
         }
 
-        onSuccessAuth(formData.email);
+        onSuccessAuth(formData.email || formData.phoneNumber);
         onClose();
       } else if (mode === 'login') {
 
@@ -146,7 +158,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </h3>
           <p className="text-xs text-slate-400 mt-1">
             {mode === 'login' 
-              ? 'Enter your verified credentials to access your mining ledger.' 
+              ? 'Enter your mobile number or email to access your mining ledger.' 
               : 'Join the premier institutional crypto mining infrastructure.'}
           </p>
 
@@ -216,20 +228,51 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           <div>
             <label className="block text-xs font-mono text-slate-300 uppercase tracking-wider mb-1">
-              Email Address
+              {mode === 'login' ? 'Email Address or Mobile Number' : 'Email Address'}
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+              {mode === 'login' ? (
+                <div className="absolute left-3.5 top-3 flex items-center gap-1 text-slate-500">
+                  <Mail className="w-3.5 h-3.5" />
+                  <span className="text-[10px] text-slate-600">/</span>
+                  <Smartphone className="w-3.5 h-3.5 text-gold-500/80" />
+                </div>
+              ) : (
+                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+              )}
               <input
-                type="email"
-                required
+                type={mode === 'login' ? 'text' : 'email'}
+                required={mode === 'login' || !formData.phoneNumber}
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="name@example.com"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-dark-850 border border-white/10 text-white text-sm focus:border-gold-500 focus:outline-none"
+                placeholder={mode === 'login' ? 'e.g. name@example.com or +1 234 567 8900' : 'name@example.com'}
+                className={`w-full pr-4 py-2.5 rounded-xl bg-dark-850 border border-white/10 text-white text-sm focus:border-gold-500 focus:outline-none ${
+                  mode === 'login' ? 'pl-14' : 'pl-10'
+                }`}
               />
             </div>
           </div>
+
+          {mode === 'register' && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-mono text-slate-300 uppercase tracking-wider">
+                  Mobile Number (Optional)
+                </label>
+                <span className="text-[10px] text-amber-400 font-mono">Sign in via Mobile</span>
+              </div>
+              <div className="relative">
+                <Smartphone className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                <input
+                  type="tel"
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  placeholder="e.g. +1 555 123 4567"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-dark-850 border border-white/10 text-white text-sm focus:border-gold-500 focus:outline-none font-mono"
+                />
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-mono text-slate-300 uppercase tracking-wider mb-1">

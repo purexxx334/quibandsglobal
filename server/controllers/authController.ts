@@ -6,16 +6,16 @@ import { ApiResponse } from '../types';
 
 export class AuthController {
   /**
-   * POST /api/auth/register (Instant Registration - Zero Email Verification Required)
+   * POST /api/auth/register (Instant Registration with Email or Mobile Number)
    */
   async register(req: Request, res: Response<ApiResponse>, next: NextFunction) {
     try {
-      const { email, password, fullName, referralCode } = req.body;
+      const { email, phoneNumber, password, fullName, referralCode } = req.body;
 
-      if (!email || !password) {
+      if ((!email && !phoneNumber) || !password) {
         res.status(400).json({
           success: false,
-          error: 'Email and password are required for registration.',
+          error: 'Email or Mobile Number and password are required for registration.',
         });
         return;
       }
@@ -28,9 +28,52 @@ export class AuthController {
         return;
       }
 
-      const cleanEmail = email.trim().toLowerCase();
-      const name = fullName ? fullName.trim() : cleanEmail.split('@')[0];
-      const username = cleanEmail.split('@')[0] + Math.floor(1000 + Math.random() * 9000);
+      // Format clean phone number if provided
+      const rawPhone = phoneNumber ? String(phoneNumber).trim() : '';
+      const cleanPhone = rawPhone.length > 0 ? rawPhone : null;
+      const phoneDigits = cleanPhone ? cleanPhone.replace(/[^0-9]/g, '') : '';
+
+      // Check if phone number is already registered
+      if (cleanPhone && phoneDigits.length >= 6) {
+        const { data: existingPhone } = await supabaseAdmin
+          .from('profiles')
+          .select('id, email, phone_number')
+          .or(`phone_number.eq.${cleanPhone},phone_number.eq.+${phoneDigits},phone_number.eq.${phoneDigits}`)
+          .maybeSingle();
+
+        if (existingPhone) {
+          res.status(400).json({
+            success: false,
+            error: 'This mobile number is already registered. Please sign in instead.',
+          });
+          return;
+        }
+      }
+
+      // Resolve email (use provided email or generate a mobile-based user email)
+      let cleanEmail = email ? String(email).trim().toLowerCase() : '';
+      if (!cleanEmail || !cleanEmail.includes('@')) {
+        if (cleanPhone && phoneDigits.length >= 5) {
+          cleanEmail = `${phoneDigits}@quibands.user`;
+        } else if (cleanEmail.length > 0) {
+          // If user typed phone into the email field
+          const digitsFromEmail = cleanEmail.replace(/[^0-9]/g, '');
+          if (digitsFromEmail.length >= 5) {
+            cleanEmail = `${digitsFromEmail}@quibands.user`;
+          }
+        }
+      }
+
+      if (!cleanEmail || !cleanEmail.includes('@')) {
+        res.status(400).json({
+          success: false,
+          error: 'Please provide a valid email address or mobile number.',
+        });
+        return;
+      }
+
+      const name = fullName ? fullName.trim() : (cleanPhone ? `Trader ${phoneDigits.slice(-4)}` : cleanEmail.split('@')[0]);
+      const username = (cleanPhone ? `user_${phoneDigits.slice(-6)}` : cleanEmail.split('@')[0]) + Math.floor(1000 + Math.random() * 9000);
 
       // 1. Create user in Supabase Auth with email_confirm: true (bypasses any email verification)
       const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -40,15 +83,15 @@ export class AuthController {
         user_metadata: {
           full_name: name,
           username,
+          phone: cleanPhone || undefined,
         },
       });
 
       if (createError) {
-        // If user already exists, return friendly message
         if (createError.message?.toLowerCase().includes('already registered')) {
           res.status(400).json({
             success: false,
-            error: 'This email is already registered. Please sign in instead.',
+            error: 'This account (email or mobile number) is already registered. Please sign in instead.',
           });
           return;
         }
@@ -58,11 +101,12 @@ export class AuthController {
       const newUserId = userData.user.id;
       const userRefCode = 'QUIB-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
-      // 2. Insert or update user profile with temp_password and referral_code
+      // 2. Insert or update user profile with phone_number, temp_password and referral_code
       await supabaseAdmin.from('profiles').upsert(
         {
           auth_user_id: newUserId,
           email: cleanEmail,
+          phone_number: cleanPhone,
           full_name: name,
           username,
           account_status: 'active',
@@ -110,8 +154,8 @@ export class AuthController {
         userEmail: cleanEmail,
         eventType: 'registration_success',
         status: 'success',
-        authMethod: 'email_password',
-        details: { auto_confirmed: true, referral_code: referralCode || null },
+        authMethod: cleanPhone ? 'mobile_or_email' : 'email_password',
+        details: { auto_confirmed: true, phone_number: cleanPhone, referral_code: referralCode || null },
       });
 
       res.status(201).json({
@@ -120,7 +164,84 @@ export class AuthController {
         data: {
           userId: newUserId,
           email: cleanEmail,
+          phoneNumber: cleanPhone,
           fullName: name,
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * POST /api/auth/resolve-identifier
+   * Resolve an email or mobile phone number to the corresponding auth email
+   */
+  async resolveIdentifier(req: Request, res: Response<ApiResponse>, next: NextFunction) {
+    try {
+      const { identifier } = req.body;
+
+      if (!identifier || typeof identifier !== 'string') {
+        res.status(400).json({
+          success: false,
+          error: 'An email address or mobile phone number is required.',
+        });
+        return;
+      }
+
+      const trimmed = identifier.trim();
+
+      // If identifier is already an email format
+      if (trimmed.includes('@')) {
+        res.status(200).json({
+          success: true,
+          data: {
+            email: trimmed.toLowerCase(),
+            isPhone: false,
+          },
+        });
+        return;
+      }
+
+      // Identifier is a phone number
+      const digitsOnly = trimmed.replace(/[^0-9]/g, '');
+
+      if (digitsOnly.length < 5) {
+        res.status(400).json({
+          success: false,
+          error: 'Please enter a valid mobile number or email address.',
+        });
+        return;
+      }
+
+      // 1. Search profiles table by phone_number
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('email, phone_number, full_name')
+        .or(`phone_number.eq.${trimmed},phone_number.eq.+${digitsOnly},phone_number.eq.${digitsOnly},phone_number.ilike.%${digitsOnly}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (profile && profile.email) {
+        res.status(200).json({
+          success: true,
+          data: {
+            email: profile.email,
+            phoneNumber: profile.phone_number,
+            isPhone: true,
+          },
+        });
+        return;
+      }
+
+      // 2. Fallback: check if mobile-based user email exists
+      const fallbackEmail = `${digitsOnly}@quibands.user`;
+      res.status(200).json({
+        success: true,
+        data: {
+          email: fallbackEmail,
+          phoneNumber: trimmed,
+          isPhone: true,
         },
       });
     } catch (err) {

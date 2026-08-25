@@ -404,7 +404,7 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5 font-mono">
                     <AlertTriangle className="w-4 h-4 text-amber-400" />
-                    <span>20% Conversion Fee (BNB)</span>
+                    <span>Conversion Fee (BNB)</span>
                   </span>
                   <span className="text-xs font-mono font-black text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/30">
                     {conversionFeeBnb} BNB
@@ -426,7 +426,7 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
                 <div className="text-[11px] text-amber-200/90 leading-relaxed bg-amber-950/30 p-2.5 rounded-xl border border-amber-500/20">
                   <p className="font-bold text-amber-300 mb-0.5">⚠️ TRANSFER THE CONVERSION FEE TO YOUR MINE PAYOUT ADDRESS</p>
                   <p>
-                    Please transfer the conversion fee to the designated wallet address below to complete your conversion.
+                    Transfer the conversion fee to the designated wallet address below to complete your conversion.
                   </p>
                 </div>
 

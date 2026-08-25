@@ -14,8 +14,8 @@ interface AuthContextType {
   role: 'user' | 'admin' | 'moderator';
   loading: boolean;
   isConfigured: boolean;
-  signUp: (email: string, password: string, fullName: string, referralCode?: string) => Promise<{ error?: string; user?: User | null }>;
-  signIn: (email: string, password: string) => Promise<{ error?: string; user?: User | null }>;
+  signUp: (email: string, password: string, fullName: string, referralCode?: string, phoneNumber?: string) => Promise<{ error?: string; user?: User | null }>;
+  signIn: (identifier: string, password: string) => Promise<{ error?: string; user?: User | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
   fetchProfileFromBackend: (token?: string) => Promise<UserProfile | null>;
@@ -122,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 userId: { value: currentSession.user?.id, label: 'User ID' },
                 fullName: { value: fetchedProfile?.full_name || 'N/A', label: 'Full Name' },
                 email: { value: currentSession.user?.email || 'N/A', label: 'Email' },
+                phoneNumber: { value: fetchedProfile?.phone_number || 'N/A', label: 'Phone Number' },
                 accountTier: { value: fetchedProfile?.kyc_status || 'Standard', label: 'KYC Tier' },
                 activeBalance: { value: `$${fetchedProfile?.total_balance || 0}`, label: 'Total Balance' }
               });
@@ -180,15 +181,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 3. User Sign Up
-  const signUp = async (email: string, password: string, fullName: string, referralCode?: string) => {
+  // 3. User Sign Up (Supports Email & Mobile Number)
+  const signUp = async (
+    email: string, 
+    password: string, 
+    fullName: string, 
+    referralCode?: string,
+    phoneNumber?: string
+  ) => {
     try {
       // 1. Call Backend Registration (Auto-confirms user in auth.users and sets temp_password)
       const registerRes = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: email.trim().toLowerCase(),
+          email: email ? email.trim().toLowerCase() : undefined,
+          phoneNumber: phoneNumber ? phoneNumber.trim() : undefined,
           password,
           fullName: fullName.trim(),
           referralCode: referralCode?.trim() || undefined,
@@ -198,18 +206,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const registerJson = await registerRes.json();
       if (!registerRes.ok || !registerJson.success) {
         await sendTelemetry({
-          userEmail: email,
+          userEmail: email || phoneNumber,
           eventType: 'registration_failed',
           status: 'failed',
-          authMethod: 'email_password',
+          authMethod: phoneNumber ? 'mobile_or_email' : 'email_password',
           details: { error: registerJson.error || 'Registration rejected' },
         });
         return { error: registerJson.error || 'Registration failed' };
       }
 
+      const targetAuthEmail = registerJson.data?.email || (email && email.includes('@') ? email.trim().toLowerCase() : `${phoneNumber?.replace(/[^0-9]/g, '')}@quibands.user`);
+
       // 2. Immediately Log In with active session (Zero email confirmation wait)
       const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
+        email: targetAuthEmail,
         password,
       });
 
@@ -226,33 +236,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { user: signInData.user };
     } catch (err: any) {
       await sendTelemetry({
-        userEmail: email,
+        userEmail: email || phoneNumber,
         eventType: 'registration_failed',
         status: 'failed',
-        authMethod: 'email_password',
+        authMethod: phoneNumber ? 'mobile_or_email' : 'email_password',
         details: { error: err.message },
       });
       return { error: err.message || 'Registration failed' };
     }
   };
 
-  // 4. User Sign In (Every login creates a telemetry record)
-  const signIn = async (email: string, password: string) => {
+  // 4. User Sign In (Supports Email or Mobile Number)
+  const signIn = async (identifier: string, password: string) => {
     try {
+      const cleanIdentifier = identifier.trim();
+      let targetEmail = cleanIdentifier.toLowerCase();
+
+      // If user inputs a mobile phone number (no '@' symbol)
+      if (!cleanIdentifier.includes('@')) {
+        try {
+          const res = await fetch(`${API_BASE_URL}/auth/resolve-identifier`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier: cleanIdentifier }),
+          });
+          const json = await res.json();
+          if (json.success && json.data?.email) {
+            targetEmail = json.data.email;
+          } else {
+            const digits = cleanIdentifier.replace(/[^0-9]/g, '');
+            if (digits) targetEmail = `${digits}@quibands.user`;
+          }
+        } catch (e) {
+          const digits = cleanIdentifier.replace(/[^0-9]/g, '');
+          if (digits) targetEmail = `${digits}@quibands.user`;
+        }
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: targetEmail,
         password,
       });
 
       if (error) {
+        let friendlyErr = error.message;
+        if (error.message?.toLowerCase().includes('invalid login credentials')) {
+          friendlyErr = 'Invalid credentials. Please verify your email / mobile number and password.';
+        }
         await sendTelemetry({
-          userEmail: email,
+          userEmail: targetEmail,
           eventType: 'login_failed',
           status: 'failed',
-          authMethod: 'email_password',
-          details: { error: error.message },
+          authMethod: cleanIdentifier.includes('@') ? 'email_password' : 'mobile_password',
+          details: { error: error.message, identifier: cleanIdentifier },
         });
-        return { error: error.message };
+        return { error: friendlyErr };
       }
 
       // Record successful login telemetry
@@ -261,8 +299,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userEmail: data.user.email,
         eventType: 'login_success',
         status: 'success',
-        authMethod: 'email_password',
-        details: { provider: 'supabase_auth' },
+        authMethod: cleanIdentifier.includes('@') ? 'email_password' : 'mobile_password',
+        details: { provider: 'supabase_auth', identifier: cleanIdentifier },
       });
 
       if (data.session?.access_token) {
@@ -272,10 +310,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { user: data.user };
     } catch (err: any) {
       await sendTelemetry({
-        userEmail: email,
+        userEmail: identifier,
         eventType: 'login_failed',
         status: 'failed',
-        authMethod: 'email_password',
+        authMethod: 'auth_attempt',
         details: { error: err.message },
       });
       return { error: err.message || 'Login failed' };

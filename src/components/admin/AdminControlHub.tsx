@@ -961,8 +961,10 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     if (!u) return false;
     const email = u.email || '';
     const name = u.full_name || '';
+    const phone = u.phone_number || '';
+    const username = u.username || '';
     const q = searchQuery.toLowerCase();
-    const matchesSearch = email.toLowerCase().includes(q) || name.toLowerCase().includes(q);
+    const matchesSearch = email.toLowerCase().includes(q) || name.toLowerCase().includes(q) || phone.toLowerCase().includes(q) || username.toLowerCase().includes(q);
     const status = u.account_status || 'active';
     if (statusFilter === 'active') return matchesSearch && status === 'active' && !u.is_flagged;
     if (statusFilter === 'suspended') return matchesSearch && status === 'suspended';
@@ -1481,6 +1483,12 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                               <td className="px-4 py-3 font-sans">
                                 <div className="font-bold text-white text-xs">{u.full_name || 'Trader'}</div>
                                 <div className="text-[10px] text-slate-400 font-mono">{u.email}</div>
+                                {u.phone_number && (
+                                  <div className="text-[10px] text-amber-300 font-mono flex items-center gap-1 mt-0.5">
+                                    <Smartphone className="w-3 h-3 text-amber-400 shrink-0" />
+                                    <span>{u.phone_number}</span>
+                                  </div>
+                                )}
                               </td>
                               <td className="px-4 py-3 font-mono">
                                 <div className="flex items-center gap-1.5">
@@ -1605,9 +1613,15 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
                       <div className="p-4 rounded-xl bg-dark-900 border border-white/10 space-y-3 font-mono text-xs">
                         <div>
-                          <div className="text-slate-400 text-[10px] uppercase">Full Name & Email</div>
+                          <div className="text-slate-400 text-[10px] uppercase">Full Name & Contact</div>
                           <div className="text-white font-bold font-sans text-sm">{userDossier.profile?.full_name || 'N/A'}</div>
                           <div className="text-slate-300 text-xs">{userDossier.profile?.email}</div>
+                          {userDossier.profile?.phone_number && (
+                            <div className="text-amber-300 text-xs font-mono flex items-center gap-1.5 mt-1 bg-dark-950 p-1.5 rounded-lg border border-amber-500/20">
+                              <Smartphone className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                              <span>{userDossier.profile.phone_number}</span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
@@ -2380,8 +2394,16 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               </div>
 
               <form onSubmit={handleSaveFinancials} className="space-y-4 text-xs font-sans">
-                <div className="p-3 bg-dark-900 rounded-xl border border-white/5 text-slate-300">
-                  User: <strong>{actionModal.targetUser?.email || actionModal.userId}</strong>
+                <div className="p-3 bg-dark-900 rounded-xl border border-white/5 text-slate-300 flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    User: <strong>{actionModal.targetUser?.email || actionModal.userId}</strong>
+                  </div>
+                  {actionModal.targetUser?.phone_number && (
+                    <div className="text-amber-300 font-mono text-[11px] flex items-center gap-1">
+                      <Smartphone className="w-3 h-3 text-amber-400" />
+                      <span>{actionModal.targetUser.phone_number}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* 1. Main Balance */}
