@@ -341,9 +341,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
   // Financial Balances Calculation
   const activeProfile = freshProfile || profile;
-  const mainBalanceUsd = Number(activeProfile?.main_balance !== undefined ? activeProfile.main_balance : (wallets['USDT'] || 0));
-  const miningBalanceUsd = liveMiningBalance > 0 ? liveMiningBalance : Number(activeProfile?.mining_balance || 0);
+  const depositBalanceUsd = Number(activeProfile?.deposit_balance !== undefined ? activeProfile.deposit_balance : (wallets['USDT'] || 0));
+  const miningBalanceUsd = liveMiningBalance > 0 ? liveMiningBalance : Number(activeProfile?.mining_balance !== undefined ? activeProfile.mining_balance : (activeProfile?.profit_balance || 0));
   const profitBalanceUsd = Number(activeProfile?.profit_balance !== undefined ? activeProfile.profit_balance : 0);
+  // Main balance = Total of Capital (Deposit Balance) + Profit (Current Mining Balance / Amount Mined)
+  const mainBalanceUsd = Number(activeProfile?.main_balance !== undefined ? activeProfile.main_balance : (depositBalanceUsd + miningBalanceUsd));
   const convertBalance = Number(activeProfile?.convert_balance || 0);
   const convertCurrency = activeProfile?.convert_currency || 'SGD';
   const receiveLimitUsd = Number(activeProfile?.receive_limit || 9000.00);
@@ -441,16 +443,6 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
               <span>Affiliate & Earn</span>
             </button>
 
-            {(role === 'admin' || user?.email?.toLowerCase() === 'admin@quibandsglobal.com') && onOpenAdmin && (
-              <button
-                onClick={onOpenAdmin}
-                className="px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-500/20 to-gold-500/20 border border-gold-400/50 hover:border-gold-400 text-gold-300 hover:text-white font-bold text-xs transition-all flex items-center gap-2 animate-pulse shadow-gold-sm"
-              >
-                <ShieldAlert className="w-4 h-4 text-gold-400" />
-                <span>ADMIN CONTROL HUB</span>
-              </button>
-            )}
-
             <button
               onClick={() => {
                 const el = document.getElementById('investment-returns-matrix');
@@ -504,83 +496,141 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
         </div>
       </div>
 
-      {/* 2. Financial Balances Section (Main Balance, Profit Balance, and Convert Balance) */}
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {/* 2. Financial Balances Section (Deposit Balance, Current Mining Balance, and Main Balance [Capital + Profit]) */}
+      <div className="space-y-3">
+        
+        {/* Compact, Sleek 3-Card Portfolio Balance Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           
-          {/* 2.1 Main Balance */}
-          <div className="p-6 rounded-2xl bg-dark-900/90 border border-slate-800 space-y-3 hover:border-slate-700 transition-all relative overflow-hidden shadow-lg">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="font-semibold uppercase tracking-wider">Main Balance</span>
-              <div className="p-2.5 rounded-xl bg-gold-400/10 text-gold-400">
-                <Wallet className="w-5 h-5" />
+          {/* 2.1 Deposit Balance (Capital Deposited) */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-dark-900/95 border border-cyan-500/30 hover:border-cyan-400/60 transition-all relative overflow-hidden shadow-lg flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span className="font-semibold uppercase tracking-wider text-cyan-400 font-mono flex items-center gap-1.5">
+                  <ArrowDownCircle className="w-4 h-4 text-cyan-400" />
+                  <span>Deposit Balance</span>
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-bold">
+                  CAPITAL
+                </span>
               </div>
-            </div>
-            <div>
-              <div className="text-3xl font-black text-white font-mono tracking-tight">
-                ${mainBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div>
+                <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
+                  ${depositBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-1 font-mono">
+                  <span>Active Capital Deposited</span>
+                </div>
               </div>
             </div>
 
-            {/* Admin Remark for Main Balance (Only shown if remark is added) */}
-            {profile?.balance_remark && (
-              <div className="mt-3 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex items-start gap-2">
-                <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>{profile.balance_remark}</span>
+            {/* Admin Remark for Deposit Balance */}
+            {profile?.deposit_remark && (
+              <div className="mt-2.5 p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-[11px] text-cyan-300 flex items-start gap-1.5">
+                <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-cyan-400" />
+                <span className="leading-tight">{profile.deposit_remark}</span>
               </div>
             )}
           </div>
 
-          {/* 2.2 Realized Profit Balance */}
-          <div className="p-6 rounded-2xl bg-dark-900/90 border border-slate-800 space-y-3 hover:border-slate-700 transition-all relative overflow-hidden shadow-lg">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="font-semibold uppercase tracking-wider">Profit Balance</span>
-              <div className="p-2.5 rounded-xl bg-indigo-400/10 text-indigo-400">
-                <TrendingUp className="w-5 h-5" />
+          {/* 2.2 Current Mining Balance (Amount Mined So Far / Profit) */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-dark-900/95 border border-emerald-500/30 hover:border-emerald-400/60 transition-all relative overflow-hidden shadow-lg flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span className="font-semibold uppercase tracking-wider text-emerald-400 font-mono flex items-center gap-1.5">
+                  <Pickaxe className="w-4 h-4 text-emerald-400" />
+                  <span>Current Mining Balance</span>
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-bold">
+                  MINED SO FAR
+                </span>
+              </div>
+              <div>
+                <div className="text-2xl sm:text-3xl font-black text-emerald-300 font-mono tracking-tight">
+                  ${miningBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <div className="text-[11px] text-emerald-400/80 flex items-center gap-1 mt-1 font-mono">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Accrued Mining Yield (Profit)</span>
+                </div>
               </div>
             </div>
-            <div>
-              <div className="text-3xl font-black text-indigo-300 font-mono tracking-tight">
-                ${profitBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+
+            {/* Admin Remark for Mining Balance */}
+            {profile?.mining_remark && (
+              <div className="mt-2.5 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-300 flex items-start gap-1.5">
+                <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-emerald-400" />
+                <span className="leading-tight">{profile.mining_remark}</span>
               </div>
-              <div className="text-[11px] text-indigo-400 flex items-center gap-1 mt-1.5 font-mono">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Realized Portfolio Returns</span>
+            )}
+          </div>
+
+          {/* 2.3 Main Balance (Total: Capital + Profit) */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-dark-900 via-dark-950 to-slate-900 border border-gold-500/40 hover:border-gold-400/70 transition-all relative overflow-hidden shadow-xl flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span className="font-semibold uppercase tracking-wider text-gold-400 font-mono flex items-center gap-1.5">
+                  <Wallet className="w-4 h-4 text-gold-400" />
+                  <span>Main Balance</span>
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-gold-400/10 text-gold-300 border border-gold-400/30 font-bold">
+                  TOTAL
+                </span>
+              </div>
+              <div>
+                <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight bg-gradient-to-r from-gold-200 via-white to-gold-300 bg-clip-text text-transparent">
+                  ${mainBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <div className="text-[11px] text-gold-400/80 flex items-center gap-1 mt-1 font-mono">
+                  <span>Total Capital + Mined Profit</span>
+                </div>
               </div>
             </div>
+
+            {/* Admin Remark for Main Balance */}
+            {profile?.balance_remark && (
+              <div className="mt-2.5 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 flex items-start gap-1.5">
+                <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-400" />
+                <span className="leading-tight">{profile.balance_remark}</span>
+              </div>
+            )}
           </div>
 
         </div>
 
-        {/* 2.3 Convert Balance Card (Right below Profit Balance) */}
-        <div className="p-6 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-dark-900/90 to-teal-950/40 border border-emerald-500/30 space-y-3 hover:border-emerald-500/50 transition-all relative overflow-hidden shadow-lg">
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <span className="font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5 font-mono">
-              <Coins className="w-4 h-4 text-emerald-400" />
-              <span>Convert Balance</span>
-            </span>
-            <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-              {convertCurrency} Mine Assets
-            </span>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
-            <div className="text-3xl font-black text-emerald-300 font-mono tracking-tight">
-              {convertCurrency === 'SGD' ? 'S$' :
-               convertCurrency === 'EUR' ? '€' :
-               convertCurrency === 'GBP' ? '£' :
-               convertCurrency === 'CAD' ? 'CA$' :
-               convertCurrency === 'AUD' ? 'A$' :
-               convertCurrency === 'JPY' ? '¥' :
-               convertCurrency === 'CHF' ? 'CHF ' :
-               convertCurrency === 'AED' ? 'AED ' : '$'
-              }{convertBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-base font-semibold text-emerald-400">{convertCurrency} Mine</span>
+        {/* 2.4 Convert Balance Card (Rendered Sleekly & Compactly) */}
+        {(convertBalance > 0 || profile?.convert_balance !== undefined) && (
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950/30 via-dark-900/90 to-teal-950/30 border border-emerald-500/25 hover:border-emerald-500/40 transition-all relative overflow-hidden shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                <Coins className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold uppercase tracking-wider text-emerald-400 text-xs font-mono">Convert Balance</span>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    {convertCurrency} Mine
+                  </span>
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-emerald-300 font-mono tracking-tight mt-0.5">
+                  {convertCurrency === 'SGD' ? 'S$' :
+                   convertCurrency === 'EUR' ? '€' :
+                   convertCurrency === 'GBP' ? '£' :
+                   convertCurrency === 'CAD' ? 'CA$' :
+                   convertCurrency === 'AUD' ? 'A$' :
+                   convertCurrency === 'JPY' ? '¥' :
+                   convertCurrency === 'CHF' ? 'CHF ' :
+                   convertCurrency === 'AED' ? 'AED ' : '$'
+                  }{convertBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-semibold text-emerald-400">{convertCurrency} Mine Assets</span>
+                </div>
+              </div>
             </div>
-            <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
+            <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5 sm:self-center">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Approved & Settled Conversion Assets</span>
+              <span>Settled Conversion Assets</span>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* 3. Interactive Cloud Miner Rig Component (With Miner Symbol & Active Session Engine) */}

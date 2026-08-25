@@ -50,6 +50,7 @@ export interface UserProfile {
   city?: string | null;
   postal_code?: string | null;
   dob?: string | null;
+  deposit_balance?: number;
   main_balance?: number;
   mining_balance?: number;
   profit_balance?: number;
@@ -58,6 +59,7 @@ export interface UserProfile {
   total_balance?: number;
   receive_limit?: number;
   account_tier?: string;
+  deposit_remark?: string | null;
   balance_remark?: string | null;
   mining_remark?: string | null;
   profit_remark?: string | null;

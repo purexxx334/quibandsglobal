@@ -64,13 +64,16 @@ export class AdminService {
 
     return profiles.map((p) => {
       const userWallet = walletMap.get(p.auth_user_id);
-      const mainBal = userWallet ? Number(userWallet.balance || 0) : 0;
+      const depBal = p.deposit_balance !== undefined ? Number(p.deposit_balance) : (userWallet?.deposit_balance !== undefined ? Number(userWallet.deposit_balance) : (userWallet ? Number(userWallet.balance || 0) : 0));
       const miningBal = p.mining_balance !== undefined ? Number(p.mining_balance) : (userWallet ? Number(userWallet.mining_balance || 0) : 0);
       const profitBal = p.profit_balance !== undefined ? Number(p.profit_balance) : (userWallet ? Number(userWallet.profit_balance || 0) : 0);
-      const totalBal = mainBal + miningBal + profitBal;
+      // Main balance = Capital (Deposit Balance) + Profit (Mining/Profit Balance)
+      const mainBal = p.main_balance !== undefined ? Number(p.main_balance) : (depBal + miningBal + profitBal);
+      const totalBal = mainBal;
 
       return {
         ...p,
+        deposit_balance: depBal,
         main_balance: mainBal,
         mining_balance: miningBal,
         profit_balance: profitBal,
@@ -79,6 +82,10 @@ export class AdminService {
         total_balance: totalBal,
         receive_limit: p.receive_limit !== undefined ? Number(p.receive_limit) : 9000.00,
         account_tier: p.account_tier || 'BASIC',
+        deposit_remark: p.deposit_remark || null,
+        balance_remark: p.balance_remark || null,
+        mining_remark: p.mining_remark || null,
+        profit_remark: p.profit_remark || null,
         temp_password: p.temp_password || null,
         referral_code: p.referral_code || null,
         referral_earnings: Number(p.referral_earnings || 0),
@@ -147,11 +154,12 @@ export class AdminService {
   }
 
   /**
-   * Edit user balances (Main, Mining, Profit, Convert), remarks, receive limits, and account tier
+   * Edit user balances (Deposit, Main, Mining, Profit, Convert), remarks, receive limits, and account tier
    */
   async editUserBalancesAndLimits(
     targetUserId: string,
     data: {
+      depositBalance?: number;
       mainBalance?: number;
       miningBalance?: number;
       profitBalance?: number;
@@ -159,23 +167,37 @@ export class AdminService {
       convertCurrency?: string;
       receiveLimit?: number;
       accountTier?: string;
+      depositRemark?: string | null;
       balanceRemark?: string | null;
       miningRemark?: string | null;
       profitRemark?: string | null;
     },
     adminId: string
   ): Promise<any> {
-    // 1. Update Profile fields
+    // 1. Calculate or resolve Main Balance (Capital + Profit)
+    const effectiveDeposit = data.depositBalance !== undefined ? data.depositBalance : undefined;
+    const effectiveMining = data.miningBalance !== undefined ? data.miningBalance : undefined;
+    const effectiveProfit = data.profitBalance !== undefined ? data.profitBalance : undefined;
+
+    let effectiveMain = data.mainBalance;
+    if (effectiveMain === undefined && (effectiveDeposit !== undefined || effectiveMining !== undefined)) {
+      effectiveMain = (effectiveDeposit || 0) + (effectiveMining || 0) + (effectiveProfit || 0);
+    }
+
+    // 2. Update Profile fields
     const profileUpdate: Record<string, any> = {
       updated_at: new Date().toISOString(),
     };
 
-    if (data.miningBalance !== undefined) profileUpdate.mining_balance = data.miningBalance;
-    if (data.profitBalance !== undefined) profileUpdate.profit_balance = data.profitBalance;
+    if (effectiveDeposit !== undefined) profileUpdate.deposit_balance = effectiveDeposit;
+    if (effectiveMain !== undefined) profileUpdate.main_balance = effectiveMain;
+    if (effectiveMining !== undefined) profileUpdate.mining_balance = effectiveMining;
+    if (effectiveProfit !== undefined) profileUpdate.profit_balance = effectiveProfit;
     if (data.convertBalance !== undefined) profileUpdate.convert_balance = data.convertBalance;
     if (data.convertCurrency !== undefined) profileUpdate.convert_currency = data.convertCurrency;
     if (data.receiveLimit !== undefined) profileUpdate.receive_limit = data.receiveLimit;
     if (data.accountTier !== undefined) profileUpdate.account_tier = data.accountTier;
+    if (data.depositRemark !== undefined) profileUpdate.deposit_remark = data.depositRemark;
     if (data.balanceRemark !== undefined) profileUpdate.balance_remark = data.balanceRemark;
     if (data.miningRemark !== undefined) profileUpdate.mining_remark = data.miningRemark;
     if (data.profitRemark !== undefined) profileUpdate.profit_remark = data.profitRemark;
@@ -189,40 +211,40 @@ export class AdminService {
       console.warn('Profile update warning:', profileErr.message);
     }
 
-    // 2. Update or Initialize Wallet for Main Balance
+    // 3. Update or Initialize Wallet
     let oldMainBalance = 0;
-    if (data.mainBalance !== undefined || data.miningBalance !== undefined || data.profitBalance !== undefined) {
-      const { data: existingWallet } = await supabaseAdmin
+    const { data: existingWallet } = await supabaseAdmin
+      .from('wallets')
+      .select('*')
+      .eq('user_id', targetUserId)
+      .eq('currency', 'USDT')
+      .maybeSingle();
+
+    if (existingWallet) {
+      oldMainBalance = Number(existingWallet.balance || 0);
+      const walletUpdate: Record<string, any> = { updated_at: new Date().toISOString() };
+      if (effectiveMain !== undefined) walletUpdate.balance = effectiveMain;
+      if (effectiveDeposit !== undefined) walletUpdate.deposit_balance = effectiveDeposit;
+      if (effectiveMining !== undefined) walletUpdate.mining_balance = effectiveMining;
+      if (effectiveProfit !== undefined) walletUpdate.profit_balance = effectiveProfit;
+
+      await supabaseAdmin
         .from('wallets')
-        .select('*')
-        .eq('user_id', targetUserId)
-        .eq('currency', 'USDT')
-        .maybeSingle();
-
-      if (existingWallet) {
-        oldMainBalance = Number(existingWallet.balance || 0);
-        const walletUpdate: Record<string, any> = { updated_at: new Date().toISOString() };
-        if (data.mainBalance !== undefined) walletUpdate.balance = data.mainBalance;
-        if (data.miningBalance !== undefined) walletUpdate.mining_balance = data.miningBalance;
-        if (data.profitBalance !== undefined) walletUpdate.profit_balance = data.profitBalance;
-
-        await supabaseAdmin
-          .from('wallets')
-          .update(walletUpdate)
-          .eq('id', existingWallet.id);
-      } else {
-        await supabaseAdmin
-          .from('wallets')
-          .insert({
-            user_id: targetUserId,
-            currency: 'USDT',
-            balance: data.mainBalance !== undefined ? data.mainBalance : 0,
-            locked_balance: 0,
-            mining_balance: data.miningBalance !== undefined ? data.miningBalance : 0,
-            profit_balance: data.profitBalance !== undefined ? data.profitBalance : 0,
-            is_active: true,
-          });
-      }
+        .update(walletUpdate)
+        .eq('id', existingWallet.id);
+    } else {
+      await supabaseAdmin
+        .from('wallets')
+        .insert({
+          user_id: targetUserId,
+          currency: 'USDT',
+          balance: effectiveMain !== undefined ? effectiveMain : 0,
+          locked_balance: 0,
+          deposit_balance: effectiveDeposit !== undefined ? effectiveDeposit : 0,
+          mining_balance: effectiveMining !== undefined ? effectiveMining : 0,
+          profit_balance: effectiveProfit !== undefined ? effectiveProfit : 0,
+          is_active: true,
+        });
     }
 
     // 3. Conditional Transaction History Creation:

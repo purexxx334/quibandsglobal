@@ -55,8 +55,9 @@ export class AdminController {
    */
   async editUserFinancialBalances(req: AuthenticatedRequest, res: Response<ApiResponse>, next: NextFunction) {
     try {
-      const { userId } = req.params;
+      const userId = req.params.userId as string;
       const {
+        depositBalance,
         mainBalance,
         miningBalance,
         profitBalance,
@@ -64,6 +65,7 @@ export class AdminController {
         convertCurrency,
         receiveLimit,
         accountTier,
+        depositRemark,
         balanceRemark,
         miningRemark,
         profitRemark,
@@ -72,6 +74,7 @@ export class AdminController {
       const result = await adminService.editUserBalancesAndLimits(
         userId,
         {
+          depositBalance: depositBalance !== undefined ? Number(depositBalance) : undefined,
           mainBalance: mainBalance !== undefined ? Number(mainBalance) : undefined,
           miningBalance: miningBalance !== undefined ? Number(miningBalance) : undefined,
           profitBalance: profitBalance !== undefined ? Number(profitBalance) : undefined,
@@ -79,6 +82,7 @@ export class AdminController {
           convertCurrency,
           receiveLimit: receiveLimit !== undefined ? Number(receiveLimit) : undefined,
           accountTier,
+          depositRemark,
           balanceRemark,
           miningRemark,
           profitRemark,
