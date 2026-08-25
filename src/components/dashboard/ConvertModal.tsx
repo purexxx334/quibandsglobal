@@ -26,6 +26,8 @@ interface ConvertModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenContact?: () => void;
+  depositBalance?: number;
+  miningBalance?: number;
   mainBalance?: number;
   profitBalance?: number;
 }
@@ -54,6 +56,8 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
   isOpen, 
   onClose, 
   onOpenContact,
+  depositBalance,
+  miningBalance,
   mainBalance,
   profitBalance
 }) => {
@@ -67,8 +71,8 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
   const [copied, setCopied] = useState(false);
   
   // Balances & Settings
-  const [fetchedMainBal, setFetchedMainBal] = useState<number>(0);
-  const [fetchedProfitBal, setFetchedProfitBal] = useState<number>(0);
+  const [fetchedDepositBal, setFetchedDepositBal] = useState<number>(0);
+  const [fetchedMiningBal, setFetchedMiningBal] = useState<number>(0);
   const [gasFeeWallet, setGasFeeWallet] = useState<string>('0x71C8F39255C8F8F9898c8D455F55e7146522c09F');
   const [gasFeeNetwork, setGasFeeNetwork] = useState<string>('BNB Smart Chain (BEP20)');
   const [bnbPrice, setBnbPrice] = useState<number>(580.00);
@@ -95,36 +99,26 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
         // 2. Fetch latest user balances
         const { data: profData } = await supabase
           .from('profiles')
-          .select('main_balance, profit_balance, convert_balance, convert_currency')
+          .select('deposit_balance, main_balance, mining_balance, profit_balance, convert_balance, convert_currency')
           .eq('auth_user_id', user.id)
           .maybeSingle();
 
         const { data: walletData } = await supabase
           .from('wallets')
-          .select('balance, profit_balance')
+          .select('balance, deposit_balance, profit_balance')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        const { data: depData } = await supabase
-          .from('deposits')
-          .select('amount, status')
-          .eq('user_id', user.id)
-          .eq('status', 'APPROVED');
+        const resolvedDep = Number(profData?.deposit_balance || 0) > 0
+          ? Number(profData?.deposit_balance)
+          : Number(walletData?.deposit_balance || walletData?.balance || 0);
 
-        const depSum = depData && depData.length > 0 
-          ? depData.reduce((acc, d) => acc + Number(d.amount || 0), 0) 
-          : 0;
-
-        const resolvedMain = Number(profData?.main_balance || 0) > 0
-          ? Number(profData?.main_balance)
-          : (Number(walletData?.balance || 0) > 0 ? Number(walletData?.balance) : depSum);
-
-        const resolvedProfit = Number(profData?.profit_balance || 0) > 0
-          ? Number(profData?.profit_balance)
+        const resolvedMining = Number(profData?.mining_balance || profData?.profit_balance || 0) > 0
+          ? Number(profData?.mining_balance || profData?.profit_balance)
           : Number(walletData?.profit_balance || 0);
 
-        setFetchedMainBal(resolvedMain);
-        setFetchedProfitBal(resolvedProfit);
+        setFetchedDepositBal(resolvedDep);
+        setFetchedMiningBal(resolvedMining);
 
         // 3. Check for existing pending or converted requests
         const { data: convData } = await supabase
@@ -156,17 +150,19 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Resolve Capital (Main Balance) and Profit Balance
-  const effectiveMainBal = mainBalance !== undefined && mainBalance > 0
-    ? mainBalance
-    : (fetchedMainBal > 0 ? fetchedMainBal : Number(profile?.main_balance || 0));
+  // Resolve Capital (Deposit Balance) and Profit (Mining Balance)
+  const effectiveDepositBal = depositBalance !== undefined
+    ? depositBalance
+    : (fetchedDepositBal > 0 ? fetchedDepositBal : Number(profile?.deposit_balance || 0));
 
-  const effectiveProfitBal = profitBalance !== undefined && profitBalance > 0
-    ? profitBalance
-    : (fetchedProfitBal > 0 ? fetchedProfitBal : Number(profile?.profit_balance || 0));
+  const effectiveMiningBal = miningBalance !== undefined
+    ? miningBalance
+    : (profitBalance !== undefined ? profitBalance : (fetchedMiningBal > 0 ? fetchedMiningBal : Number(profile?.mining_balance || profile?.profit_balance || 0)));
 
   // Combined Total USD Mine (Capital + Profit)
-  const totalUsdMine = +(effectiveMainBal + effectiveProfitBal).toFixed(2);
+  const totalUsdMine = +(mainBalance !== undefined && mainBalance > 0
+    ? mainBalance
+    : (effectiveDepositBal + effectiveMiningBal)).toFixed(2);
 
   // Converted Gross Value in Target Currency
   const convertedValue = +(totalUsdMine * selectedCurrency.ratePerUsd).toFixed(2);
@@ -272,30 +268,40 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
           {currentStep === 'convert' && (
             <div className="space-y-5 animate-fadeIn">
               
-              {/* Total USD Mine Balance Card */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-dark-900/90 border border-slate-800 space-y-2">
+              {/* Total Assets to Convert (Capital + Profit) Card */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-dark-900/90 border border-gold-500/30 space-y-3 shadow-lg">
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="font-semibold uppercase tracking-wider text-gold-400 font-mono flex items-center gap-1.5">
                     <Wallet className="w-4 h-4 text-gold-400" />
-                    <span>Your Total USD Mine</span>
+                    <span>Total Assets to Convert (Capital + Profit)</span>
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-gold-400/10 text-gold-300 border border-gold-400/20 font-bold">
+                    MAIN BALANCE
                   </span>
                 </div>
 
                 <div className="flex items-baseline justify-between">
-                  <div className="text-3xl font-black text-white font-mono tracking-tight">
+                  <div className="text-3xl font-black text-white font-mono tracking-tight bg-gradient-to-r from-gold-200 via-white to-gold-300 bg-clip-text text-transparent">
                     ${totalUsdMine.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
-                  <span className="text-xs text-slate-400 font-mono">USD Mine</span>
+                  <span className="text-xs text-gold-400 font-mono font-bold">USD Total</span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-dark-950/80 border border-white/5 flex flex-wrap items-center justify-between text-[11px] font-mono gap-1">
+                  <span className="text-cyan-300 font-bold">${effectiveDepositBal.toLocaleString(undefined, { minimumFractionDigits: 2 })} Capital</span>
+                  <span className="text-slate-500">+</span>
+                  <span className="text-emerald-400 font-bold">${effectiveMiningBal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Profit</span>
+                  <span className="text-slate-400">= Combined Assets</span>
                 </div>
               </div>
 
               {/* Conversion Amount Input */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Conversion Amount (USD Mine)</label>
+                <label className="text-xs font-semibold text-slate-300">Conversion Amount (Full Portfolio: Capital + Profit)</label>
                 <input
                   type="text"
                   readOnly
-                  value={`$${totalUsdMine.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD Mine`}
+                  value={`$${totalUsdMine.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Deposit Capital + Profit)`}
                   className="w-full py-3 px-4 bg-dark-950/90 border border-slate-700/80 rounded-xl text-white font-mono text-base font-bold cursor-not-allowed select-none opacity-90 shadow-inner"
                 />
               </div>

@@ -85,22 +85,24 @@ function MainAppContent() {
 
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
-  const [withdrawalBalances, setWithdrawalBalances] = useState<{ main: number; profit: number }>({ main: 0, profit: 0 });
+  const [withdrawalBalances, setWithdrawalBalances] = useState<{ deposit: number; profit: number; main: number }>({ deposit: 0, profit: 0, main: 0 });
   const [convertModalOpen, setConvertModalOpen] = useState(false);
-  const [convertBalances, setConvertBalances] = useState<{ main: number; profit: number }>({ main: 0, profit: 0 });
+  const [convertBalances, setConvertBalances] = useState<{ deposit: number; profit: number; main: number }>({ deposit: 0, profit: 0, main: 0 });
   const [currentView, setCurrentView] = useState<'dashboard' | 'landing'>('dashboard');
 
-  const handleOpenWithdrawal = (main?: number, profit?: number) => {
-    if (main !== undefined && profit !== undefined) {
-      setWithdrawalBalances({ main, profit });
-    }
+  const handleOpenWithdrawal = (deposit?: number, profit?: number, main?: number) => {
+    const depVal = deposit || 0;
+    const profVal = profit || 0;
+    const mainVal = main !== undefined && main > 0 ? main : depVal + profVal;
+    setWithdrawalBalances({ deposit: depVal, profit: profVal, main: mainVal });
     setWithdrawalModalOpen(true);
   };
 
-  const handleOpenConvert = (main?: number, profit?: number) => {
-    if (main !== undefined && profit !== undefined) {
-      setConvertBalances({ main, profit });
-    }
+  const handleOpenConvert = (deposit?: number, profit?: number, main?: number) => {
+    const depVal = deposit || 0;
+    const profVal = profit || 0;
+    const mainVal = main !== undefined && main > 0 ? main : depVal + profVal;
+    setConvertBalances({ deposit: depVal, profit: profVal, main: mainVal });
     setConvertModalOpen(true);
   };
 
@@ -225,11 +227,12 @@ function MainAppContent() {
         isOpen={convertModalOpen}
         onClose={() => setConvertModalOpen(false)}
         onOpenContact={() => setContactModalOpen(true)}
+        depositBalance={convertBalances.deposit}
+        miningBalance={convertBalances.profit}
         mainBalance={convertBalances.main}
-        profitBalance={convertBalances.profit}
       />
 
-      {/* User Withdrawal Modal (Inert placeholder pending upcoming custom flow) */}
+      {/* User Withdrawal Modal */}
       <WithdrawalModal
         isOpen={withdrawalModalOpen}
         onClose={() => setWithdrawalModalOpen(false)}

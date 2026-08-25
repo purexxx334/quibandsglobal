@@ -49,8 +49,8 @@ import { API_BASE } from '../../config/api';
 
 interface UserDashboardProps {
   onOpenDeposit: () => void;
-  onOpenConvert?: (main?: number, profit?: number) => void;
-  onOpenWithdrawal?: (main?: number, profit?: number) => void;
+  onOpenConvert?: (deposit?: number, profit?: number, main?: number) => void;
+  onOpenWithdrawal?: (deposit?: number, profit?: number, main?: number) => void;
   onOpenCalculator?: () => void;
   onOpenAdmin?: () => void;
 }
@@ -211,9 +211,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
       : (approvedDepositsTotal > 0 ? approvedDepositsTotal : (wallets['USDT'] || 0))
   );
   const miningBalanceUsd = liveMiningBalance > 0 ? liveMiningBalance : Number(activeProfile?.mining_balance !== undefined ? activeProfile.mining_balance : (activeProfile?.profit_balance || 0));
-  const profitBalanceUsd = Number(activeProfile?.profit_balance !== undefined ? activeProfile.profit_balance : 0);
-  // Main balance = Total of Capital (Deposit Balance) + Profit (Current Mining Balance / Amount Mined)
-  const mainBalanceUsd = Number(activeProfile?.main_balance !== undefined ? activeProfile.main_balance : (depositBalanceUsd + miningBalanceUsd));
+  const profitBalanceUsd = miningBalanceUsd;
+  // Main balance = Entire Assets: Total of Capital (Deposit Balance) + Profit (Current Mining Balance / Amount Mined)
+  const mainBalanceUsd = Number((depositBalanceUsd + miningBalanceUsd).toFixed(2));
   const convertBalance = Number(activeProfile?.convert_balance || 0);
   const convertCurrency = activeProfile?.convert_currency || 'SGD';
   const receiveLimitUsd = Number(activeProfile?.receive_limit || 9000.00);
@@ -496,7 +496,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
             {onOpenConvert && (
               <button
-                onClick={() => onOpenConvert(mainBalanceUsd, profitBalanceUsd)}
+                onClick={() => onOpenConvert(depositBalanceUsd, miningBalanceUsd, mainBalanceUsd)}
                 className="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 transform active:scale-95 cursor-pointer"
               >
                 <Coins className="w-4 h-4" />
@@ -507,7 +507,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
             {onOpenWithdrawal && (
               <button
                 type="button"
-                onClick={() => onOpenWithdrawal(mainBalanceUsd, profitBalanceUsd)}
+                onClick={() => onOpenWithdrawal(depositBalanceUsd, miningBalanceUsd, mainBalanceUsd)}
                 className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-dark-950 font-bold text-xs shadow-md transition-all flex items-center gap-2 transform active:scale-95 cursor-pointer"
               >
                 <ArrowUpCircle className="w-4 h-4" />
@@ -619,8 +619,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
                 <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight bg-gradient-to-r from-gold-200 via-white to-gold-300 bg-clip-text text-transparent">
                   ${mainBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                <div className="text-[11px] text-gold-400/80 flex items-center gap-1 mt-1 font-mono">
-                  <span>Capital (${depositBalanceUsd.toLocaleString()}) + Profit (${miningBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+                <div className="text-[11px] text-gold-400/90 flex flex-wrap items-center gap-1.5 mt-1 font-mono">
+                  <span className="text-cyan-300 font-bold">${depositBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2 })} Capital</span>
+                  <span className="text-slate-500">+</span>
+                  <span className="text-emerald-400 font-bold">${miningBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Profit</span>
                 </div>
               </div>
             </div>
