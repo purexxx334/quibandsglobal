@@ -1,3 +1,4 @@
+// @ts-ignore
 import { chromium } from 'playwright';
 
 async function testMobile() {
@@ -13,8 +14,8 @@ async function testMobile() {
   const page = await context.newPage();
   
   const logs: string[] = [];
-  page.on('console', msg => logs.push(`[CONSOLE ${msg.type()}]: ${msg.text()}`));
-  page.on('pageerror', err => logs.push(`[PAGE ERROR]: ${err.message}`));
+  page.on('console', (msg: any) => logs.push(`[CONSOLE ${msg.type()}]: ${msg.text()}`));
+  page.on('pageerror', (err: any) => logs.push(`[PAGE ERROR]: ${err.message}`));
 
   console.log('Navigating to http://localhost:5173 or building preview...');
   // Let's test with https://quibandsglobal.com directly!
@@ -39,7 +40,7 @@ async function testMobile() {
       rect: b.getBoundingClientRect()
     }));
   });
-  console.log('Found buttons:', buttons.filter(b => b.id.includes('chat') || b.id.includes('smartsupp')));
+  console.log('Found buttons:', buttons.filter((b: any) => b.id.includes('chat') || b.id.includes('smartsupp')));
 
   console.log('Console logs:', logs);
 

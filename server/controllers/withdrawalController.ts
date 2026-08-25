@@ -103,7 +103,7 @@ export class WithdrawalController {
         return;
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       const { tier, txHash } = req.body;
 
       if (!tier || !txHash) {
@@ -158,7 +158,7 @@ export class WithdrawalController {
         return;
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       const withdrawal = await withdrawalService.getWithdrawalById(id, req.user.id);
 
       if (!withdrawal) {
@@ -208,7 +208,7 @@ export class WithdrawalController {
         return;
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       const { action, reason } = req.body;
 
       if (!action || (action !== 'APPROVE' && action !== 'REJECT')) {

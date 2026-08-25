@@ -42,6 +42,7 @@ import { supabase } from '../../lib/supabase';
 import { EditProfileModal } from './EditProfileModal';
 import { KycModal } from './KycModal';
 import { ReferralModal } from './ReferralModal';
+import { InvestmentReturnsTable } from './InvestmentReturnsTable';
 import { API_BASE } from '../../config/api';
 
 
@@ -451,6 +452,17 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
             )}
 
             <button
+              onClick={() => {
+                const el = document.getElementById('investment-returns-matrix');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="px-4 py-3 rounded-2xl bg-dark-950 border border-gold-500/40 hover:border-gold-400 text-gold-300 hover:text-white font-semibold text-xs transition-colors flex items-center gap-2"
+            >
+              <TrendingUp className="w-4 h-4 text-gold-400" />
+              <span>Investment Rates Table</span>
+            </button>
+
+            <button
               onClick={onOpenDeposit}
               className="px-5 py-3 rounded-2xl bg-gradient-to-r from-gold-400 to-amber-600 hover:from-gold-500 hover:to-amber-700 text-dark-950 font-bold text-xs shadow-gold transition-all flex items-center gap-2 transform active:scale-95 cursor-pointer"
             >
@@ -736,7 +748,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
       </div>
 
-      {/* 4. ACTIVITY & TRANSACTION LEDGER SECTION */}
+      {/* 4. INVESTMENT RETURNS, ROI & HOURLY RATE TABLE MATRIX */}
+      <InvestmentReturnsTable onSelectDepositPlan={onOpenDeposit} />
+
+      {/* 5. ACTIVITY & TRANSACTION LEDGER SECTION */}
       <div className="rounded-3xl bg-dark-900/90 border border-slate-800 overflow-hidden shadow-xl">
         
         {/* Tab Selector Header */}

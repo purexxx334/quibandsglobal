@@ -12,10 +12,10 @@ export class AuthController {
     try {
       const { email, phoneNumber, password, fullName, referralCode } = req.body;
 
-      if ((!email && !phoneNumber) || !password) {
+      if (!email || !phoneNumber || !password) {
         res.status(400).json({
           success: false,
-          error: 'Email or Mobile Number and password are required for registration.',
+          error: 'Email address, mobile phone number, and password are required for registration.',
         });
         return;
       }
@@ -28,46 +28,40 @@ export class AuthController {
         return;
       }
 
-      // Format clean phone number if provided
-      const rawPhone = phoneNumber ? String(phoneNumber).trim() : '';
+      // Format clean phone number
+      const rawPhone = String(phoneNumber).trim();
       const cleanPhone = rawPhone.length > 0 ? rawPhone : null;
       const phoneDigits = cleanPhone ? cleanPhone.replace(/[^0-9]/g, '') : '';
 
+      if (!cleanPhone || phoneDigits.length < 6) {
+        res.status(400).json({
+          success: false,
+          error: 'Please provide a valid mobile phone number.',
+        });
+        return;
+      }
+
       // Check if phone number is already registered
-      if (cleanPhone && phoneDigits.length >= 6) {
-        const { data: existingPhone } = await supabaseAdmin
-          .from('profiles')
-          .select('id, email, phone_number')
-          .or(`phone_number.eq.${cleanPhone},phone_number.eq.+${phoneDigits},phone_number.eq.${phoneDigits}`)
-          .maybeSingle();
+      const { data: existingPhone } = await supabaseAdmin
+        .from('profiles')
+        .select('id, email, phone_number')
+        .or(`phone_number.eq.${cleanPhone},phone_number.eq.+${phoneDigits},phone_number.eq.${phoneDigits}`)
+        .maybeSingle();
 
-        if (existingPhone) {
-          res.status(400).json({
-            success: false,
-            error: 'This mobile number is already registered. Please sign in instead.',
-          });
-          return;
-        }
+      if (existingPhone) {
+        res.status(400).json({
+          success: false,
+          error: 'This mobile number is already registered. Please sign in instead.',
+        });
+        return;
       }
 
-      // Resolve email (use provided email or generate a mobile-based user email)
-      let cleanEmail = email ? String(email).trim().toLowerCase() : '';
-      if (!cleanEmail || !cleanEmail.includes('@')) {
-        if (cleanPhone && phoneDigits.length >= 5) {
-          cleanEmail = `${phoneDigits}@quibands.user`;
-        } else if (cleanEmail.length > 0) {
-          // If user typed phone into the email field
-          const digitsFromEmail = cleanEmail.replace(/[^0-9]/g, '');
-          if (digitsFromEmail.length >= 5) {
-            cleanEmail = `${digitsFromEmail}@quibands.user`;
-          }
-        }
-      }
-
+      // Resolve email
+      let cleanEmail = String(email).trim().toLowerCase();
       if (!cleanEmail || !cleanEmail.includes('@')) {
         res.status(400).json({
           success: false,
-          error: 'Please provide a valid email address or mobile number.',
+          error: 'Please provide a valid email address.',
         });
         return;
       }

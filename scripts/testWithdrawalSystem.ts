@@ -42,7 +42,7 @@ async function runWithdrawalTests() {
   let { data: u1Auth } = await supabaseAnon.auth.signInWithPassword({ email: user1Email, password });
   if (!u1Auth.session) {
     const reg = await supabaseAnon.auth.signUp({ email: user1Email, password });
-    u1Auth = reg.data;
+    u1Auth = reg.data as any;
   }
   const u1Token = u1Auth.session?.access_token!;
   const u1Id = u1Auth.user?.id!;
@@ -51,7 +51,7 @@ async function runWithdrawalTests() {
   let { data: u2Auth } = await supabaseAnon.auth.signInWithPassword({ email: user2Email, password });
   if (!u2Auth.session) {
     const reg = await supabaseAnon.auth.signUp({ email: user2Email, password });
-    u2Auth = reg.data;
+    u2Auth = reg.data as any;
   }
   const u2Token = u2Auth.session?.access_token!;
   const u2Id = u2Auth.user?.id!;
@@ -164,14 +164,16 @@ async function runWithdrawalTests() {
     const { data: ledgerEntries } = await supabaseAdmin.from('financial_ledgers').select('*').eq('reference_id', withdrawal1Id);
     
     assert(
-      res.status === 200 && 
-      wd.status === 'APPROVED' && 
-      Number(wallet.balance) === 800 && 
-      Number(wallet.locked_balance) === 0 &&
-      ledgerEntries && ledgerEntries.length >= 2,
+      Boolean(
+        res.status === 200 && 
+        wd?.status === 'APPROVED' && 
+        Number(wallet?.balance) === 800 && 
+        Number(wallet?.locked_balance) === 0 &&
+        ledgerEntries && ledgerEntries.length >= 2
+      ),
       7, 
       'Admin approves withdrawal -> APPROVED, wallet debited, ledger journaled',
-      `Status: ${wd.status}, Balance: ${wallet.balance}, Locked: ${wallet.locked_balance}, Ledger Entries: ${ledgerEntries?.length}`
+      `Status: ${wd?.status}, Balance: ${wallet?.balance}, Locked: ${wallet?.locked_balance}, Ledger Entries: ${ledgerEntries?.length}`
     );
   } catch (err: any) {
     assert(false, 7, 'Admin approves withdrawal -> APPROVED', err.message);
@@ -296,7 +298,7 @@ async function runWithdrawalTests() {
     const { data: auditLogs } = await supabaseAdmin.from('audit_logs').select('*').eq('target_id', withdrawal1Id);
     const { data: ledgers } = await supabaseAdmin.from('financial_ledgers').select('*').eq('reference_id', withdrawal1Id);
     assert(
-      auditLogs && auditLogs.length > 0 && ledgers && ledgers.length >= 2,
+      Boolean(auditLogs && auditLogs.length > 0 && ledgers && ledgers.length >= 2),
       15,
       'Financial ledger debits and admin audit logs created',
       `Audit logs: ${auditLogs?.length}, Ledger debits: ${ledgers?.length}`

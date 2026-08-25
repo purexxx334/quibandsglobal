@@ -71,8 +71,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setSuccessMsg('');
 
     if (mode === 'register') {
-      if (!formData.email && !formData.phoneNumber) {
-        setErrorMsg('Please provide either an Email Address or Mobile Number.');
+      if (!formData.fullName.trim()) {
+        setErrorMsg('Please enter your full name.');
+        return;
+      }
+      if (!formData.email || !formData.email.includes('@')) {
+        setErrorMsg('Please provide a valid email address.');
+        return;
+      }
+      if (!formData.phoneNumber || formData.phoneNumber.trim().length < 6) {
+        setErrorMsg('Mobile phone number is required for account verification and sign-in.');
         return;
       }
       if (formData.password.length < 6) {
@@ -228,7 +236,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           <div>
             <label className="block text-xs font-mono text-slate-300 uppercase tracking-wider mb-1">
-              {mode === 'login' ? 'Email Address or Mobile Number' : 'Email Address'}
+              {mode === 'login' ? 'Email Address or Mobile Number' : (
+                <span>Email Address <span className="text-gold-500">*</span></span>
+              )}
             </label>
             <div className="relative">
               {mode === 'login' ? (
@@ -242,7 +252,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               )}
               <input
                 type={mode === 'login' ? 'text' : 'email'}
-                required={mode === 'login' || !formData.phoneNumber}
+                required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder={mode === 'login' ? 'e.g. name@example.com or +1 234 567 8900' : 'name@example.com'}
@@ -257,7 +267,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-mono text-slate-300 uppercase tracking-wider">
-                  Mobile Number (Optional)
+                  Mobile Number <span className="text-gold-500">*</span>
                 </label>
                 <span className="text-[10px] text-amber-400 font-mono">Sign in via Mobile</span>
               </div>
@@ -265,6 +275,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <Smartphone className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                 <input
                   type="tel"
+                  required
                   value={formData.phoneNumber}
                   onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                   placeholder="e.g. +1 555 123 4567"

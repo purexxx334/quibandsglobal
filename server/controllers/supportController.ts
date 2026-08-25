@@ -102,7 +102,7 @@ export class SupportController {
    */
   async adminGetMessages(req: AuthenticatedRequest, res: Response<ApiResponse>, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const messages = await supportService.getConversationMessages(id);
       
       // Auto-mark read for admin
@@ -123,7 +123,7 @@ export class SupportController {
   async adminSendMessage(req: AuthenticatedRequest, res: Response<ApiResponse>, next: NextFunction) {
     try {
       const admin = req.user!;
-      const { id } = req.params;
+      const id = req.params.id as string;
       const { message } = req.body;
 
       if (!message || !message.trim()) {
@@ -156,7 +156,7 @@ export class SupportController {
    */
   async adminUpdateStatus(req: AuthenticatedRequest, res: Response<ApiResponse>, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const { status, isBotActive } = req.body;
 
       const updated = await supportService.updateConversationStatus(id, status, isBotActive);

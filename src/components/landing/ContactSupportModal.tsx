@@ -186,8 +186,8 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({ isOpen
                   type="button"
                   onClick={() => {
                     onClose();
-                    if (typeof window !== 'undefined' && window.smartsupp) {
-                      window.smartsupp('chat:open');
+                    if (typeof window !== 'undefined' && (window as any).smartsupp) {
+                      (window as any).smartsupp('chat:open');
                     }
                   }}
                   className="w-full py-2.5 rounded-xl bg-dark-850 hover:bg-dark-800 text-gold-400 hover:text-white border border-gold-500/30 text-xs font-mono font-semibold flex items-center justify-center gap-2 transition"
