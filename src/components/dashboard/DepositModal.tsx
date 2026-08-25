@@ -27,21 +27,42 @@ interface DepositModalProps {
 }
 
 const SUPPORTED_ASSETS = [
-  { symbol: 'USDT', name: 'Tether USD', networks: ['TRC20', 'ERC20'], icon: '₮', color: 'text-emerald-400' },
-  { symbol: 'BTC', name: 'Bitcoin', networks: ['Native'], icon: '₿', color: 'text-amber-400' },
-  { symbol: 'ETH', name: 'Ethereum', networks: ['ERC20'], icon: 'Ξ', color: 'text-indigo-400' },
-  { symbol: 'SOL', name: 'Solana', networks: ['Native'], icon: '◎', color: 'text-purple-400' },
-  { symbol: 'LTC', name: 'Litecoin', networks: ['Native'], icon: 'Ł', color: 'text-blue-400' },
-  { symbol: 'BNB', name: 'BNB Smart Chain', networks: ['BEP20'], icon: '⬡', color: 'text-yellow-400' },
+  { 
+    symbol: 'BTC', 
+    name: 'Bitcoin', 
+    badge: 'Native BTC Blockchain', 
+    networks: ['Native', 'BTC'], 
+    icon: '₿', 
+    color: 'text-amber-400',
+    borderActive: 'border-amber-400/90 bg-amber-500/10 text-white shadow-amber-500/20'
+  },
+  { 
+    symbol: 'ERC20', 
+    name: 'Ethereum (ERC-20)', 
+    badge: 'USDT / ETH Network', 
+    networks: ['ERC20'], 
+    icon: 'Ξ', 
+    color: 'text-indigo-400',
+    borderActive: 'border-indigo-400/90 bg-indigo-500/10 text-white shadow-indigo-500/20'
+  },
+  { 
+    symbol: 'BNB', 
+    name: 'BNB Smart Chain', 
+    badge: 'BEP-20 Network', 
+    networks: ['BEP20'], 
+    icon: '⬡', 
+    color: 'text-yellow-400',
+    borderActive: 'border-yellow-400/90 bg-yellow-500/10 text-white shadow-yellow-500/20'
+  },
 ];
 
 export const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
   const { session, user } = useAuth();
   const [activeTab, setActiveTab] = useState<'new' | 'history'>('new');
   
-  // Selection State
-  const [selectedAsset, setSelectedAsset] = useState('USDT');
-  const [selectedNetwork, setSelectedNetwork] = useState('TRC20');
+  // Selection State (strictly BTC, ERC20, BNB)
+  const [selectedAsset, setSelectedAsset] = useState('BTC');
+  const [selectedNetwork, setSelectedNetwork] = useState('Native');
   const [amount, setAmount] = useState('');
   const [txHash, setTxHash] = useState('');
   const [proofRef, setProofRef] = useState('');
@@ -124,12 +145,23 @@ export const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) =
     }
   }, [selectedAsset]);
 
-  // Current active address matching selection
-  const currentActiveAddress = activeAddresses.find(
-    (addr) =>
-      addr.asset.toUpperCase() === selectedAsset.toUpperCase() &&
-      addr.network.toUpperCase() === selectedNetwork.toUpperCase()
-  );
+  // Current active address matching selection with smart protocol fallback
+  const currentActiveAddress = activeAddresses.find((addr) => {
+    if (!addr.is_active) return false;
+    const a = (addr.asset || '').toUpperCase().trim();
+    const n = (addr.network || '').toUpperCase().trim();
+
+    if (selectedAsset === 'BTC') {
+      return a === 'BTC' || a === 'BITCOIN' || n === 'BTC' || n === 'NATIVE';
+    }
+    if (selectedAsset === 'ERC20') {
+      return a === 'ERC20' || n === 'ERC20' || a === 'ETH' || a === 'USDT' || a === 'ETHEREUM';
+    }
+    if (selectedAsset === 'BNB') {
+      return a === 'BNB' || a === 'BSC' || n === 'BEP20' || n === 'BNB' || n === 'BSC';
+    }
+    return a === selectedAsset.toUpperCase();
+  });
 
   const handleCopy = (text: string) => {
     if (!text) return;
@@ -154,7 +186,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) =
     }
 
     if (!currentActiveAddress) {
-      showToast('error', 'No active deposit address available for this asset. Please select another asset or contact support.');
+      showToast('error', 'No active deposit address available for this asset. Please select another option or contact support.');
       return;
     }
 
@@ -179,13 +211,13 @@ export const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) =
         setAmount('');
         setTxHash('');
         setProofRef('');
-        fetchUserDeposits();
         setActiveTab('history');
+        fetchUserDeposits();
       } else {
-        showToast('error', json.error || 'Failed to submit deposit.');
+        showToast('error', json.error || 'Failed to submit deposit request.');
       }
     } catch (err: any) {
-      showToast('error', err.message || 'Submission error');
+      showToast('error', err.message || 'Deposit submission failed.');
     } finally {
       setSubmitting(false);
     }
@@ -271,42 +303,62 @@ export const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) =
               
               {/* Asset Selection */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">1. Select Deposit Asset</label>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {SUPPORTED_ASSETS.map((asset) => (
-                    <button
-                      key={asset.symbol}
-                      type="button"
-                      onClick={() => setSelectedAsset(asset.symbol)}
-                      className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 ${
-                        selectedAsset === asset.symbol
-                          ? 'border-gold-400/80 bg-gold-400/10 text-white shadow-gold-sm'
-                          : 'border-slate-800 bg-dark-950/60 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                      }`}
-                    >
-                      <span className={`text-lg font-bold ${asset.color}`}>{asset.icon}</span>
-                      <span className="text-xs font-bold">{asset.symbol}</span>
-                    </button>
-                  ))}
+                <label className="block text-xs font-medium text-slate-400 mb-2">1. Select Deposit Cryptocurrency</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {SUPPORTED_ASSETS.map((asset) => {
+                    const isSelected = selectedAsset === asset.symbol;
+                    return (
+                      <button
+                        key={asset.symbol}
+                        type="button"
+                        onClick={() => setSelectedAsset(asset.symbol)}
+                        className={`p-3.5 rounded-2xl border text-left transition-all flex items-center gap-3.5 relative overflow-hidden ${
+                          isSelected
+                            ? asset.borderActive
+                            : 'border-slate-800 bg-dark-950/70 text-slate-300 hover:border-slate-700 hover:bg-dark-900/60'
+                        }`}
+                      >
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl font-bold font-mono border ${
+                          isSelected 
+                            ? 'bg-dark-900 border-white/20 shadow-inner' 
+                            : 'bg-dark-900/80 border-slate-800'
+                        }`}>
+                          <span className={asset.color}>{asset.icon}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-white font-mono tracking-tight">{asset.symbol}</span>
+                            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                              isSelected ? 'bg-white/15 text-white' : 'bg-slate-800 text-slate-400'
+                            }`}>
+                              {asset.badge}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-400 block truncate mt-0.5">{asset.name}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Network Selection */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">2. Choose Network Protocol</label>
+                <label className="block text-xs font-medium text-slate-400 mb-2">2. Network Protocol</label>
                 <div className="flex gap-2 flex-wrap">
                   {SUPPORTED_ASSETS.find((a) => a.symbol === selectedAsset)?.networks.map((net) => (
                     <button
                       key={net}
                       type="button"
                       onClick={() => setSelectedNetwork(net)}
-                      className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                      className={`px-4 py-2 rounded-xl text-xs font-mono font-semibold border transition-all flex items-center gap-1.5 ${
                         selectedNetwork === net
-                          ? 'border-gold-400 bg-gold-400 text-dark-950 font-bold'
+                          ? 'border-gold-400 bg-gold-400 text-dark-950 font-bold shadow-gold-sm'
                           : 'border-slate-800 bg-dark-950 text-slate-300 hover:border-slate-700'
                       }`}
                     >
-                      {net}
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>{net} Network</span>
                     </button>
                   ))}
                 </div>

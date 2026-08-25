@@ -187,8 +187,8 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
   }>({
     isOpen: false,
     isEdit: false,
-    asset: 'USDT',
-    network: 'TRC20',
+    asset: 'BTC',
+    network: 'BTC',
     address: '',
     memoTag: '',
     notes: '',
@@ -448,8 +448,8 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
       setDepositModal({
         isOpen: true,
         isEdit: false,
-        asset: 'USDT',
-        network: 'TRC20',
+        asset: 'BTC',
+        network: 'BTC',
         address: '',
         memoTag: '',
         notes: '',
@@ -2980,6 +2980,51 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
               <form onSubmit={handleSaveDepositAddress} className="space-y-4 text-xs font-mono">
                 
+                {/* 3 Quick Option Presets */}
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+                    Deposit Option Presets (Click to Auto-Fill):
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDepositModal({ ...depositModal, asset: 'BTC', network: 'BTC' })}
+                      className={`p-2.5 rounded-xl border text-center font-bold text-xs transition flex flex-col items-center gap-0.5 ${
+                        depositModal.asset === 'BTC'
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
+                          : 'bg-dark-900 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-amber-400">₿ BTC</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Bitcoin Native</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDepositModal({ ...depositModal, asset: 'ERC20', network: 'ERC20' })}
+                      className={`p-2.5 rounded-xl border text-center font-bold text-xs transition flex flex-col items-center gap-0.5 ${
+                        depositModal.asset === 'ERC20'
+                          ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50 shadow-sm'
+                          : 'bg-dark-900 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-indigo-400">Ξ ERC20</span>
+                      <span className="text-[10px] text-slate-400 font-normal">USDT / ETH</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDepositModal({ ...depositModal, asset: 'BNB', network: 'BEP20' })}
+                      className={`p-2.5 rounded-xl border text-center font-bold text-xs transition flex flex-col items-center gap-0.5 ${
+                        depositModal.asset === 'BNB'
+                          ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50 shadow-sm'
+                          : 'bg-dark-900 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-yellow-400">⬡ BNB</span>
+                      <span className="text-[10px] text-slate-400 font-normal">BEP-20 Smart Chain</span>
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-gold-400 uppercase tracking-wider mb-1">
@@ -2990,7 +3035,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                       required
                       value={depositModal.asset}
                       onChange={(e) => setDepositModal({ ...depositModal, asset: e.target.value.toUpperCase() })}
-                      placeholder="USDT, BTC, ETH, SOL, LTC..."
+                      placeholder="BTC, ERC20, BNB..."
                       className="w-full p-3 bg-dark-900 border border-slate-700 rounded-xl text-white uppercase focus:border-gold-500 focus:outline-none font-bold"
                     />
                   </div>
@@ -3004,7 +3049,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                       required
                       value={depositModal.network}
                       onChange={(e) => setDepositModal({ ...depositModal, network: e.target.value.toUpperCase() })}
-                      placeholder="TRC20, ERC20, Native, BEP20..."
+                      placeholder="BTC, ERC20, BEP20..."
                       className="w-full p-3 bg-dark-900 border border-slate-700 rounded-xl text-white uppercase focus:border-cyan-500 focus:outline-none font-bold"
                     />
                   </div>
