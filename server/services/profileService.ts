@@ -56,22 +56,23 @@ export class ProfileService {
     if (depositBal > 0 && !isMinerStopped) {
       const nowMs = Date.now();
       const existingMeta = profile.metadata || {};
+      const baseMining = Number(existingMeta.mining_base_balance !== undefined ? existingMeta.mining_base_balance : (profile.mining_balance || 0));
       const miningStartedAt = existingMeta.mining_started_at || profile.created_at || new Date(nowMs).toISOString();
       const startMs = new Date(miningStartedAt).getTime();
       const totalElapsedSec = Math.max(0, Math.floor((nowMs - startMs) / 1000));
 
       const ratePerSec = (depositBal * 0.03) / 3600; // Exact 3.0% of capital per hour
-      const totalAccruedYield = Number((totalElapsedSec * ratePerSec).toFixed(4));
-      const currentMining = Number(profile.mining_balance || 0);
-      const effectiveMining = Math.max(currentMining, totalAccruedYield);
+      const totalAccruedYield = Number((baseMining + (totalElapsedSec * ratePerSec)).toFixed(4));
+      
       const currentProfit = Number(profile.profit_balance || 0);
-      const calculatedMain = Number((depositBal + effectiveMining + currentProfit).toFixed(2));
+      const calculatedMain = Number((depositBal + totalAccruedYield + currentProfit).toFixed(2));
       const effectiveMain = profile.main_balance !== undefined && Number(profile.main_balance) > 0
         ? Math.max(Number(profile.main_balance), calculatedMain)
         : calculatedMain;
 
       const newMeta = {
         ...existingMeta,
+        mining_base_balance: baseMining,
         mining_started_at: miningStartedAt,
         mining_last_synced_at: new Date(nowMs).toISOString(),
       };
@@ -79,14 +80,14 @@ export class ProfileService {
       await supabaseAdmin
         .from('profiles')
         .update({
-          mining_balance: effectiveMining,
+          mining_balance: totalAccruedYield,
           main_balance: effectiveMain,
           metadata: newMeta,
           updated_at: new Date(nowMs).toISOString(),
         })
         .eq('auth_user_id', user.id);
 
-      profile.mining_balance = effectiveMining;
+      profile.mining_balance = totalAccruedYield;
       profile.main_balance = effectiveMain;
       profile.metadata = newMeta;
     }

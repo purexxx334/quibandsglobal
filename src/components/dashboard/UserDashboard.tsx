@@ -185,12 +185,16 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   const isMinerStopped = activeProfile?.miner_status === 'stopped' || activeProfile?.metadata?.miner_status === 'stopped';
   const approvedDepositsTotal = deposits.filter((d) => d.status === 'APPROVED').reduce((sum, d) => sum + Number(d.amount || 0), 0);
   
-  // Deposit Balance: If activeProfile.deposit_balance is defined (even 0), strictly respect database state
+  // Deposit Balance: strictly respect database state from admin edits or verified deposits
   const depositBalanceUsd = activeProfile?.deposit_balance !== undefined && activeProfile?.deposit_balance !== null
     ? Number(activeProfile.deposit_balance)
-    : (approvedDepositsTotal > 0 ? approvedDepositsTotal : Number(wallets['USDT'] || 0));
+    : approvedDepositsTotal;
 
   const hasApprovedDeposit = Boolean(depositBalanceUsd > 0 && !isMinerStopped);
+
+  const baseMiningBal = Number(activeProfile?.metadata?.mining_base_balance !== undefined
+    ? activeProfile.metadata.mining_base_balance
+    : (activeProfile?.mining_balance !== undefined ? activeProfile.mining_balance : (activeProfile?.profit_balance || 0)));
 
   const dbMiningBal = Number(activeProfile?.mining_balance !== undefined ? activeProfile.mining_balance : (activeProfile?.profit_balance || 0));
   const miningBalanceUsd = hasApprovedDeposit ? (liveMiningBalance > 0 ? liveMiningBalance : dbMiningBal) : dbMiningBal;
@@ -300,7 +304,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
     
     // Immediate initial sync
     const initialSnap = calculateMiningSnapshot(depositBalanceUsd, startTimeMs, Date.now());
-    setLiveMiningBalance(initialSnap.totalAccruedProfit > 0 ? initialSnap.totalAccruedProfit : dbMiningBal);
+    const initialTotalProfit = Number((baseMiningBal + initialSnap.totalAccruedProfit).toFixed(4));
+    setLiveMiningBalance(initialTotalProfit > 0 ? initialTotalProfit : dbMiningBal);
     setSessionSecondsLeft(initialSnap.cycleSecondsLeft);
     setSessionYieldEarned(initialSnap.cycleYieldEarned);
     setSessionBlockNumber(initialSnap.blockNumber);
@@ -311,10 +316,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
     const interval = setInterval(() => {
       const snap = calculateMiningSnapshot(depositBalanceUsd, startTimeMs, Date.now());
+      const exactLiveBalance = Number((baseMiningBal + snap.totalAccruedProfit).toFixed(4));
 
       // Update balances & counters
-      setLiveMiningBalance(snap.totalAccruedProfit);
-      localStorage.setItem(`quibands_miner_${uid}_mining_balance`, String(snap.totalAccruedProfit));
+      setLiveMiningBalance(exactLiveBalance);
+      localStorage.setItem(`quibands_miner_${uid}_mining_balance`, String(exactLiveBalance));
 
       // Constant rock-solid hashrate (142.84 TH/s)
       setHashrateSpeed(142.84);
@@ -353,14 +359,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
       localStorage.setItem(`quibands_miner_${uid}_last_active`, String(Date.now()));
 
       // Periodic database sync every 20 seconds
-      if (Date.now() - lastSyncTimeRef.current > 20000 && snap.totalAccruedProfit > 0) {
+      if (Date.now() - lastSyncTimeRef.current > 20000 && exactLiveBalance > 0) {
         lastSyncTimeRef.current = Date.now();
-        syncMiningToBackend(snap.totalAccruedProfit);
+        syncMiningToBackend(exactLiveBalance);
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [hasApprovedDeposit, depositBalanceUsd, user?.id, dbMiningBal, isMinerStopped, activeProfile?.metadata?.mining_started_at]);
+  }, [hasApprovedDeposit, depositBalanceUsd, user?.id, dbMiningBal, baseMiningBal, isMinerStopped, activeProfile?.metadata?.mining_started_at]);
 
 
   return (
