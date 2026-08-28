@@ -42,7 +42,7 @@ import { supabase } from '../../lib/supabase';
 import { EditProfileModal } from './EditProfileModal';
 import { KycModal } from './KycModal';
 import { ReferralModal } from './ReferralModal';
-import { getMiningConfigForDeposit } from '../../utils/miningEngine';
+import { getMiningConfigForDeposit, calculateMiningSnapshot, formatSecondsToHms } from '../../utils/miningEngine';
 import { API_BASE } from '../../config/api';
 
 
@@ -204,18 +204,13 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
   // Dynamic Tier Calculation directly matching Investment Returns Table
   const miningConfig = getMiningConfigForDeposit(depositBalanceUsd);
-  const sessionTotalSeconds = miningConfig.sessionDurationSeconds;
+  const sessionTotalSeconds = 3600;
 
   // Calculate session percentage
   const sessionPercent = Math.min(100, Math.max(0, Math.round(((sessionTotalSeconds - sessionSecondsLeft) / sessionTotalSeconds) * 100)));
 
   // Format time remaining as hh:mm:ss
-  const formatTime = (totalSec: number) => {
-    const hrs = Math.floor(totalSec / 3600);
-    const mins = Math.floor((totalSec % 3600) / 60);
-    const secs = totalSec % 60;
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  const formatTime = (totalSec: number) => formatSecondsToHms(totalSec);
 
   // Periodic background database sync for live mined profit
   const lastSyncTimeRef = useRef<number>(Date.now());
@@ -283,81 +278,38 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
     return fallbackNow;
   };
 
-  // 2. Real-time cycle calculation helper
-  const getRealtimeSessionState = (startTimeMs: number) => {
-    if (!hasApprovedDeposit || depositBalanceUsd <= 0) {
-      return {
-        secondsLeft: sessionTotalSeconds,
-        yieldEarned: 0,
-        blockNumber: 884219,
-        cycleIndex: 0,
-      };
-    }
-    const nowMs = Date.now();
-    const totalElapsedSec = Math.max(0, Math.floor((nowMs - startTimeMs) / 1000));
-    const cycleElapsedSec = totalElapsedSec % sessionTotalSeconds;
-    const secondsLeft = Math.max(1, sessionTotalSeconds - cycleElapsedSec);
-    const cycleIndex = Math.floor(totalElapsedSec / sessionTotalSeconds);
-    const blockNumber = 884219 + cycleIndex;
-    const yieldEarned = +(cycleElapsedSec * miningConfig.profitPerSecond).toFixed(4);
-
-    return {
-      secondsLeft,
-      yieldEarned,
-      blockNumber,
-      cycleIndex,
-    };
-  };
-
   // =========================================================================
-  // PERSISTENT USER-SCOPED MINING: NEVER RESTARTS ACROSS LOGINS/LOGOUTS & REFRESHES
+  // PURE WALL-CLOCK MINING ENGINE: REAL-TIME CONTINUITY ACROSS ALL SESSIONS & REFRESHES
   // =========================================================================
   useEffect(() => {
-    if (!user?.id) return;
-    const uid = user.id;
-
-    if (!hasApprovedDeposit || (depositBalanceUsd === 0 && dbMiningBal === 0)) {
-      // User with $0 deposit: Miner stays in STANDBY at 0
+    if (!hasApprovedDeposit || depositBalanceUsd <= 0 || !user?.id) {
       setLiveMiningBalance(0);
-      setSessionSecondsLeft(sessionTotalSeconds);
+      setSessionSecondsLeft(3600);
       setSessionYieldEarned(0);
       setHashrateSpeed(0);
       return;
     }
 
-    const startTimeMs = getMiningStartTimeMs();
-    localStorage.setItem(`quibands_miner_${uid}_start_time`, String(startTimeMs));
-    const rt = getRealtimeSessionState(startTimeMs);
-    const totalElapsedSec = Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000));
-    const initialLiveBal = +(totalElapsedSec * miningConfig.profitPerSecond).toFixed(4);
-
-    // Initialize miner directly with the real-time server-accrued database balance & time
-    setLiveMiningBalance(initialLiveBal > 0 ? initialLiveBal : dbMiningBal);
-    setHashrateSpeed(142.84);
-    setSessionSecondsLeft(rt.secondsLeft);
-    setSessionYieldEarned(rt.yieldEarned);
-    setSessionBlockNumber(rt.blockNumber);
-    setSharesAccepted(248 + rt.cycleIndex * 12 + Math.floor(dbMiningBal * 10));
-  }, [user?.id, hasApprovedDeposit, depositBalanceUsd, dbMiningBal, sessionTotalSeconds, miningConfig.targetSessionYield, activeProfile?.metadata?.mining_started_at]);
-
-
-  // =========================================================================
-  // LIVE MINER ENGINE: Starts ONLY after deposit and persists continuously in real time
-  // =========================================================================
-  useEffect(() => {
-    if (!hasApprovedDeposit || depositBalanceUsd <= 0 || !user?.id) return;
     const uid = user.id;
     const startTimeMs = getMiningStartTimeMs();
-    let lastBlock = 884219 + Math.floor(Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000)) / sessionTotalSeconds);
+    
+    // Immediate initial sync
+    const initialSnap = calculateMiningSnapshot(depositBalanceUsd, startTimeMs, Date.now());
+    setLiveMiningBalance(initialSnap.totalAccruedProfit > 0 ? initialSnap.totalAccruedProfit : dbMiningBal);
+    setSessionSecondsLeft(initialSnap.cycleSecondsLeft);
+    setSessionYieldEarned(initialSnap.cycleYieldEarned);
+    setSessionBlockNumber(initialSnap.blockNumber);
+    setHashrateSpeed(142.84);
+    setSharesAccepted(248 + initialSnap.cycleIndex * 12 + Math.floor(dbMiningBal * 10));
+
+    let lastBlock = initialSnap.blockNumber;
 
     const interval = setInterval(() => {
-      const nowMs = Date.now();
-      const totalElapsedSec = Math.max(0, Math.floor((nowMs - startTimeMs) / 1000));
-      const exactLiveBalance = +(totalElapsedSec * miningConfig.profitPerSecond).toFixed(4);
+      const snap = calculateMiningSnapshot(depositBalanceUsd, startTimeMs, Date.now());
 
-      // Increment live balance strictly based on exact elapsed seconds (no variance/jitter)
-      setLiveMiningBalance(exactLiveBalance);
-      localStorage.setItem(`quibands_miner_${uid}_mining_balance`, String(exactLiveBalance));
+      // Update balances & counters
+      setLiveMiningBalance(snap.totalAccruedProfit);
+      localStorage.setItem(`quibands_miner_${uid}_mining_balance`, String(snap.totalAccruedProfit));
 
       // Constant rock-solid hashrate (142.84 TH/s)
       setHashrateSpeed(142.84);
@@ -370,40 +322,40 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
       }
       setActiveNonce(nonceStr);
 
-      // Trigger flash animation
+      // Trigger visual pulse
       setJustTicked(true);
       setTimeout(() => setJustTicked(false), 500);
 
-      // Real-Time Session Countdown & Seamless 1-Hour Cycle Continuity
-      const rt = getRealtimeSessionState(startTimeMs);
-      setSessionSecondsLeft(rt.secondsLeft);
-      setSessionYieldEarned(rt.yieldEarned);
-      setSessionBlockNumber(rt.blockNumber);
+      // Real-Time 1-Hour Session Countdown
+      setSessionSecondsLeft(snap.cycleSecondsLeft);
+      setSessionYieldEarned(snap.cycleYieldEarned);
+      setSessionBlockNumber(snap.blockNumber);
 
-      // Trigger verification toast if cycle completed
-      if (rt.blockNumber > lastBlock) {
+      // Block solved cycle notification when crossing 1-hour block threshold
+      if (snap.blockNumber > lastBlock) {
         setSessionStatus('SOLVING');
         setSharesAccepted((s) => s + 1);
-        setSolvedNotification(`${miningConfig.timeRangeText} Mining Cycle Complete! Block #${lastBlock} Verified: +$${miningConfig.targetSessionYield.toLocaleString(undefined, { minimumFractionDigits: 2 })} USDT credited. Next cycle initialized.`);
+        const hourlyProfit = +(depositBalanceUsd * 0.03).toFixed(2);
+        setSolvedNotification(`1-Hour Mining Cycle Complete! Block #${lastBlock} Verified: +$${hourlyProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })} USDT credited. Next cycle initialized.`);
         setTimeout(() => {
           setSolvedNotification(null);
           setSessionStatus('ACTIVE');
         }, 6000);
       }
-      lastBlock = rt.blockNumber;
+      lastBlock = snap.blockNumber;
 
       // Persist timestamp of last active heartbeat
       localStorage.setItem(`quibands_miner_${uid}_last_active`, String(Date.now()));
 
       // Periodic database sync every 20 seconds
-      if (Date.now() - lastSyncTimeRef.current > 20000 && exactLiveBalance > 0) {
+      if (Date.now() - lastSyncTimeRef.current > 20000 && snap.totalAccruedProfit > 0) {
         lastSyncTimeRef.current = Date.now();
-        syncMiningToBackend(exactLiveBalance);
+        syncMiningToBackend(snap.totalAccruedProfit);
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [hasApprovedDeposit, depositBalanceUsd, user?.id, sessionTotalSeconds, miningConfig.profitPerSecond, miningConfig.targetSessionYield, miningConfig.timeRangeText, activeProfile?.metadata?.mining_started_at]);
+  }, [hasApprovedDeposit, depositBalanceUsd, user?.id, dbMiningBal, activeProfile?.metadata?.mining_started_at]);
 
 
   return (

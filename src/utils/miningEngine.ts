@@ -1,7 +1,29 @@
 /**
- * Mining Tier Engine - Dynamically calculates mining speed, session duration,
- * target profit, and hourly rate based on user's active deposited capital (3% per hour).
+ * Pure Real-Time Mining Engine
+ * 
+ * Rules:
+ * 1. Yield: Exactly 3.0% hourly rate based on active deposited capital (deposit_balance).
+ * 2. Cycle: 1-hour cycle (3600 seconds), continuous and seamless across restarts/refresh.
+ * 3. Single Source of Truth: (currentTimestampMs - miningStartedAtMs).
+ *    Everything is purely derived from this wall-clock delta.
  */
+
+export interface MiningSnapshot {
+  isActive: boolean;
+  depositBalance: number;
+  miningStartedAtMs: number;
+  totalElapsedSeconds: number;
+  totalAccruedProfit: number;
+  cycleElapsedSeconds: number;
+  cycleSecondsLeft: number;
+  cycleProgressPercent: number;
+  cycleYieldEarned: number;
+  cycleIndex: number;
+  blockNumber: number;
+  hourlyYieldRate: number;
+  hashrate: number;
+  formattedTimeLeft: string;
+}
 
 export interface MiningConfig {
   tierInvestment: number;
@@ -15,25 +37,84 @@ export interface MiningConfig {
   hourlyRateText: string;
 }
 
-export const MINING_TIERS_CONFIG = [
-  { minDeposit: 100, hours: 1, timeStr: '1 hr', roiStr: '3.0% / hr', hourlyRate: 3.00, hourlyStr: '$3.00/h (3%)' },
-  { minDeposit: 500, hours: 1, timeStr: '1 hr', roiStr: '3.0% / hr', hourlyRate: 15.00, hourlyStr: '$15.00/h (3%)' },
-  { minDeposit: 1000, hours: 1, timeStr: '1 hr', roiStr: '3.0% / hr', hourlyRate: 30.00, hourlyStr: '$30.00/h (3%)' },
-  { minDeposit: 2000, hours: 1, timeStr: '1 hr', roiStr: '3.0% / hr', hourlyRate: 60.00, hourlyStr: '$60.00/h (3%)' },
-  { minDeposit: 3000, hours: 1, timeStr: '1 hr', roiStr: '3.0% / hr', hourlyRate: 90.00, hourlyStr: '$90.00/h (3%)' },
-  { minDeposit: 4000, hours: 1, timeStr: '1 hr', roiStr: '3.0% / hr', hourlyRate: 120.00, hourlyStr: '$120.00/h (3%)' },
-  { minDeposit: 5000, hours: 1, timeStr: '1 hr', roiStr: '3.0% / hr', hourlyRate: 150.00, hourlyStr: '$150.00/h (3%)' },
-  { minDeposit: 10000, hours: 1, timeStr: '1 hr', roiStr: '3.0% / hr', hourlyRate: 300.00, hourlyStr: '$300.00/h (3%)' },
-  { minDeposit: 20000, hours: 1, timeStr: '1 hr', roiStr: '3.0% / hr', hourlyRate: 600.00, hourlyStr: '$600.00/h (3%)' },
-  { minDeposit: 50000, hours: 1, timeStr: '1 hr', roiStr: '3.0% / hr', hourlyRate: 1500.00, hourlyStr: '$1,500.00/h (3%)' },
-  { minDeposit: 100000, hours: 1, timeStr: '1 hr', roiStr: '3.0% / hr', hourlyRate: 3000.00, hourlyStr: '$3,000.00/h (3%)' },
-];
+/**
+ * Format total seconds as HH:MM:SS
+ */
+export function formatSecondsToHms(totalSec: number): string {
+  const safeSec = Math.max(0, Math.floor(totalSec));
+  const hrs = Math.floor(safeSec / 3600);
+  const mins = Math.floor((safeSec % 3600) / 60);
+  const secs = safeSec % 60;
+  return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
 
 /**
- * Get mining configuration for a specific deposit amount (Exact 3.0% of capital per hour)
+ * Calculate the exact real-time mining snapshot given the user's capital and start anchor
+ */
+export function calculateMiningSnapshot(
+  depositBalance: number,
+  miningStartedAtMs: number,
+  currentTimestampMs: number = Date.now()
+): MiningSnapshot {
+  const capital = Math.max(0, Number(depositBalance) || 0);
+
+  if (capital <= 0 || !miningStartedAtMs || isNaN(miningStartedAtMs) || miningStartedAtMs <= 0) {
+    return {
+      isActive: false,
+      depositBalance: 0,
+      miningStartedAtMs: 0,
+      totalElapsedSeconds: 0,
+      totalAccruedProfit: 0,
+      cycleElapsedSeconds: 0,
+      cycleSecondsLeft: 3600,
+      cycleProgressPercent: 0,
+      cycleYieldEarned: 0,
+      cycleIndex: 0,
+      blockNumber: 884219,
+      hourlyYieldRate: 0,
+      hashrate: 0,
+      formattedTimeLeft: '01:00:00',
+    };
+  }
+
+  // Exact 3% of capital per 1-hour (3600s) cycle
+  const hourlyYieldRate = +(capital * 0.03).toFixed(4);
+  const profitPerSecond = capital * 0.03 / 3600;
+
+  // Real-time wall-clock continuous elapsed time
+  const totalElapsedSeconds = Math.max(0, Math.floor((currentTimestampMs - miningStartedAtMs) / 1000));
+  const cycleElapsedSeconds = totalElapsedSeconds % 3600;
+  const cycleSecondsLeft = Math.max(1, 3600 - cycleElapsedSeconds);
+  const cycleProgressPercent = Math.min(100, Math.max(0, Math.round(((3600 - cycleSecondsLeft) / 3600) * 100)));
+
+  const totalAccruedProfit = +(totalElapsedSeconds * profitPerSecond).toFixed(4);
+  const cycleYieldEarned = +(cycleElapsedSeconds * profitPerSecond).toFixed(4);
+  const cycleIndex = Math.floor(totalElapsedSeconds / 3600);
+  const blockNumber = 884219 + cycleIndex;
+
+  return {
+    isActive: true,
+    depositBalance: capital,
+    miningStartedAtMs,
+    totalElapsedSeconds,
+    totalAccruedProfit,
+    cycleElapsedSeconds,
+    cycleSecondsLeft,
+    cycleProgressPercent,
+    cycleYieldEarned,
+    cycleIndex,
+    blockNumber,
+    hourlyYieldRate,
+    hashrate: 142.84,
+    formattedTimeLeft: formatSecondsToHms(cycleSecondsLeft),
+  };
+}
+
+/**
+ * Backward compatibility helper for components querying tier metadata
  */
 export function getMiningConfigForDeposit(depositAmount: number): MiningConfig {
-  const amount = Math.max(0, depositAmount);
+  const amount = Math.max(0, depositAmount || 0);
 
   if (amount <= 0) {
     return {
@@ -49,23 +130,18 @@ export function getMiningConfigForDeposit(depositAmount: number): MiningConfig {
     };
   }
 
-  // Exact 3% per hour on active capital
-  const hourlyRate = +(amount * 0.03).toFixed(4); // 3.0% per hour
-  const profitPerSec = +(hourlyRate / 3600).toFixed(6); // exact rate per second
-  const sessionHours = 1; // 1 hr continuous block cycle
-  const durationSec = sessionHours * 3600; // 3600 seconds per cycle
-  const targetProfit = +(hourlyRate * sessionHours).toFixed(2); // 3.0% per 1 hour session
+  const hourlyRate = +(amount * 0.03).toFixed(4);
+  const profitPerSec = +(hourlyRate / 3600).toFixed(6);
 
   return {
     tierInvestment: amount,
-    sessionDurationHours: sessionHours,
-    sessionDurationSeconds: durationSec,
+    sessionDurationHours: 1,
+    sessionDurationSeconds: 3600,
     profitPerHour: hourlyRate,
-    targetSessionYield: targetProfit,
+    targetSessionYield: hourlyRate,
     profitPerSecond: profitPerSec,
-    roiText: '3.0% / hr (72% / day)',
+    roiText: '3.0% / hr',
     timeRangeText: '1 hr',
     hourlyRateText: `$${hourlyRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/h (3.0%)`,
   };
 }
-
