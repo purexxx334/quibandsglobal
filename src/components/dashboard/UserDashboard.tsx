@@ -200,10 +200,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   const miningBalanceUsd = hasApprovedDeposit ? (liveMiningBalance > 0 ? liveMiningBalance : dbMiningBal) : dbMiningBal;
   const profitBalanceUsd = miningBalanceUsd;
 
-  // Main balance = Entire Assets: Total of Capital (Deposit Balance) + Profit (Current Mining Balance / Amount Mined), respecting explicit admin edits
+  // Main balance = Strictly reflects activeProfile.main_balance from admin edits, or defaults to (depositBalanceUsd + miningBalanceUsd)
   const calculatedMain = Number((depositBalanceUsd + miningBalanceUsd).toFixed(2));
-  const mainBalanceUsd = activeProfile?.main_balance !== undefined && Number(activeProfile.main_balance) > 0
-    ? Math.max(Number(activeProfile.main_balance), calculatedMain)
+  const mainBalanceUsd = activeProfile?.main_balance !== undefined && activeProfile?.main_balance !== null
+    ? Number(activeProfile.main_balance)
     : calculatedMain;
 
   const convertBalance = Number(activeProfile?.convert_balance || 0);

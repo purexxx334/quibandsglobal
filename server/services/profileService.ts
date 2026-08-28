@@ -66,8 +66,8 @@ export class ProfileService {
       
       const currentProfit = Number(profile.profit_balance || 0);
       const calculatedMain = Number((depositBal + totalAccruedYield + currentProfit).toFixed(2));
-      const effectiveMain = profile.main_balance !== undefined && Number(profile.main_balance) > 0
-        ? Math.max(Number(profile.main_balance), calculatedMain)
+      const effectiveMain = profile.main_balance !== undefined && profile.main_balance !== null
+        ? Number(profile.main_balance)
         : calculatedMain;
 
       const newMeta = {
