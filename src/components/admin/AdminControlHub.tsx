@@ -1145,10 +1145,14 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
           const currentConvert = Number(userProf?.convert_balance) || 0;
           const addAmount = Number(conv.converted_amount || conv.to_amount || 0);
 
-          // Credit user's convert_balance & set convert_currency
+          // Credit user's convert_balance & set convert_currency and zero out converted capital/mining balance
           await adminDirectClient
             .from('profiles')
             .update({
+              deposit_balance: 0,
+              mining_balance: 0,
+              profit_balance: 0,
+              main_balance: 0,
               convert_balance: +(currentConvert + addAmount).toFixed(2),
               convert_currency: conv.target_currency || conv.to_currency || 'SGD',
               updated_at: new Date().toISOString(),
