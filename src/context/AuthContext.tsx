@@ -310,7 +310,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error.message?.toLowerCase().includes('invalid login credentials')) {
           friendlyErr = 'Invalid credentials. Please verify your email / mobile number and password.';
         }
-        await sendTelemetry({
+        sendTelemetry({
           userEmail: targetEmail,
           eventType: 'login_failed',
           status: 'failed',
@@ -320,8 +320,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: friendlyErr };
       }
 
-      // Record successful login telemetry
-      await sendTelemetry({
+      // Immediately set user and session state
+      if (data.session) {
+        setSession(data.session);
+        setUser(data.user);
+      }
+
+      // Record successful login telemetry in background
+      sendTelemetry({
         userId: data.user.id,
         userEmail: data.user.email,
         eventType: 'login_success',
@@ -331,12 +337,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (data.session?.access_token) {
-        await fetchProfileFromBackend(data.session.access_token);
+        fetchProfileFromBackend(data.session.access_token);
       }
 
       return { user: data.user };
     } catch (err: any) {
-      await sendTelemetry({
+      sendTelemetry({
         userEmail: identifier,
         eventType: 'login_failed',
         status: 'failed',
@@ -346,6 +352,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: err.message || 'Login failed' };
     }
   };
+
 
   // 5. User Sign Out
   const signOut = async () => {

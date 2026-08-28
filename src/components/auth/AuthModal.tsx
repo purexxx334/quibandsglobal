@@ -29,7 +29,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onSuccessAuth
 }) => {
-  const { signUp, signIn, resetPassword, isConfigured } = useAuth();
+  const { user, signUp, signIn, resetPassword, isConfigured } = useAuth();
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -45,6 +45,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     referralCode: '',
     agreeTerms: true
   });
+
+  // Auto-close modal if user is already logged in
+  React.useEffect(() => {
+    if (isOpen && user) {
+      onClose();
+    }
+  }, [isOpen, user, onClose]);
 
   // Sync mode when initialMode prop changes & capture URL ?ref= param
   React.useEffect(() => {
@@ -64,6 +71,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   }, [initialMode, isOpen]);
 
   if (!isOpen) return null;
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
