@@ -42,7 +42,6 @@ import { supabase } from '../../lib/supabase';
 import { EditProfileModal } from './EditProfileModal';
 import { KycModal } from './KycModal';
 import { ReferralModal } from './ReferralModal';
-import { InvestmentReturnsTable } from './InvestmentReturnsTable';
 import { getMiningConfigForDeposit } from '../../utils/miningEngine';
 import { API_BASE } from '../../config/api';
 
@@ -83,11 +82,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
   // Live Miner Engine States
   const [liveMiningBalance, setLiveMiningBalance] = useState<number>(0);
-  const [sessionSecondsLeft, setSessionSecondsLeft] = useState<number>(12600);
+  const [sessionSecondsLeft, setSessionSecondsLeft] = useState<number>(3600);
   const [sessionBlockNumber, setSessionBlockNumber] = useState<number>(884219);
   const [sessionYieldEarned, setSessionYieldEarned] = useState<number>(0);
   const [sessionStatus, setSessionStatus] = useState<'ACTIVE' | 'SOLVING' | 'NEW_CYCLE'>('ACTIVE');
-  const [hashrateSpeed, setHashrateSpeed] = useState<number>(0);
+  const [hashrateSpeed, setHashrateSpeed] = useState<number>(142.84);
   const [activeNonce, setActiveNonce] = useState<string>('0x7F8B2A914C');
   const [sharesAccepted, setSharesAccepted] = useState<number>(248);
   const [justTicked, setJustTicked] = useState<boolean>(false);
@@ -242,6 +241,70 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
     }
   };
 
+  // 1. Get the reliable mining start timestamp (from database metadata, or earliest deposit, or user profile creation)
+  const getMiningStartTimeMs = (): number => {
+    if (!user?.id) return Date.now();
+    const uid = user.id;
+    const metaStart = activeProfile?.metadata?.mining_started_at;
+    if (metaStart) {
+      const parsed = new Date(metaStart).getTime();
+      if (!isNaN(parsed) && parsed > 0) return parsed;
+    }
+    const localStart = localStorage.getItem(`quibands_miner_${uid}_start_time`);
+    if (localStart) {
+      const parsed = Number(localStart);
+      if (!isNaN(parsed) && parsed > 0) return parsed;
+    }
+    // Check first approved deposit created_at
+    const firstApproved = deposits
+      .filter((d) => d.status === 'APPROVED' && d.created_at)
+      .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())[0];
+    if (firstApproved?.created_at) {
+      const parsed = new Date(firstApproved.created_at).getTime();
+      if (!isNaN(parsed) && parsed > 0) {
+        localStorage.setItem(`quibands_miner_${uid}_start_time`, String(parsed));
+        return parsed;
+      }
+    }
+    const profCreated = activeProfile?.created_at;
+    if (profCreated) {
+      const parsed = new Date(profCreated).getTime();
+      if (!isNaN(parsed) && parsed > 0) {
+        localStorage.setItem(`quibands_miner_${uid}_start_time`, String(parsed));
+        return parsed;
+      }
+    }
+    const fallbackNow = Date.now();
+    localStorage.setItem(`quibands_miner_${uid}_start_time`, String(fallbackNow));
+    return fallbackNow;
+  };
+
+  // 2. Real-time cycle calculation helper
+  const getRealtimeSessionState = (startTimeMs: number) => {
+    if (!hasApprovedDeposit || depositBalanceUsd <= 0) {
+      return {
+        secondsLeft: sessionTotalSeconds,
+        yieldEarned: 0,
+        blockNumber: 884219,
+        cycleIndex: 0,
+      };
+    }
+    const nowMs = Date.now();
+    const totalElapsedSec = Math.max(0, Math.floor((nowMs - startTimeMs) / 1000));
+    const cycleElapsedSec = totalElapsedSec % sessionTotalSeconds;
+    const secondsLeft = Math.max(1, sessionTotalSeconds - cycleElapsedSec);
+    const cycleIndex = Math.floor(totalElapsedSec / sessionTotalSeconds);
+    const blockNumber = 884219 + cycleIndex;
+    const yieldEarned = +(cycleElapsedSec * miningConfig.profitPerSecond).toFixed(4);
+
+    return {
+      secondsLeft,
+      yieldEarned,
+      blockNumber,
+      cycleIndex,
+    };
+  };
+
   // =========================================================================
   // PERSISTENT USER-SCOPED MINING: NEVER RESTARTS ACROSS LOGINS/LOGOUTS & OFFLINE
   // =========================================================================
@@ -262,50 +325,42 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
       return;
     }
 
-    // Initialize miner directly with the real-time server-accrued database balance
-    setLiveMiningBalance(dbMiningBal);
+    const startTimeMs = getMiningStartTimeMs();
+    localStorage.setItem(`quibands_miner_${uid}_start_time`, String(startTimeMs));
+    const rt = getRealtimeSessionState(startTimeMs);
+    const totalElapsedSec = Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000));
+    const initialLiveBal = +(totalElapsedSec * miningConfig.profitPerSecond).toFixed(4);
+
+    // Initialize miner directly with the real-time server-accrued database balance & time
+    setLiveMiningBalance(initialLiveBal > 0 ? initialLiveBal : dbMiningBal);
     setHashrateSpeed(142.84);
-    setSessionBlockNumber(884219 + Math.floor(dbMiningBal / (miningConfig.targetSessionYield || 100)));
-    setSharesAccepted(248 + Math.floor(dbMiningBal * 10));
-  }, [user?.id, hasApprovedDeposit, depositBalanceUsd, dbMiningBal, sessionTotalSeconds, miningConfig.targetSessionYield]);
+    setSessionSecondsLeft(rt.secondsLeft);
+    setSessionYieldEarned(rt.yieldEarned);
+    setSessionBlockNumber(rt.blockNumber);
+    setSharesAccepted(248 + rt.cycleIndex * 12 + Math.floor(dbMiningBal * 10));
+  }, [user?.id, hasApprovedDeposit, depositBalanceUsd, dbMiningBal, sessionTotalSeconds, miningConfig.targetSessionYield, activeProfile?.metadata?.mining_started_at]);
 
 
   // =========================================================================
-  // LIVE MINER ENGINE: Starts ONLY after deposit and persists continuously
+  // LIVE MINER ENGINE: Starts ONLY after deposit and persists continuously in real time
   // =========================================================================
   useEffect(() => {
     if (!hasApprovedDeposit || depositBalanceUsd <= 0 || !user?.id) return;
     const uid = user.id;
-
+    const startTimeMs = getMiningStartTimeMs();
+    let lastBlock = 884219 + Math.floor(Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000)) / sessionTotalSeconds);
 
     const interval = setInterval(() => {
-      const basePerSec = miningConfig.profitPerSecond;
-      const microVariance = (Math.random() - 0.5) * (basePerSec * 0.05);
-      const microIncrement = +(basePerSec + microVariance).toFixed(6);
+      const nowMs = Date.now();
+      const totalElapsedSec = Math.max(0, Math.floor((nowMs - startTimeMs) / 1000));
+      const exactLiveBalance = +(totalElapsedSec * miningConfig.profitPerSecond).toFixed(4);
 
-      let currentBal = 0;
+      // Increment live balance strictly based on exact elapsed seconds (no variance/jitter)
+      setLiveMiningBalance(exactLiveBalance);
+      localStorage.setItem(`quibands_miner_${uid}_mining_balance`, String(exactLiveBalance));
 
-      // Increment live balance and session yield
-      setLiveMiningBalance((prev) => {
-        const next = +(prev + microIncrement).toFixed(6);
-        localStorage.setItem(`quibands_miner_${uid}_mining_balance`, String(next));
-        currentBal = next;
-        return next;
-      });
-
-      setSessionYieldEarned((prev) => {
-        const nextYield = +(prev + microIncrement).toFixed(5);
-        localStorage.setItem(`quibands_miner_${uid}_yield_earned`, String(nextYield));
-        return nextYield;
-      });
-
-      // Trigger flash animation
-      setJustTicked(true);
-      setTimeout(() => setJustTicked(false), 500);
-
-      // Fluctuate Hashrate slightly (142.1 ~ 143.9 TH/s)
-      const newHash = +(142.5 + Math.random() * 1.4).toFixed(2);
-      setHashrateSpeed(newHash);
+      // Constant rock-solid hashrate (142.84 TH/s)
+      setHashrateSpeed(142.84);
 
       // Generate randomized cryptographic nonce
       const hexChars = '0123456789ABCDEF';
@@ -315,43 +370,40 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
       }
       setActiveNonce(nonceStr);
 
-      // Session Countdown & Automatic Restart Logic
-      setSessionSecondsLeft((prevSec) => {
-        if (prevSec <= 1) {
-          setSessionStatus('SOLVING');
-          setSharesAccepted((s) => s + 1);
-          const nextBlock = sessionBlockNumber + 1;
-          setSessionBlockNumber(nextBlock);
-          localStorage.setItem(`quibands_miner_${uid}_block_num`, String(nextBlock));
+      // Trigger flash animation
+      setJustTicked(true);
+      setTimeout(() => setJustTicked(false), 500);
 
-          setSolvedNotification(`${miningConfig.timeRangeText} Mining Cycle Complete! Block #${sessionBlockNumber} Verified: +$${miningConfig.targetSessionYield.toLocaleString(undefined, { minimumFractionDigits: 2 })} USDT credited. Next cycle initialized.`);
-          setTimeout(() => setSolvedNotification(null), 6000);
+      // Real-Time Session Countdown & Seamless 1-Hour Cycle Continuity
+      const rt = getRealtimeSessionState(startTimeMs);
+      setSessionSecondsLeft(rt.secondsLeft);
+      setSessionYieldEarned(rt.yieldEarned);
+      setSessionBlockNumber(rt.blockNumber);
 
-          setSessionYieldEarned(0);
-          localStorage.setItem(`quibands_miner_${uid}_yield_earned`, '0');
+      // Trigger verification toast if cycle completed
+      if (rt.blockNumber > lastBlock) {
+        setSessionStatus('SOLVING');
+        setSharesAccepted((s) => s + 1);
+        setSolvedNotification(`${miningConfig.timeRangeText} Mining Cycle Complete! Block #${lastBlock} Verified: +$${miningConfig.targetSessionYield.toLocaleString(undefined, { minimumFractionDigits: 2 })} USDT credited. Next cycle initialized.`);
+        setTimeout(() => {
+          setSolvedNotification(null);
           setSessionStatus('ACTIVE');
-          localStorage.setItem(`quibands_miner_${uid}_seconds_left`, String(sessionTotalSeconds));
-          return sessionTotalSeconds;
-        }
-        const nextSec = prevSec - 1;
-        if (nextSec % 10 === 0) {
-          localStorage.setItem(`quibands_miner_${uid}_seconds_left`, String(nextSec));
-        }
-        return nextSec;
-      });
+        }, 6000);
+      }
+      lastBlock = rt.blockNumber;
 
       // Persist timestamp of last active heartbeat
       localStorage.setItem(`quibands_miner_${uid}_last_active`, String(Date.now()));
 
       // Periodic database sync every 20 seconds
-      if (Date.now() - lastSyncTimeRef.current > 20000 && currentBal > 0) {
+      if (Date.now() - lastSyncTimeRef.current > 20000 && exactLiveBalance > 0) {
         lastSyncTimeRef.current = Date.now();
-        syncMiningToBackend(currentBal);
+        syncMiningToBackend(exactLiveBalance);
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [hasApprovedDeposit, user?.id, sessionTotalSeconds, miningConfig.profitPerSecond, sessionBlockNumber, miningConfig.targetSessionYield, miningConfig.timeRangeText]);
+  }, [hasApprovedDeposit, depositBalanceUsd, user?.id, sessionTotalSeconds, miningConfig.profitPerSecond, miningConfig.targetSessionYield, miningConfig.timeRangeText, activeProfile?.metadata?.mining_started_at]);
 
 
   return (
@@ -810,10 +862,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
       </div>
 
-      {/* 4. INVESTMENT RETURNS, ROI & HOURLY RATE TABLE MATRIX */}
-      <InvestmentReturnsTable onSelectDepositPlan={onOpenDeposit} />
-
-      {/* 5. ACTIVITY & TRANSACTION LEDGER SECTION */}
+      {/* 4. ACTIVITY & TRANSACTION LEDGER SECTION */}
       <div className="rounded-3xl bg-dark-900/90 border border-slate-800 overflow-hidden shadow-xl">
         
         {/* Tab Selector Header */}
@@ -902,26 +951,36 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
                               t.type === 'mining_yield' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' :
                               t.type === 'deposit' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
                               t.type === 'withdrawal' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
+                              t.type === 'conversion' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
                               'bg-gold-500/20 text-gold-400 border border-gold-500/30'
                             }`}>
                               {t.type === 'mining_yield' ? 'MINING YIELD' :
                                t.type === 'deposit' ? 'DEPOSIT' :
                                t.type === 'withdrawal' ? 'WITHDRAWAL' :
+                               t.type === 'conversion' ? 'CONVERSION' :
                                'ACCOUNT CREDIT'}
                             </span>
                           </td>
                           <td className={`py-3 px-4 font-bold text-sm ${
-                            t.type === 'withdrawal' ? 'text-rose-400' : 'text-emerald-400'
+                            t.type === 'withdrawal' ? 'text-rose-400' :
+                            t.type === 'conversion' ? 'text-purple-300' : 'text-emerald-400'
                           }`}>
                             {t.type === 'withdrawal' ? '-' : '+'}${Number(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} <span className="text-xs text-slate-400">{t.asset}</span>
                           </td>
                           <td className="py-3 px-4 font-sans text-slate-200">
-                            <span className="font-semibold text-white">{t.memo || t.admin_notes || 'Account Adjustment'}</span>
+                            <span className="font-semibold text-white">{t.memo || t.admin_notes || 'Account Transaction'}</span>
                           </td>
                           <td className="py-3 px-4">
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 flex items-center gap-1 w-fit">
-                              <Check className="w-3 h-3" />
-                              <span>COMPLETED</span>
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 w-fit ${
+                              t.status === 'confirmed' || t.status === 'approved' || t.status === 'completed' || t.status === 'settled'
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : t.status === 'pending'
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
+                                : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                            }`}>
+                              {t.status === 'confirmed' || t.status === 'approved' || t.status === 'completed' || t.status === 'settled' ? <Check className="w-3 h-3" /> :
+                               t.status === 'pending' ? <Clock className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                              <span className="uppercase">{t.status || 'COMPLETED'}</span>
                             </span>
                           </td>
                         </tr>

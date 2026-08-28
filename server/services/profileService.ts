@@ -47,45 +47,42 @@ export class ProfileService {
     }
 
     // =========================================================================
-    // SERVER-SIDE REAL-TIME OFFLINE MINER ENGINE: 3% PER HOUR OF CAPITAL
-    // Mines continuously 24/7 even when user is offline or logged out
+    // SERVER-SIDE REAL-TIME OFFLINE MINER ENGINE: EXACT 3% PER HOUR OF CAPITAL
+    // Mines continuously 24/7 in real time even when user is offline or logged out
     // =========================================================================
     const depositBal = Number(profile.deposit_balance !== undefined && profile.deposit_balance !== null ? profile.deposit_balance : (profile.total_deposited || 0));
 
     if (depositBal > 0) {
       const nowMs = Date.now();
-      const lastSyncedIso = profile.metadata?.mining_last_synced_at || profile.updated_at || profile.created_at;
-      const lastSyncedMs = lastSyncedIso ? new Date(lastSyncedIso).getTime() : nowMs;
-      const elapsedSec = Math.max(0, Math.floor((nowMs - lastSyncedMs) / 1000));
+      const existingMeta = profile.metadata || {};
+      const miningStartedAt = existingMeta.mining_started_at || profile.created_at || new Date(nowMs).toISOString();
+      const startMs = new Date(miningStartedAt).getTime();
+      const totalElapsedSec = Math.max(0, Math.floor((nowMs - startMs) / 1000));
 
-      if (elapsedSec > 0) {
-        const ratePerSec = (depositBal * 0.03) / 3600; // 3% of capital per hour
-        const accruedYield = Number((elapsedSec * ratePerSec).toFixed(6));
-        const currentMining = Number(profile.mining_balance || 0);
-        const updatedMining = Number((currentMining + accruedYield).toFixed(6));
-        const currentProfit = Number(profile.profit_balance || 0);
-        const updatedMain = Number((depositBal + updatedMining + currentProfit).toFixed(2));
+      const ratePerSec = (depositBal * 0.03) / 3600; // Exact 3.0% of capital per hour
+      const totalAccruedYield = Number((totalElapsedSec * ratePerSec).toFixed(4));
+      const currentProfit = Number(profile.profit_balance || 0);
+      const updatedMain = Number((depositBal + totalAccruedYield + currentProfit).toFixed(2));
 
-        const existingMeta = profile.metadata || {};
-        const newMeta = {
-          ...existingMeta,
-          mining_last_synced_at: new Date(nowMs).toISOString(),
-        };
+      const newMeta = {
+        ...existingMeta,
+        mining_started_at: miningStartedAt,
+        mining_last_synced_at: new Date(nowMs).toISOString(),
+      };
 
-        await supabaseAdmin
-          .from('profiles')
-          .update({
-            mining_balance: updatedMining,
-            main_balance: updatedMain,
-            metadata: newMeta,
-            updated_at: new Date(nowMs).toISOString(),
-          })
-          .eq('auth_user_id', user.id);
+      await supabaseAdmin
+        .from('profiles')
+        .update({
+          mining_balance: totalAccruedYield,
+          main_balance: updatedMain,
+          metadata: newMeta,
+          updated_at: new Date(nowMs).toISOString(),
+        })
+        .eq('auth_user_id', user.id);
 
-        profile.mining_balance = updatedMining;
-        profile.main_balance = updatedMain;
-        profile.metadata = newMeta;
-      }
+      profile.mining_balance = totalAccruedYield;
+      profile.main_balance = updatedMain;
+      profile.metadata = newMeta;
     }
 
     return {
@@ -177,6 +174,7 @@ export class ProfileService {
     const existingMeta = profile?.metadata || {};
     const newMeta = {
       ...existingMeta,
+      mining_started_at: existingMeta.mining_started_at || nowIso,
       mining_last_synced_at: nowIso,
     };
 

@@ -202,6 +202,23 @@ export class AdminService {
     if (data.miningRemark !== undefined) profileUpdate.mining_remark = data.miningRemark;
     if (data.profitRemark !== undefined) profileUpdate.profit_remark = data.profitRemark;
 
+    if (effectiveDeposit !== undefined && effectiveDeposit > 0) {
+      const { data: currentProf } = await supabaseAdmin
+        .from('profiles')
+        .select('metadata, created_at')
+        .eq('auth_user_id', targetUserId)
+        .maybeSingle();
+
+      const existingMeta = currentProf?.metadata || {};
+      if (!existingMeta.mining_started_at) {
+        profileUpdate.metadata = {
+          ...existingMeta,
+          mining_started_at: currentProf?.created_at || new Date().toISOString(),
+          mining_last_synced_at: new Date().toISOString(),
+        };
+      }
+    }
+
     const { error: profileErr } = await supabaseAdmin
       .from('profiles')
       .update(profileUpdate)

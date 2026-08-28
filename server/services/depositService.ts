@@ -242,17 +242,17 @@ export class DepositService {
       if (createdWallet) walletId = createdWallet.id;
     }
 
-    // 3. Update profile deposit_balance, main_balance, and total_deposited
+    // 3. Update profile deposit_balance, main_balance, metadata, and total_deposited
     let { data: userProfile } = await supabaseAdmin
       .from('profiles')
-      .select('id, auth_user_id, deposit_balance, main_balance, mining_balance, profit_balance, total_deposited')
+      .select('id, auth_user_id, deposit_balance, main_balance, mining_balance, profit_balance, total_deposited, metadata')
       .eq('auth_user_id', deposit.user_id)
       .maybeSingle();
 
     if (!userProfile) {
       const { data: profById } = await supabaseAdmin
         .from('profiles')
-        .select('id, auth_user_id, deposit_balance, main_balance, mining_balance, profit_balance, total_deposited')
+        .select('id, auth_user_id, deposit_balance, main_balance, mining_balance, profit_balance, total_deposited, metadata')
         .eq('id', deposit.user_id)
         .maybeSingle();
       userProfile = profById;
@@ -264,6 +264,14 @@ export class DepositService {
     const currentProfit = Number(userProfile?.profit_balance || 0);
     const newMainBal = newDepBal + currentMining + currentProfit;
     const newTotalDep = Number(userProfile?.total_deposited || 0) + depositAmount;
+    const nowIso = new Date().toISOString();
+
+    const existingMeta = (userProfile as any)?.metadata || {};
+    const newMeta = {
+      ...existingMeta,
+      mining_started_at: existingMeta.mining_started_at || nowIso,
+      mining_last_synced_at: nowIso,
+    };
 
     if (userProfile) {
       await supabaseAdmin
@@ -272,7 +280,8 @@ export class DepositService {
           deposit_balance: newDepBal,
           main_balance: newMainBal,
           total_deposited: newTotalDep,
-          updated_at: new Date().toISOString(),
+          metadata: newMeta,
+          updated_at: nowIso,
         })
         .eq('id', userProfile.id);
     } else {
@@ -282,7 +291,8 @@ export class DepositService {
           deposit_balance: newDepBal,
           main_balance: newMainBal,
           total_deposited: newTotalDep,
-          updated_at: new Date().toISOString(),
+          metadata: newMeta,
+          updated_at: nowIso,
         })
         .eq('auth_user_id', deposit.user_id);
     }

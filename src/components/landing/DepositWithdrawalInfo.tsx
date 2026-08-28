@@ -182,7 +182,7 @@ export const DepositWithdrawalInfo: React.FC<DepositWithdrawalInfoProps> = ({ on
             </div>
             <div className="p-3 rounded-lg bg-dark-900 border border-white/5">
               <div className="text-slate-400 mb-1">Pending Mining Rewards:</div>
-              <div className="text-white font-semibold">Accumulating block shares undergoing 24h pool validation</div>
+              <div className="text-white font-semibold">Accumulating block shares undergoing real-time pool validation</div>
             </div>
             <div className="p-3 rounded-lg bg-dark-900 border border-white/5">
               <div className="text-slate-400 mb-1">Realized Rewards:</div>
