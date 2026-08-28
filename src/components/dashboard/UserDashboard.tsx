@@ -218,6 +218,18 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   // Calculate session percentage
   const sessionPercent = Math.min(100, Math.max(0, Math.round(((sessionTotalSeconds - sessionSecondsLeft) / sessionTotalSeconds) * 100)));
 
+  // Persistent anchor refs to ensure mining ticker ticks continuously without resetting on 8s polling
+  const baseMiningRef = useRef<number>(dbMiningBal);
+  const sessionMountMsRef = useRef<number>(Date.now());
+
+  useEffect(() => {
+    // If admin explicitly changed database mining balance, update base anchor
+    if (Math.abs(dbMiningBal - baseMiningRef.current) > 0.1) {
+      baseMiningRef.current = dbMiningBal;
+      sessionMountMsRef.current = Date.now();
+    }
+  }, [dbMiningBal]);
+
   // Format time remaining as hh:mm:ss
   const formatTime = (totalSec: number) => formatSecondsToHms(totalSec);
 
@@ -301,11 +313,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
     const uid = user.id;
     const startTimeMs = getMiningStartTimeMs();
-    const sessionMountMs = Date.now();
     
     // Immediate initial sync
     const initialSnap = calculateMiningSnapshot(depositBalanceUsd, startTimeMs, Date.now());
-    setLiveMiningBalance(dbMiningBal);
+    setLiveMiningBalance(baseMiningRef.current);
     setSessionSecondsLeft(initialSnap.cycleSecondsLeft);
     setSessionYieldEarned(initialSnap.cycleYieldEarned);
     setSessionBlockNumber(initialSnap.blockNumber);
@@ -316,9 +327,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
     const interval = setInterval(() => {
       const snap = calculateMiningSnapshot(depositBalanceUsd, startTimeMs, Date.now());
-      const elapsedSinceOpenSec = Math.max(0, Math.floor((Date.now() - sessionMountMs) / 1000));
+      const elapsedSinceOpenSec = Math.max(0, Math.floor((Date.now() - sessionMountMsRef.current) / 1000));
       const liveYield = +(elapsedSinceOpenSec * (depositBalanceUsd * 0.03 / 3600)).toFixed(4);
-      const exactLiveBalance = +(dbMiningBal + liveYield).toFixed(4);
+      const exactLiveBalance = +(baseMiningRef.current + liveYield).toFixed(4);
 
       // Update balances & counters
       setLiveMiningBalance(exactLiveBalance);
@@ -368,7 +379,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [hasApprovedDeposit, depositBalanceUsd, user?.id, dbMiningBal, isMinerStopped, activeProfile?.metadata?.mining_started_at]);
+  }, [hasApprovedDeposit, depositBalanceUsd, user?.id, isMinerStopped, activeProfile?.metadata?.mining_started_at]);
 
 
   return (
@@ -568,13 +579,13 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
               </div>
               <div>
                 <div className="text-2xl sm:text-3xl font-black text-emerald-300 font-mono tracking-tight">
-                  ${miningBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${miningBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                 </div>
                 <div className="text-[11px] text-emerald-400/80 flex items-center gap-1.5 mt-1 font-mono">
                   <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                   <span>
                     {hasApprovedDeposit ? (
-                      <>Live Session: +${sessionYieldEarned.toFixed(2)} &bull; {miningConfig.hourlyRateText}</>
+                      <>Live Session: +${sessionYieldEarned.toFixed(4)} &bull; {miningConfig.hourlyRateText}</>
                     ) : (
                       <>All-Time Assets Mined So Far (Standby)</>
                     )}
@@ -611,7 +622,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
                 <div className="text-[11px] text-gold-400/90 flex flex-wrap items-center gap-1.5 mt-1 font-mono">
                   <span className="text-cyan-300 font-bold">${depositBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2 })} Capital</span>
                   <span className="text-slate-500">+</span>
-                  <span className="text-emerald-400 font-bold">${miningBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Profit</span>
+                  <span className="text-emerald-400 font-bold">${miningBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} Profit</span>
                 </div>
               </div>
             </div>
@@ -798,7 +809,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
               <Server className={`w-3.5 h-3.5 ${hasApprovedDeposit ? 'text-purple-400' : 'text-slate-500'}`} />
             </div>
             <div className="text-2xl font-black text-purple-300 font-mono tracking-tight">
-              ${miningBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${miningBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
             </div>
             <div className="text-[10px] text-purple-400/80 font-mono truncate">
               {hasApprovedDeposit ? `Block #${sessionBlockNumber} \u2022 ${sharesAccepted} Valid Shares` : 'Awaiting Initial Deposit'}
