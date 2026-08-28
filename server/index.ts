@@ -47,7 +47,7 @@ app.use(express.static(distPath));
 // 3. API Routes Mount
 app.use('/api', routes);
 
-// SPA fallback: Send index.html for all non-API GET requests (Express 5 safe)
+// SPA fallback: Send index.html for all non-API GET requests (Express 5 safe, standalone node server)
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api')) {
     return res.sendFile(path.join(distPath, 'index.html'));
@@ -58,16 +58,18 @@ app.use((req, res, next) => {
 // 4. Global Error Handler
 app.use(errorHandler);
 
-
-// 5. Start Server
-const server = app.listen(env.PORT, () => {
-  console.log(`\n======================================================`);
-  console.log(`🚀 QUIBANDS GLOBAL FULL-STACK SERVER RUNNING`);
-  console.log(`📡 URL: http://localhost:${env.PORT}`);
-  console.log(`🩺 Health check: http://localhost:${env.PORT}/api/health`);
-  console.log(`🔒 Environment: ${env.NODE_ENV}`);
-  console.log(`======================================================\n`);
-});
+// 5. Start Server (Standalone / Render / Local Dev - bypassed on Vercel Serverless)
+if (!process.env.VERCEL) {
+  app.listen(env.PORT, () => {
+    console.log(`\n======================================================`);
+    console.log(`🚀 QUIBANDS GLOBAL FULL-STACK SERVER RUNNING`);
+    console.log(`📡 URL: http://localhost:${env.PORT}`);
+    console.log(`🩺 Health check: http://localhost:${env.PORT}/api/health`);
+    console.log(`🔒 Environment: ${env.NODE_ENV}`);
+    console.log(`======================================================\n`);
+  });
+}
 
 export default app;
+
 
