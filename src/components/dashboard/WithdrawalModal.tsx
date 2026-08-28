@@ -68,28 +68,33 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
   mainBalance = 0,
   onSuccess,
 }) => {
-  const { user, session } = useAuth();
+  const { user, profile, session } = useAuth();
 
   const [step, setStep] = useState<WithdrawalStep>('bank-details');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // User Profile state (for fetching saved bank details and convert balance)
-  const [profileConvertBalance, setProfileConvertBalance] = useState<number>(0);
-  const [profileConvertCurrency, setProfileConvertCurrency] = useState<string>('SGD');
-  const [profileMainBalance, setProfileMainBalance] = useState<number>(mainBalance);
+  const initialConvertBal = Number(profile?.convert_balance || 0);
+  const initialConvertCurr = profile?.convert_currency || 'SGD';
+  const initialMainBal = Number(profile?.main_balance ?? mainBalance);
+
+  const [profileConvertBalance, setProfileConvertBalance] = useState<number>(initialConvertBal);
+  const [profileConvertCurrency, setProfileConvertCurrency] = useState<string>(initialConvertCurr);
+  const [profileMainBalance, setProfileMainBalance] = useState<number>(initialMainBal);
 
   // Bank Details Form State
-  const [bankName, setBankName] = useState('');
-  const [accountHolder, setAccountHolder] = useState('');
-  const [accountNumber, setAccountNumber] = useState('');
-  const [swiftRouting, setSwiftRouting] = useState('');
-  const [bankCountry, setBankCountry] = useState('Singapore');
-  const [bankCurrency, setBankCurrency] = useState('SGD');
-  const [isSavedBank, setIsSavedBank] = useState(false);
+  const initialBank = profile?.bank_details;
+  const [bankName, setBankName] = useState(initialBank?.bank_name || '');
+  const [accountHolder, setAccountHolder] = useState(initialBank?.account_holder || profile?.full_name || '');
+  const [accountNumber, setAccountNumber] = useState(initialBank?.account_number || '');
+  const [swiftRouting, setSwiftRouting] = useState(initialBank?.swift_routing || '');
+  const [bankCountry, setBankCountry] = useState(initialBank?.bank_country || 'Singapore');
+  const [bankCurrency, setBankCurrency] = useState(initialBank?.currency || initialConvertCurr || 'SGD');
+  const [isSavedBank, setIsSavedBank] = useState(Boolean(initialBank?.account_number));
 
   // Step 2: Source Balance Selection
-  const [selectedSource, setSelectedSource] = useState<'main' | 'convert'>('convert');
+  const [selectedSource, setSelectedSource] = useState<'main' | 'convert'>(initialConvertBal > 0 ? 'convert' : 'main');
 
   // Step 3: HBC / VBC Code
   const [hbcVbcCode, setHbcVbcCode] = useState('');
@@ -114,57 +119,83 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
     return localStorage.getItem('quibands_auth_token') || sessionStorage.getItem('quibands_auth_token') || '';
   };
 
+  const applyProfileData = (prof: any) => {
+    if (!prof) return;
+    const convBal = Number(prof.convert_balance || 0);
+    const convCurr = prof.convert_currency || 'SGD';
+    const depBal = Number(prof.deposit_balance || 0);
+    const minBal = Number(prof.mining_balance || prof.profit_balance || 0);
+    const mBal = Number(prof.main_balance ?? (depBal + minBal));
+
+    setProfileConvertBalance(convBal);
+    setProfileConvertCurrency(convCurr);
+    setProfileMainBalance(mBal > 0 ? mBal : mainBalance);
+
+    if (prof.bank_details && prof.bank_details.account_number) {
+      const bd: BankDetails = prof.bank_details;
+      setBankName(bd.bank_name || '');
+      setAccountHolder(bd.account_holder || prof.full_name || '');
+      setAccountNumber(bd.account_number || '');
+      setSwiftRouting(bd.swift_routing || '');
+      setBankCountry(bd.bank_country || 'Singapore');
+      setBankCurrency(bd.currency || convCurr || 'SGD');
+      setIsSavedBank(true);
+    } else if (prof.full_name) {
+      setAccountHolder(prof.full_name);
+    }
+
+    if (convBal > 0) {
+      setSelectedSource('convert');
+    } else {
+      setSelectedSource('main');
+    }
+  };
+
+  const fetchUserProfile = async () => {
+    try {
+      if (!user?.id) return;
+
+      // 1. Direct Supabase query (instant & most accurate)
+      const { data: dbProf } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('auth_user_id', user.id)
+        .maybeSingle();
+
+      if (dbProf) {
+        applyProfileData(dbProf);
+        return;
+      }
+
+      // 2. Fallback to API endpoint
+      const token = await getAuthToken();
+      if (token) {
+        const res = await fetch(`${API_BASE}/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const json = await res.json().catch(() => null);
+          if (json?.success && json?.data) {
+            applyProfileData(json.data);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Notice fetching profile for withdrawal:', err);
+    }
+  };
+
   // Fetch user profile and saved bank details when modal opens
   useEffect(() => {
     if (isOpen && user) {
       setStep('bank-details');
       setError(null);
+      if (profile) {
+        applyProfileData(profile);
+      }
       fetchUserProfile();
     }
-  }, [isOpen, user, session?.access_token]);
-
-  const fetchUserProfile = async () => {
-    try {
-      const token = await getAuthToken();
-      if (!token) return;
-
-      const res = await fetch(`${API_BASE}/profile`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await res.json();
-      if (data.success && data.data) {
-        const prof = data.data;
-        setProfileConvertBalance(Number(prof.convert_balance || 0));
-        setProfileConvertCurrency(prof.convert_currency || 'SGD');
-        setProfileMainBalance(Number(prof.main_balance ?? mainBalance));
-
-        // If user already has saved bank details
-        if (prof.bank_details && prof.bank_details.account_number) {
-          const bd: BankDetails = prof.bank_details;
-          setBankName(bd.bank_name || '');
-          setAccountHolder(bd.account_holder || prof.full_name || '');
-          setAccountNumber(bd.account_number || '');
-          setSwiftRouting(bd.swift_routing || '');
-          setBankCountry(bd.bank_country || 'Singapore');
-          setBankCurrency(bd.currency || prof.convert_currency || 'SGD');
-          setIsSavedBank(true);
-        } else if (prof.full_name) {
-          setAccountHolder(prof.full_name);
-        }
-
-        // Set default selected balance to convert if available, otherwise main
-        if (Number(prof.convert_balance || 0) > 0) {
-          setSelectedSource('convert');
-        } else {
-          setSelectedSource('main');
-        }
-      }
-    } catch (err) {
-      console.warn('Error fetching profile for withdrawal:', err);
-    }
-  };
+  }, [isOpen, user?.id, session?.access_token]);
 
   if (!isOpen) return null;
 
