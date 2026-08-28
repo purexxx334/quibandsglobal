@@ -119,11 +119,14 @@ export interface UserProfile {
 
 export interface UserDossier {
   profile: UserProfile;
-  wallets: Wallet[];
-  recentTransactions: Transaction[];
-  recentLogs: SecurityLog[];
-  deposits: DepositRequest[];
-  withdrawals: WithdrawalRequest[];
+  wallets?: Wallet[];
+  recentTransactions?: Transaction[];
+  recentLogs?: SecurityLog[];
+  deposits?: DepositRequest[];
+  withdrawals?: WithdrawalRequest[];
+  transactions?: Transaction[];
+  kyc?: KycSubmission | null;
+  securityLogs?: SecurityLog[];
 }
 
 
