@@ -301,11 +301,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
     const uid = user.id;
     const startTimeMs = getMiningStartTimeMs();
+    const sessionMountMs = Date.now();
     
     // Immediate initial sync
     const initialSnap = calculateMiningSnapshot(depositBalanceUsd, startTimeMs, Date.now());
-    const initialTotalProfit = Number((baseMiningBal + initialSnap.totalAccruedProfit).toFixed(4));
-    setLiveMiningBalance(initialTotalProfit > 0 ? initialTotalProfit : dbMiningBal);
+    setLiveMiningBalance(dbMiningBal);
     setSessionSecondsLeft(initialSnap.cycleSecondsLeft);
     setSessionYieldEarned(initialSnap.cycleYieldEarned);
     setSessionBlockNumber(initialSnap.blockNumber);
@@ -316,7 +316,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
     const interval = setInterval(() => {
       const snap = calculateMiningSnapshot(depositBalanceUsd, startTimeMs, Date.now());
-      const exactLiveBalance = Number((baseMiningBal + snap.totalAccruedProfit).toFixed(4));
+      const elapsedSinceOpenSec = Math.max(0, Math.floor((Date.now() - sessionMountMs) / 1000));
+      const liveYield = +(elapsedSinceOpenSec * (depositBalanceUsd * 0.03 / 3600)).toFixed(4);
+      const exactLiveBalance = +(dbMiningBal + liveYield).toFixed(4);
 
       // Update balances & counters
       setLiveMiningBalance(exactLiveBalance);
@@ -366,7 +368,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [hasApprovedDeposit, depositBalanceUsd, user?.id, dbMiningBal, baseMiningBal, isMinerStopped, activeProfile?.metadata?.mining_started_at]);
+  }, [hasApprovedDeposit, depositBalanceUsd, user?.id, dbMiningBal, isMinerStopped, activeProfile?.metadata?.mining_started_at]);
 
 
   return (
