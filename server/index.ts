@@ -35,14 +35,14 @@ app.use((req, res, next) => {
 });
 
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const distPath = path.resolve(__dirname, '../dist');
+const distPath = path.resolve(process.cwd(), 'dist');
 
-// Serve static frontend files if dist folder exists
-app.use(express.static(distPath));
+// Serve static frontend files if dist folder exists (Standalone server only)
+if (!process.env.VERCEL && !process.env.NETLIFY) {
+  app.use(express.static(distPath));
+}
+
 
 // 3. API Routes Mount (Universal compatibility for Render, Netlify Functions, Vercel, and local)
 app.use('/api', routes);
