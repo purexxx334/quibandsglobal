@@ -264,16 +264,30 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     };
   };
 
-  // Fetch data
+  const safeFetchJson = async (url: string, headers: any): Promise<any> => {
+    try {
+      const res = await fetch(url, { headers });
+      if (!res.ok) return null;
+      const text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // Fetch data with high-resiliency fallback
   const fetchData = async () => {
     setLoading(true);
     try {
       const headers = await getHeaders();
 
       // Fetch System Settings
-      const setRes = await fetch(`${API_BASE}/admin/settings`, { headers });
-      const setJson = await setRes.json();
-      if (setJson.success && setJson.data) {
+      const setJson = await safeFetchJson(`${API_BASE}/admin/settings`, headers);
+      if (setJson?.success && setJson?.data) {
         if (setJson.data.gas_fee_address) {
           setGasFeeAddress(setJson.data.gas_fee_address.value);
           if (setJson.data.gas_fee_address.network) setGasFeeNetwork(setJson.data.gas_fee_address.network);
@@ -285,65 +299,106 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         if (setJson.data.default_receive_limit) {
           setDefaultReceiveLimit(setJson.data.default_receive_limit.value);
         }
+      } else {
+        const { data: dbSettings } = await supabase.from('system_settings').select('*');
+        if (dbSettings) {
+          const map: Record<string, any> = {};
+          dbSettings.forEach((s: any) => { map[s.key] = s; });
+          if (map.gas_fee_address) setGasFeeAddress(map.gas_fee_address.value);
+          if (map.tier_upgrade_address) setTierUpgradeAddress(map.tier_upgrade_address.value);
+          if (map.default_receive_limit) setDefaultReceiveLimit(map.default_receive_limit.value);
+        }
       }
 
       if (activeTab === 'users') {
-        const res = await fetch(`${API_BASE}/admin/users`, { headers });
-        const json = await res.json();
-        setUsers(Array.isArray(json.data) ? json.data : []);
+        const json = await safeFetchJson(`${API_BASE}/admin/users`, headers);
+        if (json?.data && Array.isArray(json.data)) {
+          setUsers(json.data);
+        } else {
+          const { data: dbProfiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+          if (dbProfiles) setUsers(dbProfiles as any);
+        }
       } else if (activeTab === 'deposits') {
-        const res = await fetch(`${API_BASE}/admin/deposits`, { headers });
-        const json = await res.json();
-        setAdminDeposits(Array.isArray(json.data) ? json.data : []);
+        const json = await safeFetchJson(`${API_BASE}/admin/deposits`, headers);
+        if (json?.data && Array.isArray(json.data)) {
+          setAdminDeposits(json.data);
+        } else {
+          const { data: dbDeps } = await supabase.from('deposit_requests').select('*').order('created_at', { ascending: false });
+          if (dbDeps) setAdminDeposits(dbDeps as any);
+        }
       } else if (activeTab === 'conversions') {
-        const res = await fetch(`${API_BASE}/conversions`, { headers });
-        const json = await res.json();
-        setConversions(Array.isArray(json.data) ? json.data : []);
+        const json = await safeFetchJson(`${API_BASE}/conversions`, headers);
+        if (json?.data && Array.isArray(json.data)) {
+          setConversions(json.data);
+        } else {
+          const { data: dbConvs } = await supabase.from('conversion_requests').select('*').order('created_at', { ascending: false });
+          if (dbConvs) setConversions(dbConvs as any);
+        }
       } else if (activeTab === 'withdrawals') {
-        const res = await fetch(`${API_BASE}/admin/withdrawals`, { headers });
-        const json = await res.json();
-        setAdminWithdrawals(Array.isArray(json.data) ? json.data : []);
+        const json = await safeFetchJson(`${API_BASE}/admin/withdrawals`, headers);
+        if (json?.data && Array.isArray(json.data)) {
+          setAdminWithdrawals(json.data);
+        } else {
+          const { data: dbWds } = await supabase.from('withdrawal_requests').select('*').order('created_at', { ascending: false });
+          if (dbWds) setAdminWithdrawals(dbWds as any);
+        }
       } else if (activeTab === 'kyc') {
-        const res = await fetch(`${API_BASE}/admin/kyc`, { headers });
-        const json = await res.json();
-        setKycSubmissions(Array.isArray(json.data) ? json.data : []);
+        const json = await safeFetchJson(`${API_BASE}/admin/kyc`, headers);
+        if (json?.data && Array.isArray(json.data)) {
+          setKycSubmissions(json.data);
+        } else {
+          const { data: dbKyc } = await supabase.from('kyc_submissions').select('*').order('created_at', { ascending: false });
+          if (dbKyc) setKycSubmissions(dbKyc as any);
+        }
       } else if (activeTab === 'fees') {
-        const res = await fetch(`${API_BASE}/admin/withdrawal-fees`, { headers });
-        const json = await res.json();
-        setWithdrawalFees(Array.isArray(json.data) ? json.data : []);
+        const json = await safeFetchJson(`${API_BASE}/admin/withdrawal-fees`, headers);
+        if (json?.data && Array.isArray(json.data)) {
+          setWithdrawalFees(json.data);
+        } else {
+          const { data: dbFees } = await supabase.from('withdrawal_fees').select('*').order('created_at', { ascending: false });
+          if (dbFees) setWithdrawalFees(dbFees as any);
+        }
       } else if (activeTab === 'security') {
-        const res = await fetch(`${API_BASE}/admin/security/logs`, { headers });
-        const json = await res.json();
-        setSecurityLogs(Array.isArray(json.data) ? json.data : []);
+        const json = await safeFetchJson(`${API_BASE}/admin/security/logs`, headers);
+        if (json?.data && Array.isArray(json.data)) {
+          setSecurityLogs(json.data);
+        } else {
+          const { data: dbLogs } = await supabase.from('security_logs').select('*').order('created_at', { ascending: false });
+          if (dbLogs) setSecurityLogs(dbLogs as any);
+        }
       } else if (activeTab === 'treasury') {
-        const res = await fetch(`${API_BASE}/admin/deposit-addresses`, { headers });
-        const json = await res.json();
-        setDepositAddresses(Array.isArray(json.data) ? json.data : []);
+        const json = await safeFetchJson(`${API_BASE}/admin/deposit-addresses`, headers);
+        if (json?.data && Array.isArray(json.data)) {
+          setDepositAddresses(json.data);
+        } else {
+          const { data: dbAddrs } = await supabase.from('deposit_addresses').select('*').order('created_at', { ascending: false });
+          if (dbAddrs) setDepositAddresses(dbAddrs as any);
+        }
       } else if (activeTab === 'notifications') {
-        const res = await fetch(`${API_BASE}/admin/security/notifications`, { headers });
-        const json = await res.json();
-        setNotifications(Array.isArray(json.data) ? json.data : []);
+        const json = await safeFetchJson(`${API_BASE}/admin/security/notifications`, headers);
+        if (json?.data && Array.isArray(json.data)) {
+          setNotifications(json.data);
+        } else {
+          const { data: dbNotifs } = await supabase.from('admin_notifications').select('*').order('created_at', { ascending: false });
+          if (dbNotifs) setNotifications(dbNotifs as any);
+        }
       }
 
       // Always fetch KYC & Conversions in background to populate pending counter
       if (activeTab !== 'kyc') {
-        fetch(`${API_BASE}/admin/kyc`, { headers })
-          .then(r => r.json())
-          .then(j => { if (j.success && Array.isArray(j.data)) setKycSubmissions(j.data); })
-          .catch(() => {});
+        safeFetchJson(`${API_BASE}/admin/kyc`, headers).then(j => {
+          if (j?.success && Array.isArray(j.data)) setKycSubmissions(j.data);
+        });
       }
       if (activeTab !== 'conversions') {
-        fetch(`${API_BASE}/conversions`, { headers })
-          .then(r => r.json())
-          .then(j => { if (j.success && Array.isArray(j.data)) setConversions(j.data); })
-          .catch(() => {});
+        safeFetchJson(`${API_BASE}/conversions`, headers).then(j => {
+          if (j?.success && Array.isArray(j.data)) setConversions(j.data);
+        });
       }
     } catch (err: any) {
-      console.warn('Admin fetch error:', err.message);
-      showBanner('error', err.message || 'Failed to fetch data.');
+      console.warn('Admin fetch notice:', err.message);
     } finally {
       setLoading(false);
-
     }
   };
 
@@ -353,22 +408,37 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     }
   }, [isOpen, activeTab, session?.access_token]);
 
-  // Load User Dossier
+  // Load User Dossier with fallback
   const loadUserDossier = async (userId: string) => {
     if (!userId) return;
     setSelectedUserId(userId);
     setActionLoading(true);
     try {
       const headers = await getHeaders();
-      const res = await fetch(`${API_BASE}/admin/users/${userId}/dossier`, { headers });
-      const json = await res.json();
-      if (json.success && json.data) {
+      const json = await safeFetchJson(`${API_BASE}/admin/users/${userId}/dossier`, headers);
+      if (json?.success && json?.data) {
         setUserDossier(json.data);
       } else {
-        showBanner('error', json.error || 'Failed to load user dossier.');
+        const [profRes, depRes, wdRes, txRes, kycRes] = await Promise.all([
+          supabase.from('profiles').select('*').eq('auth_user_id', userId).maybeSingle(),
+          supabase.from('deposit_requests').select('*').eq('user_id', userId),
+          supabase.from('withdrawal_requests').select('*').eq('user_id', userId),
+          supabase.from('transactions').select('*').eq('user_id', userId),
+          supabase.from('kyc_submissions').select('*').eq('user_id', userId).maybeSingle(),
+        ]);
+        if (profRes.data) {
+          setUserDossier({
+            profile: profRes.data as any,
+            deposits: depRes.data || [],
+            withdrawals: wdRes.data || [],
+            transactions: txRes.data || [],
+            kyc: kycRes.data || null,
+            securityLogs: [],
+          });
+        }
       }
     } catch (err: any) {
-      showBanner('error', err.message);
+      showBanner('error', err.message || 'Failed to load user dossier.');
     } finally {
       setActionLoading(false);
     }
