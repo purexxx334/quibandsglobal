@@ -10,7 +10,8 @@ import {
   Gift, 
   Sparkles,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  ArrowLeft
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { API_BASE } from '../../config/api';
@@ -128,12 +129,24 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onClose })
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-xl transition-all border border-slate-700/60 shadow-sm"
+              title="Go Back"
+            >
+              <ArrowLeft className="w-4 h-4 text-gold-400" />
+              <span>Back</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+              title="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Scrollable Body */}
@@ -284,9 +297,10 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onClose })
           </div>
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition"
+            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-mono flex items-center gap-1.5 transition"
           >
-            Close Hub
+            <ArrowLeft className="w-3.5 h-3.5 text-slate-400" />
+            <span>Back to Dashboard</span>
           </button>
         </div>
 

@@ -12,7 +12,8 @@ import {
   Save, 
   CheckCircle, 
   AlertCircle,
-  Building2 
+  Building2,
+  ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -163,12 +164,24 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               <p className="text-xs text-slate-400">Update your personal and residential details</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-xl transition-all border border-slate-700/60 shadow-sm"
+              title="Go Back"
+            >
+              <ArrowLeft className="w-4 h-4 text-gold-400" />
+              <span>Back</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              title="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Form Content */}
@@ -411,9 +424,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-colors"
+              className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-mono flex items-center gap-1.5 transition-colors"
             >
-              Cancel
+              <ArrowLeft className="w-3.5 h-3.5 text-slate-400" />
+              <span>Back to Dashboard</span>
             </button>
             <button
               type="submit"

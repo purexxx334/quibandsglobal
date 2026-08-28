@@ -10,7 +10,10 @@ import {
   UserPlus, 
   Activity,
   ArrowUpRight,
-  LogOut
+  LogOut,
+  ArrowLeft,
+  Home,
+  LayoutDashboard
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { LanguageSelector } from '../common/LanguageSelector';
@@ -102,16 +105,23 @@ export const Navbar: React.FC<NavbarProps> = ({
           <nav className="hidden xl:flex items-center gap-6">
 
             {user && onNavigateView && (
-              <button
-                onClick={() => onNavigateView('dashboard')}
-                className={`text-xs font-bold font-mono px-3 py-1.5 rounded-lg border transition-all ${
-                  currentView === 'dashboard'
-                    ? 'bg-gold-400/20 text-gold-400 border-gold-400/40 shadow-gold-sm'
-                    : 'text-slate-300 border-transparent hover:text-white'
-                }`}
-              >
-                📊 Dashboard
-              </button>
+              currentView === 'landing' ? (
+                <button
+                  onClick={() => onNavigateView('dashboard')}
+                  className="text-xs font-bold font-mono px-3 py-1.5 rounded-lg border bg-gold-400/20 text-gold-400 border-gold-400/40 shadow-gold-sm hover:bg-gold-400/30 flex items-center gap-1.5 transition-all"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back to Dashboard</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => onNavigateView('landing')}
+                  className="text-xs font-mono px-3 py-1.5 rounded-lg border bg-dark-850 hover:bg-dark-800 text-slate-300 hover:text-white border-white/10 flex items-center gap-1.5 transition-all"
+                >
+                  <Home className="w-3.5 h-3.5 text-gold-400" />
+                  <span>Home View</span>
+                </button>
+              )
             )}
 
             {navLinks.map((link) => (
@@ -297,16 +307,23 @@ export const Navbar: React.FC<NavbarProps> = ({
 
 
                 {onNavigateView && (
-                  <button
-                    onClick={() => { setMobileMenuOpen(false); onNavigateView('dashboard'); }}
-                    className={`w-full py-2.5 px-3 rounded-xl border text-xs font-bold font-mono flex items-center justify-center gap-2 ${
-                      currentView === 'dashboard'
-                        ? 'bg-gold-400/20 text-gold-400 border-gold-400/40'
-                        : 'bg-dark-850 text-slate-200 border-white/10'
-                    }`}
-                  >
-                    <span>📊 INVESTOR DASHBOARD</span>
-                  </button>
+                  currentView === 'landing' ? (
+                    <button
+                      onClick={() => { setMobileMenuOpen(false); onNavigateView('dashboard'); }}
+                      className="w-full py-2.5 px-3 rounded-xl border text-xs font-bold font-mono flex items-center justify-center gap-2 bg-gold-400/20 text-gold-400 border-gold-400/40 shadow-gold-sm"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span>BACK TO DASHBOARD</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => { setMobileMenuOpen(false); onNavigateView('landing'); }}
+                      className="w-full py-2.5 px-3 rounded-xl border text-xs font-mono flex items-center justify-center gap-2 bg-dark-850 text-slate-200 border-white/10"
+                    >
+                      <Home className="w-4 h-4 text-gold-400" />
+                      <span>VIEW LANDING / HOME</span>
+                    </button>
+                  )
                 )}
               </div>
             ) : null}

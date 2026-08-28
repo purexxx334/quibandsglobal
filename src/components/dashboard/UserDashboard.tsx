@@ -127,15 +127,6 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
       if (profRes.status === 'fulfilled' && profRes.value?.success && profRes.value?.data) {
         const p = profRes.value.data;
         setFreshProfile(p);
-        if (Number(p.deposit_balance || 0) === 0 && Number(p.mining_balance || 0) === 0) {
-          setLiveMiningBalance(0);
-          if (user?.id) {
-            localStorage.removeItem(`quibands_miner_${user.id}_start_time`);
-            localStorage.removeItem(`quibands_miner_${user.id}_last_active`);
-            localStorage.removeItem(`quibands_miner_${user.id}_mining_balance`);
-            localStorage.removeItem(`quibands_miner_${user.id}_yield_earned`);
-          }
-        }
       }
 
       // 2. Process Deposits
@@ -245,16 +236,26 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   const getMiningStartTimeMs = (): number => {
     if (!user?.id) return Date.now();
     const uid = user.id;
-    const metaStart = activeProfile?.metadata?.mining_started_at;
+    
+    // Check metadata from freshProfile or profile
+    const metaStart = activeProfile?.metadata?.mining_started_at || profile?.metadata?.mining_started_at;
     if (metaStart) {
       const parsed = new Date(metaStart).getTime();
-      if (!isNaN(parsed) && parsed > 0) return parsed;
+      if (!isNaN(parsed) && parsed > 0) {
+        localStorage.setItem(`quibands_miner_${uid}_start_time`, String(parsed));
+        return parsed;
+      }
     }
+
+    // Check localStorage cache (strictly preserve if valid)
     const localStart = localStorage.getItem(`quibands_miner_${uid}_start_time`);
     if (localStart) {
       const parsed = Number(localStart);
-      if (!isNaN(parsed) && parsed > 0) return parsed;
+      if (!isNaN(parsed) && parsed > 0 && parsed <= Date.now()) {
+        return parsed;
+      }
     }
+
     // Check first approved deposit created_at
     const firstApproved = deposits
       .filter((d) => d.status === 'APPROVED' && d.created_at)
@@ -266,7 +267,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
         return parsed;
       }
     }
-    const profCreated = activeProfile?.created_at;
+
+    // Check account creation timestamp
+    const profCreated = activeProfile?.created_at || profile?.created_at;
     if (profCreated) {
       const parsed = new Date(profCreated).getTime();
       if (!isNaN(parsed) && parsed > 0) {
@@ -274,6 +277,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
         return parsed;
       }
     }
+
     const fallbackNow = Date.now();
     localStorage.setItem(`quibands_miner_${uid}_start_time`, String(fallbackNow));
     return fallbackNow;
@@ -306,22 +310,18 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   };
 
   // =========================================================================
-  // PERSISTENT USER-SCOPED MINING: NEVER RESTARTS ACROSS LOGINS/LOGOUTS & OFFLINE
+  // PERSISTENT USER-SCOPED MINING: NEVER RESTARTS ACROSS LOGINS/LOGOUTS & REFRESHES
   // =========================================================================
   useEffect(() => {
     if (!user?.id) return;
     const uid = user.id;
 
     if (!hasApprovedDeposit || (depositBalanceUsd === 0 && dbMiningBal === 0)) {
-      // User with $0 deposit / after conversion: Miner strictly stays in STANDBY at 0
+      // User with $0 deposit: Miner stays in STANDBY at 0
       setLiveMiningBalance(0);
       setSessionSecondsLeft(sessionTotalSeconds);
       setSessionYieldEarned(0);
       setHashrateSpeed(0);
-      localStorage.removeItem(`quibands_miner_${uid}_start_time`);
-      localStorage.removeItem(`quibands_miner_${uid}_last_active`);
-      localStorage.removeItem(`quibands_miner_${uid}_mining_balance`);
-      localStorage.removeItem(`quibands_miner_${uid}_yield_earned`);
       return;
     }
 

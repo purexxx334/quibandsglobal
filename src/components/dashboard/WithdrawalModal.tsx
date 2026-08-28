@@ -341,12 +341,31 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
             </div>
           </div>
           
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (step === 'select-balance') {
+                  setStep('bank-details');
+                } else if (step === 'hbc-vbc') {
+                  setStep('select-balance');
+                } else {
+                  onClose();
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-xl transition-all border border-slate-700/60 shadow-sm"
+              title="Go Back"
+            >
+              <ArrowLeft className="w-4 h-4 text-gold-400" />
+              <span>Back</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              title="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Step Progress Tracker */}

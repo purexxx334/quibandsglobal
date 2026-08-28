@@ -8,7 +8,8 @@ import {
   MessageSquare, 
   Clock, 
   Mail, 
-  User
+  User,
+  ArrowLeft
 } from 'lucide-react';
 
 interface ContactSupportModalProps {
@@ -57,13 +58,27 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({ isOpen
       <div className="relative w-full max-w-lg rounded-2xl sm:rounded-3xl bg-dark-900 border border-white/10 p-5 sm:p-8 shadow-2xl overflow-hidden my-auto sm:my-8">
 
         
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-xl bg-dark-850 hover:bg-dark-800 text-slate-400 hover:text-white border border-white/5 transition-all"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {/* Top Navigation Bar with Back & Close */}
+        <div className="flex items-center justify-between mb-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-dark-850 hover:bg-dark-800 text-slate-300 hover:text-white border border-white/5 text-xs font-mono transition-all"
+            title="Go Back"
+          >
+            <ArrowLeft className="w-4 h-4 text-gold-400" />
+            <span>Back</span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-xl bg-dark-850 hover:bg-dark-800 text-slate-400 hover:text-white border border-white/5 transition-all"
+            title="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
         {isSuccess ? (
           <div className="text-center py-8 space-y-4">

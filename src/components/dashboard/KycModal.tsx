@@ -15,7 +15,8 @@ import {
   CreditCard,
   Clock,
   RotateCcw,
-  Eye
+  Eye,
+  ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -296,12 +297,24 @@ export const KycModal: React.FC<KycModalProps> = ({
               <p className="text-xs text-slate-400">Global AML/KYC institutional identity compliance</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={isResubmitting ? () => setIsResubmitting(false) : onClose}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-xl transition-all border border-slate-700/60 shadow-sm"
+              title="Go Back"
+            >
+              <ArrowLeft className="w-4 h-4 text-emerald-400" />
+              <span>Back</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              title="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}

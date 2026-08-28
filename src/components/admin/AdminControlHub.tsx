@@ -19,6 +19,7 @@ import {
   History,
   Copy,
   Check,
+  ArrowLeft,
   Smartphone,
   Monitor,
   Globe,
@@ -1040,6 +1041,15 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <button
+              onClick={onClose}
+              className="px-2.5 py-1.5 sm:px-3 rounded-lg bg-gold-500/15 border border-gold-500/40 hover:bg-gold-500/25 text-gold-400 hover:text-white text-xs font-mono font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm shrink-0"
+              title="Return to User Dashboard"
+            >
+              <ArrowLeft className="w-4 h-4 text-gold-400" />
+              <span className="hidden sm:inline">Back to Dashboard</span>
+              <span className="sm:hidden">Back</span>
+            </button>
             <button
               onClick={() => setTestConsoleOpen(true)}
               className="p-2 sm:px-3 sm:py-1.5 rounded-lg bg-dark-850 border border-gold-500/30 hover:border-gold-400 text-gold-400 hover:text-white text-xs font-mono flex items-center gap-1.5 transition active:scale-95 shadow-sm shrink-0"
