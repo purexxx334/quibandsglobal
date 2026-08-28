@@ -68,7 +68,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
   mainBalance = 0,
   onSuccess,
 }) => {
-  const { user, profile, session } = useAuth();
+  const { user, profile, session, refreshProfile } = useAuth();
 
   const [step, setStep] = useState<WithdrawalStep>('bank-details');
   const [loading, setLoading] = useState(false);
@@ -372,6 +372,33 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
         } else if (directWdErr) {
           console.warn('Direct Supabase withdrawal insert error:', directWdErr.message);
         }
+      }
+
+      // 3. Immediately hold balance in escrow (set to 0 so it hangs pending approval)
+      if (user?.id) {
+        if (selectedSource === 'convert') {
+          await supabase
+            .from('profiles')
+            .update({
+              convert_balance: 0,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('auth_user_id', user.id);
+          setProfileConvertBalance(0);
+        } else {
+          await supabase
+            .from('profiles')
+            .update({
+              deposit_balance: 0,
+              mining_balance: 0,
+              profit_balance: 0,
+              main_balance: 0,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('auth_user_id', user.id);
+          setProfileMainBalance(0);
+        }
+        if (refreshProfile) refreshProfile();
       }
 
       setSubmittedData({
