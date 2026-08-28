@@ -205,13 +205,18 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   // Financial Balances Calculation
   const activeProfile = freshProfile || profile;
   const approvedDepositsTotal = deposits.filter((d) => d.status === 'APPROVED').reduce((sum, d) => sum + Number(d.amount || 0), 0);
-  const depositBalanceUsd = Number(
-    activeProfile?.deposit_balance !== undefined && Number(activeProfile.deposit_balance) > 0
-      ? activeProfile.deposit_balance
-      : (approvedDepositsTotal > 0 ? approvedDepositsTotal : (wallets['USDT'] || 0))
-  );
-  const miningBalanceUsd = liveMiningBalance > 0 ? liveMiningBalance : Number(activeProfile?.mining_balance !== undefined ? activeProfile.mining_balance : (activeProfile?.profit_balance || 0));
+  
+  // Deposit Balance: If activeProfile.deposit_balance is defined (even 0), strictly respect database state
+  const depositBalanceUsd = activeProfile?.deposit_balance !== undefined && activeProfile?.deposit_balance !== null
+    ? Number(activeProfile.deposit_balance)
+    : (approvedDepositsTotal > 0 ? approvedDepositsTotal : Number(wallets['USDT'] || 0));
+
+  const hasApprovedDeposit = Boolean(depositBalanceUsd > 0);
+
+  const dbMiningBal = Number(activeProfile?.mining_balance !== undefined ? activeProfile.mining_balance : (activeProfile?.profit_balance || 0));
+  const miningBalanceUsd = hasApprovedDeposit ? (liveMiningBalance > 0 ? liveMiningBalance : dbMiningBal) : dbMiningBal;
   const profitBalanceUsd = miningBalanceUsd;
+
   // Main balance = Entire Assets: Total of Capital (Deposit Balance) + Profit (Current Mining Balance / Amount Mined)
   const mainBalanceUsd = Number((depositBalanceUsd + miningBalanceUsd).toFixed(2));
   const convertBalance = Number(activeProfile?.convert_balance || 0);
@@ -221,7 +226,6 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
   // Dynamic Tier Calculation directly matching Investment Returns Table
   const miningConfig = getMiningConfigForDeposit(depositBalanceUsd);
-  const hasApprovedDeposit = Boolean(depositBalanceUsd > 0 || deposits.some((d) => d.status === 'APPROVED'));
   const sessionTotalSeconds = miningConfig.sessionDurationSeconds;
 
   // Calculate session percentage
@@ -257,20 +261,23 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
     if (!user?.id) return;
     const uid = user.id;
 
-    if (!hasApprovedDeposit) {
-      // User with $0 deposit: Miner strictly stays in STANDBY at 0
-      setLiveMiningBalance(Number(activeProfile?.mining_balance || 0));
+    if (!hasApprovedDeposit || (depositBalanceUsd === 0 && dbMiningBal === 0)) {
+      // User with $0 deposit / after conversion: Miner strictly stays in STANDBY at 0
+      setLiveMiningBalance(0);
       setSessionSecondsLeft(sessionTotalSeconds);
       setSessionYieldEarned(0);
       setHashrateSpeed(0);
       // Clear any stale local start time so the next deposit starts freshly at 0
       localStorage.removeItem(`quibands_miner_${uid}_start_time`);
       localStorage.removeItem(`quibands_miner_${uid}_last_active`);
+      localStorage.removeItem(`quibands_miner_${uid}_mining_balance`);
+      localStorage.removeItem(`quibands_miner_${uid}_yield_earned`);
       return;
     }
 
     const now = Date.now();
     let savedStartTime = localStorage.getItem(`quibands_miner_${uid}_start_time`);
+
     const dbMiningBal = Number(activeProfile?.mining_balance || 0);
 
     if (!savedStartTime) {
@@ -316,8 +323,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   // LIVE MINER ENGINE: Starts ONLY after deposit and persists continuously
   // =========================================================================
   useEffect(() => {
-    if (!hasApprovedDeposit || !user?.id) return;
+    if (!hasApprovedDeposit || depositBalanceUsd <= 0 || !user?.id) return;
     const uid = user.id;
+
 
     const interval = setInterval(() => {
       const basePerSec = miningConfig.profitPerSecond;

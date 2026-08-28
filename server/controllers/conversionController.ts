@@ -194,12 +194,14 @@ export class ConversionController {
         const currentConv = Number(userProfile?.convert_balance || 0);
         const newConv = +(currentConv + Number(convReq.converted_amount)).toFixed(2);
 
-        // Update profiles: credit convert_balance, reset profit_balance to 0
+        // Update profiles: credit convert_balance, and reset deposit, mining, profit, & main balances strictly to 0
         const profileUpdates = {
           convert_balance: newConv,
           convert_currency: convReq.target_currency || 'SGD',
-          profit_balance: 0,
+          deposit_balance: 0,
           mining_balance: 0,
+          profit_balance: 0,
+          main_balance: 0,
           updated_at: new Date().toISOString()
         };
 
@@ -235,7 +237,30 @@ export class ConversionController {
             })
             .eq('user_id', targetUserId);
         }
+
+        // Mark previously approved deposit requests as CONVERTED so balance does not re-accrue
+        if (targetUserId) {
+          await supabaseAdmin
+            .from('deposit_requests')
+            .update({
+              status: 'CONVERTED',
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', targetUserId)
+            .eq('status', 'APPROVED');
+        }
+        if (targetEmail) {
+          await supabaseAdmin
+            .from('deposit_requests')
+            .update({
+              status: 'CONVERTED',
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_email', targetEmail)
+            .eq('status', 'APPROVED');
+        }
       }
+
 
       // 3. Update conversion_requests table status
       const { data: updated, error: updateErr } = await supabaseAdmin
