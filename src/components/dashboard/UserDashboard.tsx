@@ -125,10 +125,21 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
         const profJson = await profRes.json();
         if (profJson.success && profJson.data) {
           setFreshProfile(profJson.data);
+          const p = profJson.data;
+          if (Number(p.deposit_balance || 0) === 0 && Number(p.mining_balance || 0) === 0) {
+            setLiveMiningBalance(0);
+            if (user?.id) {
+              localStorage.removeItem(`quibands_miner_${user.id}_start_time`);
+              localStorage.removeItem(`quibands_miner_${user.id}_last_active`);
+              localStorage.removeItem(`quibands_miner_${user.id}_mining_balance`);
+              localStorage.removeItem(`quibands_miner_${user.id}_yield_earned`);
+            }
+          }
         }
       } catch (profErr) {
         console.warn('Direct profile fetch error:', profErr);
       }
+
 
       // 1. Fetch User Deposits
       const depRes = await fetch(`${API_BASE}/deposits`, { headers });
