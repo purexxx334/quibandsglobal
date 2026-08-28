@@ -27,22 +27,42 @@ import { Headphones } from 'lucide-react';
 
 
 
+import { AdminPortalGateway } from './components/admin/AdminPortalGateway';
+
 function MainAppContent() {
   const { user, role } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>('register');
   const [contactModalOpen, setContactModalOpen] = useState(false);
   
+  const checkIsAdminPath = () => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    return path === '/admin' || path.startsWith('/admin/') || hash === '#admin' || hash.startsWith('#admin');
+  };
+
+  const [isAdminPath, setIsAdminPath] = useState(checkIsAdminPath());
   const [adminHubOpen, setAdminHubOpenState] = useState(false);
 
+  useEffect(() => {
+    const handleLocationCheck = () => {
+      setIsAdminPath(checkIsAdminPath());
+    };
+    window.addEventListener('popstate', handleLocationCheck);
+    return () => window.removeEventListener('popstate', handleLocationCheck);
+  }, []);
+
+  const isSuperAdmin = Boolean(
+    user && (role === 'admin' || role === 'moderator' || user.email?.toLowerCase() === 'admin@quibandsglobal.com')
+  );
+
   const setAdminHubOpen = (open: boolean) => {
-    const isSuperAdmin = user && (role === 'admin' || role === 'moderator' || user.email?.toLowerCase() === 'admin@quibandsglobal.com');
     if (open && !isSuperAdmin) {
-      // Strictly deny access to non-admin users
-      setAdminHubOpenState(false);
-      localStorage.removeItem('quibands_admin_open');
-      if (typeof window !== 'undefined' && window.location.hash.includes('admin')) {
-        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      // Direct unauthorized click to /admin gateway
+      if (typeof window !== 'undefined') {
+        window.history.pushState(null, '', '/admin');
+        setIsAdminPath(true);
       }
       return;
     }
@@ -51,33 +71,25 @@ function MainAppContent() {
     if (typeof window !== 'undefined') {
       if (open) {
         localStorage.setItem('quibands_admin_open', 'true');
-        if (!window.location.hash.includes('admin')) {
-          window.history.replaceState(null, '', '#admin');
+        if (window.location.pathname !== '/admin') {
+          window.history.pushState(null, '', '/admin');
+          setIsAdminPath(true);
         }
       } else {
         localStorage.removeItem('quibands_admin_open');
-        if (window.location.hash.includes('admin')) {
-          window.history.replaceState(null, '', window.location.pathname + window.location.search);
-        }
+        window.history.pushState(null, '', '/');
+        setIsAdminPath(false);
       }
     }
   };
 
   useEffect(() => {
-    const isSuperAdmin = user && (role === 'admin' || role === 'moderator' || user.email?.toLowerCase() === 'admin@quibandsglobal.com');
     if (isSuperAdmin) {
-      if (localStorage.getItem('quibands_admin_open') === 'true' || (typeof window !== 'undefined' && window.location.hash.includes('admin'))) {
+      if (localStorage.getItem('quibands_admin_open') === 'true' || isAdminPath) {
         setAdminHubOpenState(true);
       }
-    } else {
-      // Force closed for regular users, visitors, and unauthorized accounts
-      setAdminHubOpenState(false);
-      localStorage.removeItem('quibands_admin_open');
-      if (typeof window !== 'undefined' && window.location.hash.includes('admin')) {
-        window.history.replaceState(null, '', window.location.pathname + window.location.search);
-      }
     }
-  }, [user, role]);
+  }, [user, role, isAdminPath, isSuperAdmin]);
 
 
   // Auto-open registration modal when visitor arrives via referral link
@@ -136,6 +148,40 @@ function MainAppContent() {
       el.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  // Dedicated Standalone /admin Link & Route
+  if (isAdminPath) {
+    if (isSuperAdmin) {
+      return (
+        <AdminControlHub
+          isOpen={true}
+          onClose={() => {
+            if (typeof window !== 'undefined') {
+              window.history.pushState(null, '', '/');
+            }
+            setIsAdminPath(false);
+            setAdminHubOpenState(false);
+          }}
+        />
+      );
+    }
+
+    return (
+      <AdminPortalGateway
+        onSuccess={() => {
+          setIsAdminPath(true);
+          setAdminHubOpenState(true);
+        }}
+        onExit={() => {
+          if (typeof window !== 'undefined') {
+            window.history.pushState(null, '', '/');
+          }
+          setIsAdminPath(false);
+          setAdminHubOpenState(false);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-dark-950 text-slate-100 flex flex-col font-sans selection:bg-gold-500/30 selection:text-gold-300">
