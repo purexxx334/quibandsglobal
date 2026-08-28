@@ -109,47 +109,41 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   };
 
   // Fetch Dashboard Data
+  // Fetch Dashboard Data with high-performance parallel execution
   const fetchDashboardData = async () => {
-    setLoading(true);
     try {
       const headers = await getHeaders();
 
-      // Refresh Auth Context Profile for updated remarks/balances
-      if (refreshProfile) {
-        await refreshProfile();
-      }
+      // Parallelize all endpoint calls for instant sub-second loading
+      const [profRes, depRes, wdRes, txRes, notifRes, walletRes] = await Promise.allSettled([
+        fetch(`${API_BASE}/profile`, { headers }).then(r => r.json()).catch(() => null),
+        fetch(`${API_BASE}/deposits`, { headers }).then(r => r.json()).catch(() => null),
+        fetch(`${API_BASE}/withdrawals`, { headers }).then(r => r.json()).catch(() => null),
+        fetch(`${API_BASE}/transactions/me`, { headers }).then(r => r.json()).catch(() => null),
+        fetch(`${API_BASE}/notifications`, { headers }).then(r => r.json()).catch(() => null),
+        user?.id ? supabase.from('wallets').select('*').eq('user_id', user.id).maybeSingle() : Promise.resolve({ data: null }),
+      ]);
 
-      // Also directly fetch /api/profile for guaranteed instant reactive updates
-      try {
-        const profRes = await fetch(`${API_BASE}/profile`, { headers });
-        const profJson = await profRes.json();
-        if (profJson.success && profJson.data) {
-          setFreshProfile(profJson.data);
-          const p = profJson.data;
-          if (Number(p.deposit_balance || 0) === 0 && Number(p.mining_balance || 0) === 0) {
-            setLiveMiningBalance(0);
-            if (user?.id) {
-              localStorage.removeItem(`quibands_miner_${user.id}_start_time`);
-              localStorage.removeItem(`quibands_miner_${user.id}_last_active`);
-              localStorage.removeItem(`quibands_miner_${user.id}_mining_balance`);
-              localStorage.removeItem(`quibands_miner_${user.id}_yield_earned`);
-            }
+      // 1. Process Profile
+      if (profRes.status === 'fulfilled' && profRes.value?.success && profRes.value?.data) {
+        const p = profRes.value.data;
+        setFreshProfile(p);
+        if (Number(p.deposit_balance || 0) === 0 && Number(p.mining_balance || 0) === 0) {
+          setLiveMiningBalance(0);
+          if (user?.id) {
+            localStorage.removeItem(`quibands_miner_${user.id}_start_time`);
+            localStorage.removeItem(`quibands_miner_${user.id}_last_active`);
+            localStorage.removeItem(`quibands_miner_${user.id}_mining_balance`);
+            localStorage.removeItem(`quibands_miner_${user.id}_yield_earned`);
           }
         }
-      } catch (profErr) {
-        console.warn('Direct profile fetch error:', profErr);
       }
 
-
-      // 1. Fetch User Deposits
-      const depRes = await fetch(`${API_BASE}/deposits`, { headers });
-      const depJson = await depRes.json();
-      if (depJson.success && Array.isArray(depJson.data)) {
-        setDeposits(depJson.data);
-
-        // Calculate balances from approved deposits
+      // 2. Process Deposits
+      if (depRes.status === 'fulfilled' && depRes.value?.success && Array.isArray(depRes.value?.data)) {
+        setDeposits(depRes.value.data);
         const balanceMap: Record<string, number> = {};
-        depJson.data.forEach((d: DepositRequest) => {
+        depRes.value.data.forEach((d: DepositRequest) => {
           if (d.status === 'APPROVED') {
             const asset = d.asset.toUpperCase();
             balanceMap[asset] = (balanceMap[asset] || 0) + Number(d.amount);
@@ -158,51 +152,34 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
         setWallets(balanceMap);
       }
 
-      // 2. Fetch User Actual Wallets for Main/Mining/Profit balances
-      const { data: walletData } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('user_id', user?.id || '')
-        .maybeSingle();
-
-      if (walletData) {
+      // 3. Process Wallets
+      if (walletRes.status === 'fulfilled' && walletRes.value?.data) {
         setWallets((prev) => ({
           ...prev,
-          USDT: Number(walletData.balance || 0),
+          USDT: Number(walletRes.value.data.balance || 0),
         }));
       }
 
-      // 3. Fetch User Withdrawals
-      const wdRes = await fetch(`${API_BASE}/withdrawals`, { headers });
-      const wdJson = await wdRes.json();
-      if (wdJson.success && Array.isArray(wdJson.data)) {
-        setWithdrawals(wdJson.data);
+      // 4. Process Withdrawals
+      if (wdRes.status === 'fulfilled' && wdRes.value?.success && Array.isArray(wdRes.value?.data)) {
+        setWithdrawals(wdRes.value.data);
       }
 
-      // 4. Fetch User Transactions Ledger
-      try {
-        const txRes = await fetch(`${API_BASE}/transactions/me`, { headers });
-        const txJson = await txRes.json();
-        if (txJson.success && Array.isArray(txJson.data)) {
-          setTransactions(txJson.data);
-        }
-      } catch (txErr) {
-        console.warn('Transactions fetch error:', txErr);
+      // 5. Process Transactions
+      if (txRes.status === 'fulfilled' && txRes.value?.success && Array.isArray(txRes.value?.data)) {
+        setTransactions(txRes.value.data);
       }
 
-      // 5. Fetch User Notifications
-      const notifRes = await fetch(`${API_BASE}/notifications`, { headers });
-      const notifJson = await notifRes.json();
-      if (notifJson.success && Array.isArray(notifJson.data)) {
-        setNotifications(notifJson.data);
+      // 6. Process Notifications
+      if (notifRes.status === 'fulfilled' && notifRes.value?.success && Array.isArray(notifRes.value?.data)) {
+        setNotifications(notifRes.value.data);
       }
 
     } catch (err: any) {
       console.warn('Dashboard fetch error:', err.message);
-    } finally {
-      setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchDashboardData();
