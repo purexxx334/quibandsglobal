@@ -323,10 +323,14 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
             asset: payload.asset,
             network: payload.network,
             amount: payload.amount,
+            fee_amount: 0,
+            net_amount: payload.amount,
             status: 'PENDING',
             destination_wallet_address: `${bankName.trim()}: ${accountNumber.trim()}`,
-            bank_details: payload.bankDetails,
-            metadata: payload.metadata,
+            metadata: {
+              ...payload.metadata,
+              bank_details: payload.bankDetails,
+            },
           })
           .select('*')
           .single();
@@ -334,6 +338,8 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
         if (!directWdErr && directWd) {
           isSuccess = true;
           refId = `QB-WD-${directWd.id.slice(0, 8).toUpperCase()}`;
+        } else if (directWdErr) {
+          console.warn('Direct Supabase withdrawal insert error:', directWdErr.message);
         }
       }
 

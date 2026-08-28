@@ -389,18 +389,40 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
       // 5. Process Conversions
       if (conversionsRes.status === 'fulfilled' && conversionsRes.value?.data && Array.isArray(conversionsRes.value.data)) {
-        setConversions(conversionsRes.value.data);
+        const convs = conversionsRes.value.data.map((c: any) => ({
+          ...c,
+          user_email: c.user_email || profileMap.get(c.user_id)?.email,
+          user_profile: profileMap.get(c.user_id),
+        }));
+        setConversions(convs);
       } else {
         const { data: dbConvs } = await adminDirectClient.from('conversion_requests').select('*').order('created_at', { ascending: false });
-        if (dbConvs) setConversions(dbConvs as any);
+        if (dbConvs) {
+          const convs = dbConvs.map((c: any) => ({
+            ...c,
+            user_email: c.user_email || profileMap.get(c.user_id)?.email,
+            user_profile: profileMap.get(c.user_id),
+          }));
+          setConversions(convs as any);
+        }
       }
 
       // 6. Process KYC
       if (kycRes.status === 'fulfilled' && kycRes.value?.data && Array.isArray(kycRes.value.data)) {
-        setKycSubmissions(kycRes.value.data);
+        const kycs = kycRes.value.data.map((k: any) => ({
+          ...k,
+          user_profile: k.user_profile || profileMap.get(k.user_id),
+        }));
+        setKycSubmissions(kycs);
       } else {
         const { data: dbKyc } = await adminDirectClient.from('kyc_submissions').select('*').order('created_at', { ascending: false });
-        if (dbKyc) setKycSubmissions(dbKyc as any);
+        if (dbKyc) {
+          const kycs = dbKyc.map((k: any) => ({
+            ...k,
+            user_profile: profileMap.get(k.user_id),
+          }));
+          setKycSubmissions(kycs as any);
+        }
       }
 
       // 7. Process Withdrawal Fees

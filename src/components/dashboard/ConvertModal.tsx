@@ -204,24 +204,32 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
             refCode
           })
         });
-        if (res.ok) submitted = true;
+        if (res.ok) {
+          const json = await res.json().catch(() => null);
+          if (json?.success) submitted = true;
+        }
       } catch (e) {}
 
-      // 2. Direct Supabase insert fallback
+      // 2. Direct Supabase insert fallback matching exact PostgreSQL schema
       if (!submitted && user?.id) {
-        await supabase.from('conversion_requests').insert({
+        const userEmail = user.email || profile?.email || 'investor@quibandsglobal.com';
+        const { error: dbErr } = await supabase.from('conversion_requests').insert({
           user_id: user.id,
-          from_currency: 'USD',
-          from_amount: totalUsdMine,
-          to_currency: selectedCurrency.code,
-          to_amount: convertedValue,
+          user_email: userEmail,
+          usd_mine_amount: totalUsdMine,
+          target_currency: selectedCurrency.code,
+          converted_amount: convertedValue,
           exchange_rate: selectedCurrency.ratePerUsd,
           conversion_fee_usd: conversionFeeUsd,
           conversion_fee_bnb: conversionFeeBnb,
           fee_wallet_address: gasFeeWallet,
           status: 'PENDING',
           ref_code: refCode,
-        }).catch(() => {});
+        });
+
+        if (dbErr) {
+          console.warn('Direct Supabase conversion insert error:', dbErr.message);
+        }
       }
     } catch (err) {
       console.warn('Notice submitting conversion request:', err);
