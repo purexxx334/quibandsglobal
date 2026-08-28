@@ -451,6 +451,18 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-3">
+            {(role === 'admin' || user?.email?.toLowerCase() === 'admin@quibandsglobal.com') && onOpenAdmin && (
+              <button
+                onClick={onOpenAdmin}
+                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-gold-400 text-dark-950 hover:brightness-110 font-black text-xs font-mono transition-all flex items-center gap-2 shadow-xl shadow-amber-500/30 transform active:scale-95 animate-pulse cursor-pointer border-2 border-amber-300"
+                title="Launch SuperAdmin Institutional Control Hub"
+              >
+                <ShieldCheck className="w-4 h-4 text-dark-950" />
+                <span>ADMIN CONTROL HUB</span>
+              </button>
+            )}
+
+
             <button
               onClick={() => setEditProfileOpen(true)}
               className="px-4 py-3 rounded-2xl bg-dark-950 border border-slate-700 hover:border-gold-400 text-slate-200 hover:text-white font-semibold text-xs transition-colors flex items-center gap-2"
@@ -508,6 +520,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
               <button
                 type="button"
                 onClick={() => onOpenWithdrawal(depositBalanceUsd, miningBalanceUsd, mainBalanceUsd)}
+
                 className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-dark-950 font-bold text-xs shadow-md transition-all flex items-center gap-2 transform active:scale-95 cursor-pointer"
               >
                 <ArrowUpCircle className="w-4 h-4" />

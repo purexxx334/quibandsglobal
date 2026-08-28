@@ -83,9 +83,9 @@ interface AdminControlHubProps {
 type TabType = 'users' | 'deposits' | 'conversions' | 'withdrawals' | 'kyc' | 'support' | 'fees' | 'settings' | 'security' | 'treasury' | 'notifications';
 
 export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClose }) => {
-
-  const { session, profile } = useAuth();
+  const { session, profile, role, user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>(() => {
+
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('quibands_admin_tab') as TabType;
       if (saved && ['users', 'deposits', 'conversions', 'withdrawals', 'kyc', 'support', 'fees', 'settings', 'security', 'treasury', 'notifications'].includes(saved)) {
@@ -988,6 +988,15 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
 
   if (!isOpen) return null;
+
+  const isSuperAdmin = Boolean(
+    user && (role === 'admin' || role === 'moderator' || user.email?.toLowerCase() === 'admin@quibandsglobal.com')
+  );
+
+  if (!isSuperAdmin) {
+    return null;
+  }
+
 
   // Search filter
   const filteredUsers = (users || []).filter((u) => {

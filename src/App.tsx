@@ -33,14 +33,20 @@ function MainAppContent() {
   const [authMode, setAuthMode] = useState<AuthMode>('register');
   const [contactModalOpen, setContactModalOpen] = useState(false);
   
-  const [adminHubOpen, setAdminHubOpenState] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('quibands_admin_open') === 'true' || window.location.hash.includes('admin');
-    }
-    return false;
-  });
+  const [adminHubOpen, setAdminHubOpenState] = useState(false);
 
   const setAdminHubOpen = (open: boolean) => {
+    const isSuperAdmin = user && (role === 'admin' || role === 'moderator' || user.email?.toLowerCase() === 'admin@quibandsglobal.com');
+    if (open && !isSuperAdmin) {
+      // Strictly deny access to non-admin users
+      setAdminHubOpenState(false);
+      localStorage.removeItem('quibands_admin_open');
+      if (typeof window !== 'undefined' && window.location.hash.includes('admin')) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+      return;
+    }
+
     setAdminHubOpenState(open);
     if (typeof window !== 'undefined') {
       if (open) {
@@ -58,14 +64,21 @@ function MainAppContent() {
   };
 
   useEffect(() => {
-    if (user && (role === 'admin' || role === 'moderator')) {
-      if (localStorage.getItem('quibands_admin_open') === 'true' || window.location.hash.includes('admin')) {
+    const isSuperAdmin = user && (role === 'admin' || role === 'moderator' || user.email?.toLowerCase() === 'admin@quibandsglobal.com');
+    if (isSuperAdmin) {
+      if (localStorage.getItem('quibands_admin_open') === 'true' || (typeof window !== 'undefined' && window.location.hash.includes('admin'))) {
         setAdminHubOpenState(true);
       }
-    } else if (!user) {
+    } else {
+      // Force closed for regular users, visitors, and unauthorized accounts
       setAdminHubOpenState(false);
+      localStorage.removeItem('quibands_admin_open');
+      if (typeof window !== 'undefined' && window.location.hash.includes('admin')) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
     }
   }, [user, role]);
+
 
   // Auto-open registration modal when visitor arrives via referral link
   useEffect(() => {

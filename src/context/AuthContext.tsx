@@ -68,6 +68,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
 
+  // Helper: check user role directly from Supabase user_roles table
+  const checkUserRoleDirectly = async (userId: string, email?: string) => {
+    if (email && (email.toLowerCase() === 'admin@quibandsglobal.com' || email.toLowerCase().startsWith('admin@'))) {
+      setRole('admin');
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+      if (!error && data && data.length > 0) {
+        if (data.some((r: any) => r.role === 'admin')) {
+          setRole('admin');
+        } else if (data.some((r: any) => r.role === 'moderator')) {
+          setRole('moderator');
+        }
+      }
+    } catch (e) {
+      console.warn('Direct role check fallback notice:', e);
+    }
+  };
+
   // 2. Initialize and listen to Supabase Auth state changes
   useEffect(() => {
     let mounted = true;
@@ -80,11 +103,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('Supabase getSession error:', error.message);
         }
 
-        if (mounted) {
+        if (mounted && initialSession?.user) {
           setSession(initialSession);
-          setUser(initialSession?.user || null);
+          setUser(initialSession.user);
 
-          if (initialSession?.access_token) {
+          // Direct role check for instant UI reactivity
+          await checkUserRoleDirectly(initialSession.user.id, initialSession.user.email);
+
+          if (initialSession.access_token) {
             await fetchProfileFromBackend(initialSession.access_token);
           }
         }
@@ -107,8 +133,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(currentSession);
         setUser(currentSession?.user || null);
 
-        if (currentSession?.user?.email?.toLowerCase() === 'admin@quibandsglobal.com') {
-          setRole('admin');
+        if (currentSession?.user) {
+          await checkUserRoleDirectly(currentSession.user.id, currentSession.user.email);
         }
 
         if (currentSession?.access_token) {
@@ -132,6 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setProfile(null);
           setRole('user');
         }
+
 
 
         if (event === 'SIGNED_IN' && currentSession?.user) {

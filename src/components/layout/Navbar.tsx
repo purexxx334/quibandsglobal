@@ -166,7 +166,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </button>
                 )}
 
-                {role === 'admin' && (
+                {(role === 'admin' || user?.email?.toLowerCase() === 'admin@quibandsglobal.com') && (
                   <button
                     onClick={onOpenAdmin}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30 text-xs font-semibold font-mono transition-all animate-pulse"
@@ -176,6 +176,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <span>ADMIN HUB</span>
                   </button>
                 )}
+
 
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dark-850 border border-gold-500/30 text-xs font-mono">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -284,7 +285,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   )}
                 </div>
 
-                {role === 'admin' && onOpenAdmin && (
+                {(role === 'admin' || user?.email?.toLowerCase() === 'admin@quibandsglobal.com') && onOpenAdmin && (
                   <button
                     onClick={() => { setMobileMenuOpen(false); onOpenAdmin(); }}
                     className="w-full py-2.5 px-3 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 font-bold text-xs font-mono flex items-center justify-center gap-2 animate-pulse"
@@ -293,6 +294,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <span>OPEN ADMIN CONTROL HUB</span>
                   </button>
                 )}
+
 
                 {onNavigateView && (
                   <button
