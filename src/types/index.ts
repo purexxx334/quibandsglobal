@@ -217,11 +217,11 @@ export interface Wallet {
 export interface Transaction {
   id: string;
   user_id: string;
-  type: 'deposit' | 'withdrawal' | 'mining_yield' | 'adjustment' | 'fee';
+  type: 'deposit' | 'withdrawal' | 'mining_yield' | 'adjustment' | 'fee' | 'conversion' | 'credit';
   asset: string;
   network: string;
   amount: number;
-  status: 'pending' | 'confirmed' | 'rejected' | 'settled';
+  status: 'pending' | 'confirmed' | 'rejected' | 'settled' | 'approved' | 'completed';
   address?: string | null;
   tx_hash?: string | null;
   memo?: string | null;
