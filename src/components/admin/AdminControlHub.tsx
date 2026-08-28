@@ -279,25 +279,50 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     }
   };
 
-  // Fetch data with high-resiliency fallback
+  // Fetch data with high-resiliency parallel fetching & profile joins
   const fetchData = async () => {
     setLoading(true);
     try {
       const headers = await getHeaders();
 
-      // Fetch System Settings
-      const setJson = await safeFetchJson(`${API_BASE}/admin/settings`, headers);
-      if (setJson?.success && setJson?.data) {
-        if (setJson.data.gas_fee_address) {
-          setGasFeeAddress(setJson.data.gas_fee_address.value);
-          if (setJson.data.gas_fee_address.network) setGasFeeNetwork(setJson.data.gas_fee_address.network);
+      // Parallelize fetching all admin tabs for instant responsiveness
+      const [
+        settingsRes,
+        usersRes,
+        depositsRes,
+        withdrawalsRes,
+        conversionsRes,
+        kycRes,
+        feesRes,
+        securityRes,
+        treasuryRes,
+        notifsRes,
+      ] = await Promise.allSettled([
+        safeFetchJson(`${API_BASE}/admin/settings`, headers),
+        safeFetchJson(`${API_BASE}/admin/users`, headers),
+        safeFetchJson(`${API_BASE}/admin/deposits`, headers),
+        safeFetchJson(`${API_BASE}/admin/withdrawals`, headers),
+        safeFetchJson(`${API_BASE}/conversions`, headers),
+        safeFetchJson(`${API_BASE}/admin/kyc`, headers),
+        safeFetchJson(`${API_BASE}/admin/withdrawal-fees`, headers),
+        safeFetchJson(`${API_BASE}/admin/security/logs`, headers),
+        safeFetchJson(`${API_BASE}/admin/deposit-addresses`, headers),
+        safeFetchJson(`${API_BASE}/admin/security/notifications`, headers),
+      ]);
+
+      // 1. Process Settings
+      if (settingsRes.status === 'fulfilled' && settingsRes.value?.success && settingsRes.value?.data) {
+        const d = settingsRes.value.data;
+        if (d.gas_fee_address) {
+          setGasFeeAddress(d.gas_fee_address.value);
+          if (d.gas_fee_address.network) setGasFeeNetwork(d.gas_fee_address.network);
         }
-        if (setJson.data.tier_upgrade_address) {
-          setTierUpgradeAddress(setJson.data.tier_upgrade_address.value);
-          if (setJson.data.tier_upgrade_address.network) setTierUpgradeNetwork(setJson.data.tier_upgrade_address.network);
+        if (d.tier_upgrade_address) {
+          setTierUpgradeAddress(d.tier_upgrade_address.value);
+          if (d.tier_upgrade_address.network) setTierUpgradeNetwork(d.tier_upgrade_address.network);
         }
-        if (setJson.data.default_receive_limit) {
-          setDefaultReceiveLimit(setJson.data.default_receive_limit.value);
+        if (d.default_receive_limit) {
+          setDefaultReceiveLimit(d.default_receive_limit.value);
         }
       } else {
         const { data: dbSettings } = await supabase.from('system_settings').select('*');
@@ -310,91 +335,105 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         }
       }
 
-      if (activeTab === 'users') {
-        const json = await safeFetchJson(`${API_BASE}/admin/users`, headers);
-        if (json?.data && Array.isArray(json.data)) {
-          setUsers(json.data);
-        } else {
-          const { data: dbProfiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-          if (dbProfiles) setUsers(dbProfiles as any);
-        }
-      } else if (activeTab === 'deposits') {
-        const json = await safeFetchJson(`${API_BASE}/admin/deposits`, headers);
-        if (json?.data && Array.isArray(json.data)) {
-          setAdminDeposits(json.data);
-        } else {
-          const { data: dbDeps } = await supabase.from('deposit_requests').select('*').order('created_at', { ascending: false });
-          if (dbDeps) setAdminDeposits(dbDeps as any);
-        }
-      } else if (activeTab === 'conversions') {
-        const json = await safeFetchJson(`${API_BASE}/conversions`, headers);
-        if (json?.data && Array.isArray(json.data)) {
-          setConversions(json.data);
-        } else {
-          const { data: dbConvs } = await supabase.from('conversion_requests').select('*').order('created_at', { ascending: false });
-          if (dbConvs) setConversions(dbConvs as any);
-        }
-      } else if (activeTab === 'withdrawals') {
-        const json = await safeFetchJson(`${API_BASE}/admin/withdrawals`, headers);
-        if (json?.data && Array.isArray(json.data)) {
-          setAdminWithdrawals(json.data);
-        } else {
-          const { data: dbWds } = await supabase.from('withdrawal_requests').select('*').order('created_at', { ascending: false });
-          if (dbWds) setAdminWithdrawals(dbWds as any);
-        }
-      } else if (activeTab === 'kyc') {
-        const json = await safeFetchJson(`${API_BASE}/admin/kyc`, headers);
-        if (json?.data && Array.isArray(json.data)) {
-          setKycSubmissions(json.data);
-        } else {
-          const { data: dbKyc } = await supabase.from('kyc_submissions').select('*').order('created_at', { ascending: false });
-          if (dbKyc) setKycSubmissions(dbKyc as any);
-        }
-      } else if (activeTab === 'fees') {
-        const json = await safeFetchJson(`${API_BASE}/admin/withdrawal-fees`, headers);
-        if (json?.data && Array.isArray(json.data)) {
-          setWithdrawalFees(json.data);
-        } else {
-          const { data: dbFees } = await supabase.from('withdrawal_fees').select('*').order('created_at', { ascending: false });
-          if (dbFees) setWithdrawalFees(dbFees as any);
-        }
-      } else if (activeTab === 'security') {
-        const json = await safeFetchJson(`${API_BASE}/admin/security/logs`, headers);
-        if (json?.data && Array.isArray(json.data)) {
-          setSecurityLogs(json.data);
-        } else {
-          const { data: dbLogs } = await supabase.from('security_logs').select('*').order('created_at', { ascending: false });
-          if (dbLogs) setSecurityLogs(dbLogs as any);
-        }
-      } else if (activeTab === 'treasury') {
-        const json = await safeFetchJson(`${API_BASE}/admin/deposit-addresses`, headers);
-        if (json?.data && Array.isArray(json.data)) {
-          setDepositAddresses(json.data);
-        } else {
-          const { data: dbAddrs } = await supabase.from('deposit_addresses').select('*').order('created_at', { ascending: false });
-          if (dbAddrs) setDepositAddresses(dbAddrs as any);
-        }
-      } else if (activeTab === 'notifications') {
-        const json = await safeFetchJson(`${API_BASE}/admin/security/notifications`, headers);
-        if (json?.data && Array.isArray(json.data)) {
-          setNotifications(json.data);
-        } else {
-          const { data: dbNotifs } = await supabase.from('admin_notifications').select('*').order('created_at', { ascending: false });
-          if (dbNotifs) setNotifications(dbNotifs as any);
+      // 2. Process Users
+      let currentProfiles: any[] = [];
+      if (usersRes.status === 'fulfilled' && usersRes.value?.data && Array.isArray(usersRes.value.data)) {
+        currentProfiles = usersRes.value.data;
+        setUsers(currentProfiles);
+      } else {
+        const { data: dbProfiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+        if (dbProfiles) {
+          currentProfiles = dbProfiles;
+          setUsers(dbProfiles as any);
         }
       }
 
-      // Always fetch KYC & Conversions in background to populate pending counter
-      if (activeTab !== 'kyc') {
-        safeFetchJson(`${API_BASE}/admin/kyc`, headers).then(j => {
-          if (j?.success && Array.isArray(j.data)) setKycSubmissions(j.data);
-        });
+      const profileMap = new Map<string, any>(currentProfiles.map(p => [p.auth_user_id, p]));
+
+      // 3. Process Deposits
+      if (depositsRes.status === 'fulfilled' && depositsRes.value?.data && Array.isArray(depositsRes.value.data)) {
+        const deps = depositsRes.value.data.map((d: any) => ({
+          ...d,
+          user_profile: d.user_profile || profileMap.get(d.user_id),
+        }));
+        setAdminDeposits(deps);
+      } else {
+        const { data: dbDeps } = await supabase.from('deposit_requests').select('*').order('created_at', { ascending: false });
+        if (dbDeps) {
+          const deps = dbDeps.map((d: any) => ({
+            ...d,
+            user_profile: profileMap.get(d.user_id),
+          }));
+          setAdminDeposits(deps as any);
+        }
       }
-      if (activeTab !== 'conversions') {
-        safeFetchJson(`${API_BASE}/conversions`, headers).then(j => {
-          if (j?.success && Array.isArray(j.data)) setConversions(j.data);
-        });
+
+      // 4. Process Withdrawals
+      if (withdrawalsRes.status === 'fulfilled' && withdrawalsRes.value?.data && Array.isArray(withdrawalsRes.value.data)) {
+        const wds = withdrawalsRes.value.data.map((w: any) => ({
+          ...w,
+          user_profile: w.user_profile || profileMap.get(w.user_id),
+        }));
+        setAdminWithdrawals(wds);
+      } else {
+        const { data: dbWds } = await supabase.from('withdrawal_requests').select('*').order('created_at', { ascending: false });
+        if (dbWds) {
+          const wds = dbWds.map((w: any) => ({
+            ...w,
+            user_profile: profileMap.get(w.user_id),
+          }));
+          setAdminWithdrawals(wds as any);
+        }
       }
+
+      // 5. Process Conversions
+      if (conversionsRes.status === 'fulfilled' && conversionsRes.value?.data && Array.isArray(conversionsRes.value.data)) {
+        setConversions(conversionsRes.value.data);
+      } else {
+        const { data: dbConvs } = await supabase.from('conversion_requests').select('*').order('created_at', { ascending: false });
+        if (dbConvs) setConversions(dbConvs as any);
+      }
+
+      // 6. Process KYC
+      if (kycRes.status === 'fulfilled' && kycRes.value?.data && Array.isArray(kycRes.value.data)) {
+        setKycSubmissions(kycRes.value.data);
+      } else {
+        const { data: dbKyc } = await supabase.from('kyc_submissions').select('*').order('created_at', { ascending: false });
+        if (dbKyc) setKycSubmissions(dbKyc as any);
+      }
+
+      // 7. Process Withdrawal Fees
+      if (feesRes.status === 'fulfilled' && feesRes.value?.data && Array.isArray(feesRes.value.data)) {
+        setWithdrawalFees(feesRes.value.data);
+      } else {
+        const { data: dbFees } = await supabase.from('withdrawal_fees').select('*').order('created_at', { ascending: false });
+        if (dbFees) setWithdrawalFees(dbFees as any);
+      }
+
+      // 8. Process Security Logs
+      if (securityRes.status === 'fulfilled' && securityRes.value?.data && Array.isArray(securityRes.value.data)) {
+        setSecurityLogs(securityRes.value.data);
+      } else {
+        const { data: dbLogs } = await supabase.from('security_logs').select('*').order('created_at', { ascending: false });
+        if (dbLogs) setSecurityLogs(dbLogs as any);
+      }
+
+      // 9. Process Deposit Addresses / Treasury
+      if (treasuryRes.status === 'fulfilled' && treasuryRes.value?.data && Array.isArray(treasuryRes.value.data)) {
+        setDepositAddresses(treasuryRes.value.data);
+      } else {
+        const { data: dbAddrs } = await supabase.from('deposit_addresses').select('*').order('created_at', { ascending: false });
+        if (dbAddrs) setDepositAddresses(dbAddrs as any);
+      }
+
+      // 10. Process Notifications
+      if (notifsRes.status === 'fulfilled' && notifsRes.value?.data && Array.isArray(notifsRes.value.data)) {
+        setNotifications(notifsRes.value.data);
+      } else {
+        const { data: dbNotifs } = await supabase.from('admin_notifications').select('*').order('created_at', { ascending: false });
+        if (dbNotifs) setNotifications(dbNotifs as any);
+      }
+
     } catch (err: any) {
       console.warn('Admin fetch notice:', err.message);
     } finally {
