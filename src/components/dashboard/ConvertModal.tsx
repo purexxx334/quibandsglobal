@@ -183,36 +183,10 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
     setConversionRef(refCode);
 
     try {
-      // 1. Submit conversion request to API
-      let submitted = false;
-      try {
-        const token = session?.access_token;
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const res = await fetch(`${API_BASE}/conversions`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            usdMineAmount: totalUsdMine,
-            targetCurrency: selectedCurrency.code,
-            convertedAmount: convertedValue,
-            exchangeRate: selectedCurrency.ratePerUsd,
-            conversionFeeUsd,
-            conversionFeeBnb,
-            feeWalletAddress: gasFeeWallet,
-            refCode
-          })
-        });
-        if (res.ok) {
-          const json = await res.json().catch(() => null);
-          if (json?.success) submitted = true;
-        }
-      } catch (e) {}
-
-      // 2. Direct Supabase insert fallback matching exact PostgreSQL schema
-      if (!submitted && user?.id) {
+      if (user?.id) {
         const userEmail = user.email || profile?.email || 'investor@quibandsglobal.com';
+        
+        // 1. Record Conversion Request with status PENDING
         const { error: dbErr } = await supabase.from('conversion_requests').insert({
           user_id: user.id,
           user_email: userEmail,
@@ -228,7 +202,23 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
         });
 
         if (dbErr) {
-          console.warn('Direct Supabase conversion insert error:', dbErr.message);
+          console.warn('Supabase conversion insert error:', dbErr.message);
+        }
+
+        // 2. Put funds in escrow (hold capital & mining balances so balance is hanging)
+        await supabase
+          .from('profiles')
+          .update({
+            deposit_balance: 0,
+            mining_balance: 0,
+            profit_balance: 0,
+            main_balance: 0,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('auth_user_id', user.id);
+
+        if (refreshProfile) {
+          await refreshProfile();
         }
       }
     } catch (err) {

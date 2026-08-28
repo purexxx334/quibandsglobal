@@ -1125,7 +1125,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
       } catch (e) {}
 
       if (!isSuccess) {
-        // Direct DB update fallback & credit convert balance
+        // Direct DB update: mark CONVERTED
         const { data: conv } = await adminDirectClient
           .from('conversion_requests')
           .update({ status: 'CONVERTED', updated_at: new Date().toISOString() })
@@ -1135,12 +1135,22 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
         if (conv) {
           isSuccess = true;
+          // Fetch existing user profile to accumulate convert_balance
+          const { data: userProf } = await adminDirectClient
+            .from('profiles')
+            .select('convert_balance')
+            .eq('auth_user_id', conv.user_id)
+            .maybeSingle();
+
+          const currentConvert = Number(userProf?.convert_balance) || 0;
+          const addAmount = Number(conv.converted_amount || conv.to_amount || 0);
+
           // Credit user's convert_balance & set convert_currency
           await adminDirectClient
             .from('profiles')
             .update({
-              convert_balance: Number(conv.to_amount || conv.converted_amount || 0),
-              convert_currency: conv.to_currency || conv.target_currency || 'SGD',
+              convert_balance: +(currentConvert + addAmount).toFixed(2),
+              convert_currency: conv.target_currency || conv.to_currency || 'SGD',
               updated_at: new Date().toISOString(),
             })
             .eq('auth_user_id', conv.user_id);
@@ -1148,7 +1158,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
       }
 
       if (isSuccess) {
-        showBanner('success', 'Conversion approved! Converted balance credited to user.');
+        showBanner('success', 'Conversion approved! Converted balance disbursed to user.');
         fetchData();
       } else {
         showBanner('error', 'Approval failed.');
@@ -1160,7 +1170,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     }
   };
 
-  // Reject Conversion Request with direct DB fallback
+  // Reject Conversion Request with direct DB fallback & full balance refund
   const handleRejectConversion = async (conversionId: string, reason?: string) => {
     setActionLoading(true);
     try {
@@ -1179,19 +1189,43 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
       } catch (e) {}
 
       if (!isSuccess) {
-        await adminDirectClient
+        const { data: conv } = await adminDirectClient
           .from('conversion_requests')
           .update({
             status: 'REJECTED',
             admin_notes: reason || 'Rejected by Admin',
             updated_at: new Date().toISOString(),
           })
-          .eq('id', conversionId);
-        isSuccess = true;
+          .eq('id', conversionId)
+          .select('*')
+          .single();
+
+        if (conv) {
+          isSuccess = true;
+          // Restore held capital/mining balance to user profile
+          const { data: userProf } = await adminDirectClient
+            .from('profiles')
+            .select('deposit_balance, main_balance')
+            .eq('auth_user_id', conv.user_id)
+            .maybeSingle();
+
+          const refundAmount = Number(conv.usd_mine_amount || conv.from_amount || 0);
+          const restoredDep = (Number(userProf?.deposit_balance) || 0) + refundAmount;
+          const restoredMain = (Number(userProf?.main_balance) || 0) + refundAmount;
+
+          await adminDirectClient
+            .from('profiles')
+            .update({
+              deposit_balance: +restoredDep.toFixed(2),
+              main_balance: +restoredMain.toFixed(2),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('auth_user_id', conv.user_id);
+        }
       }
 
       if (isSuccess) {
-        showBanner('success', 'Conversion request rejected.');
+        showBanner('success', 'Conversion request rejected and funds refunded to user.');
         fetchData();
       } else {
         showBanner('error', 'Rejection failed.');
