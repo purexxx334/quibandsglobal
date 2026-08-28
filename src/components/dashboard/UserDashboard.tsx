@@ -127,6 +127,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
       if (profRes.status === 'fulfilled' && profRes.value?.success && profRes.value?.data) {
         const p = profRes.value.data;
         setFreshProfile(p);
+      } else if (user?.id) {
+        const { data: directProf } = await supabase.from('profiles').select('*').eq('auth_user_id', user.id).maybeSingle();
+        if (directProf) {
+          setFreshProfile(directProf as any);
+        }
       }
 
       // 2. Process Deposits

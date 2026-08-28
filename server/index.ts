@@ -15,7 +15,7 @@ app.set('trust proxy', env.TRUST_PROXY);
 // 2. Global Middlewares
 app.use(
   cors({
-    origin: [env.CLIENT_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: true,
     credentials: true,
   })
 );

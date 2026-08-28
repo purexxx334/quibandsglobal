@@ -33,38 +33,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRole] = useState<'user' | 'admin' | 'moderator'>('user');
   const [loading, setLoading] = useState<boolean>(true);
 
-  // 1. Fetch user profile from the Node.js / Express backend
+  // 1. Fetch user profile from the Node.js / Express backend with direct Supabase fallback
   const fetchProfileFromBackend = async (authToken?: string): Promise<UserProfile | null> => {
     const token = authToken || session?.access_token;
-    if (!token) return null;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/profile`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      if (token) {
+        const response = await fetch(`${API_BASE_URL}/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-      if (!response.ok) {
-        console.warn(`[Backend Profile] Status ${response.status}: Failed to retrieve profile.`);
-        return null;
-      }
-
-      const result = await response.json();
-      if (result.success && result.data) {
-        setProfile(result.data);
-        if (result.data.role === 'admin' || result.data.email?.toLowerCase() === 'admin@quibandsglobal.com') {
-          setRole('admin');
-        } else if (result.data.role) {
-          setRole(result.data.role);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data) {
+            setProfile(result.data);
+            if (result.data.role === 'admin' || result.data.email?.toLowerCase() === 'admin@quibandsglobal.com') {
+              setRole('admin');
+            } else if (result.data.role) {
+              setRole(result.data.role);
+            }
+            return result.data;
+          }
         }
-        return result.data;
       }
-      return null;
     } catch (err) {
-      console.warn('[Backend Profile API Error]:', err);
-      return null;
+      console.warn('[Backend Profile API Notice]:', err);
     }
+
+    // Direct Supabase Fallback for instant client-side resiliency
+    try {
+      const currentUid = user?.id || session?.user?.id;
+      if (currentUid) {
+        const { data: directProf } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('auth_user_id', currentUid)
+          .maybeSingle();
+
+        if (directProf) {
+          setProfile(directProf as any);
+          if (directProf.role === 'admin' || directProf.email?.toLowerCase() === 'admin@quibandsglobal.com') {
+            setRole('admin');
+          }
+          return directProf as any;
+        }
+      }
+    } catch (directErr) {
+      console.warn('[Direct Supabase Profile Fallback]:', directErr);
+    }
+
+    return null;
   };
 
 
