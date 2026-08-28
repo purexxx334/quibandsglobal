@@ -74,6 +74,7 @@ import {
   ConversionRequest
 } from '../../types';
 import { supabase } from '../../lib/supabase';
+import { adminDirectClient } from '../../lib/adminDirectClient';
 import { API_BASE } from '../../config/api';
 import { DevAuthAdminTest } from '../dev/DevAuthAdminTest';
 
@@ -325,7 +326,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
           setDefaultReceiveLimit(d.default_receive_limit.value);
         }
       } else {
-        const { data: dbSettings } = await supabase.from('system_settings').select('*');
+        const { data: dbSettings } = await adminDirectClient.from('system_settings').select('*');
         if (dbSettings) {
           const map: Record<string, any> = {};
           dbSettings.forEach((s: any) => { map[s.key] = s; });
@@ -341,7 +342,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         currentProfiles = usersRes.value.data;
         setUsers(currentProfiles);
       } else {
-        const { data: dbProfiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+        const { data: dbProfiles } = await adminDirectClient.from('profiles').select('*').order('created_at', { ascending: false });
         if (dbProfiles) {
           currentProfiles = dbProfiles;
           setUsers(dbProfiles as any);
@@ -358,7 +359,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         }));
         setAdminDeposits(deps);
       } else {
-        const { data: dbDeps } = await supabase.from('deposit_requests').select('*').order('created_at', { ascending: false });
+        const { data: dbDeps } = await adminDirectClient.from('deposit_requests').select('*').order('created_at', { ascending: false });
         if (dbDeps) {
           const deps = dbDeps.map((d: any) => ({
             ...d,
@@ -376,7 +377,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         }));
         setAdminWithdrawals(wds);
       } else {
-        const { data: dbWds } = await supabase.from('withdrawal_requests').select('*').order('created_at', { ascending: false });
+        const { data: dbWds } = await adminDirectClient.from('withdrawal_requests').select('*').order('created_at', { ascending: false });
         if (dbWds) {
           const wds = dbWds.map((w: any) => ({
             ...w,
@@ -390,7 +391,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
       if (conversionsRes.status === 'fulfilled' && conversionsRes.value?.data && Array.isArray(conversionsRes.value.data)) {
         setConversions(conversionsRes.value.data);
       } else {
-        const { data: dbConvs } = await supabase.from('conversion_requests').select('*').order('created_at', { ascending: false });
+        const { data: dbConvs } = await adminDirectClient.from('conversion_requests').select('*').order('created_at', { ascending: false });
         if (dbConvs) setConversions(dbConvs as any);
       }
 
@@ -398,7 +399,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
       if (kycRes.status === 'fulfilled' && kycRes.value?.data && Array.isArray(kycRes.value.data)) {
         setKycSubmissions(kycRes.value.data);
       } else {
-        const { data: dbKyc } = await supabase.from('kyc_submissions').select('*').order('created_at', { ascending: false });
+        const { data: dbKyc } = await adminDirectClient.from('kyc_submissions').select('*').order('created_at', { ascending: false });
         if (dbKyc) setKycSubmissions(dbKyc as any);
       }
 
@@ -406,7 +407,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
       if (feesRes.status === 'fulfilled' && feesRes.value?.data && Array.isArray(feesRes.value.data)) {
         setWithdrawalFees(feesRes.value.data);
       } else {
-        const { data: dbFees } = await supabase.from('withdrawal_fees').select('*').order('created_at', { ascending: false });
+        const { data: dbFees } = await adminDirectClient.from('withdrawal_fees').select('*').order('created_at', { ascending: false });
         if (dbFees) setWithdrawalFees(dbFees as any);
       }
 
@@ -414,7 +415,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
       if (securityRes.status === 'fulfilled' && securityRes.value?.data && Array.isArray(securityRes.value.data)) {
         setSecurityLogs(securityRes.value.data);
       } else {
-        const { data: dbLogs } = await supabase.from('security_logs').select('*').order('created_at', { ascending: false });
+        const { data: dbLogs } = await adminDirectClient.from('security_logs').select('*').order('created_at', { ascending: false });
         if (dbLogs) setSecurityLogs(dbLogs as any);
       }
 
@@ -422,7 +423,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
       if (treasuryRes.status === 'fulfilled' && treasuryRes.value?.data && Array.isArray(treasuryRes.value.data)) {
         setDepositAddresses(treasuryRes.value.data);
       } else {
-        const { data: dbAddrs } = await supabase.from('deposit_addresses').select('*').order('created_at', { ascending: false });
+        const { data: dbAddrs } = await adminDirectClient.from('deposit_addresses').select('*').order('created_at', { ascending: false });
         if (dbAddrs) setDepositAddresses(dbAddrs as any);
       }
 
@@ -430,7 +431,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
       if (notifsRes.status === 'fulfilled' && notifsRes.value?.data && Array.isArray(notifsRes.value.data)) {
         setNotifications(notifsRes.value.data);
       } else {
-        const { data: dbNotifs } = await supabase.from('admin_notifications').select('*').order('created_at', { ascending: false });
+        const { data: dbNotifs } = await adminDirectClient.from('admin_notifications').select('*').order('created_at', { ascending: false });
         if (dbNotifs) setNotifications(dbNotifs as any);
       }
 
@@ -459,11 +460,11 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         setUserDossier(json.data);
       } else {
         const [profRes, depRes, wdRes, txRes, kycRes] = await Promise.all([
-          supabase.from('profiles').select('*').eq('auth_user_id', userId).maybeSingle(),
-          supabase.from('deposit_requests').select('*').eq('user_id', userId),
-          supabase.from('withdrawal_requests').select('*').eq('user_id', userId),
-          supabase.from('transactions').select('*').eq('user_id', userId),
-          supabase.from('kyc_submissions').select('*').eq('user_id', userId).maybeSingle(),
+          adminDirectClient.from('profiles').select('*').eq('auth_user_id', userId).maybeSingle(),
+          adminDirectClient.from('deposit_requests').select('*').eq('user_id', userId),
+          adminDirectClient.from('withdrawal_requests').select('*').eq('user_id', userId),
+          adminDirectClient.from('transactions').select('*').eq('user_id', userId),
+          adminDirectClient.from('kyc_submissions').select('*').eq('user_id', userId).maybeSingle(),
         ]);
         if (profRes.data) {
           setUserDossier({
