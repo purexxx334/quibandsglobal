@@ -58,8 +58,8 @@ app.use((req, res, next) => {
 // 4. Global Error Handler
 app.use(errorHandler);
 
-// 5. Start Server (Standalone / Render / Local Dev - bypassed on Vercel Serverless)
-if (!process.env.VERCEL) {
+// 5. Start Server (Standalone / Render / Local Dev - bypassed on Serverless)
+if (!process.env.VERCEL && !process.env.NETLIFY) {
   app.listen(env.PORT, () => {
     console.log(`\n======================================================`);
     console.log(`🚀 QUIBANDS GLOBAL FULL-STACK SERVER RUNNING`);
@@ -71,5 +71,6 @@ if (!process.env.VERCEL) {
 }
 
 export default app;
+
 
 
