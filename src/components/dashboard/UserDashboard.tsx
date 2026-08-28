@@ -160,9 +160,87 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
         setWithdrawals(wdRes.value.data);
       }
 
-      // 5. Process Transactions
+      // 5. Process Transactions & Synthesize Comprehensive History
+      let txList: any[] = [];
       if (txRes.status === 'fulfilled' && txRes.value?.success && Array.isArray(txRes.value?.data)) {
-        setTransactions(txRes.value.data);
+        txList = txRes.value.data;
+      }
+
+      // If backend transactions list is empty, query Supabase directly and combine all transactions (deposits, withdrawals, conversions, direct ledger)
+      if (user?.id) {
+        const [directTxs, directDeps, directWds, directConvs] = await Promise.all([
+          supabase.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+          supabase.from('deposit_requests').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+          supabase.from('withdrawal_requests').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+          supabase.from('conversion_requests').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+        ]);
+
+        const combinedMap = new Map<string, any>();
+
+        // Add direct ledger transactions
+        (directTxs.data || []).forEach((t: any) => combinedMap.set(String(t.id), t));
+        txList.forEach((t: any) => combinedMap.set(String(t.id), t));
+
+        // Add deposits to transaction history
+        (directDeps.data || []).forEach((d: any) => {
+          const key = `dep_${d.id}`;
+          if (!combinedMap.has(key)) {
+            combinedMap.set(key, {
+              id: key,
+              user_id: d.user_id,
+              type: 'deposit',
+              amount: Number(d.amount),
+              asset: d.asset || 'USDT',
+              status: d.status.toLowerCase(),
+              memo: `Deposit via ${d.network || d.asset} (${d.status})`,
+              created_at: d.created_at,
+            });
+          }
+        });
+
+        // Add withdrawals to transaction history
+        (directWds.data || []).forEach((w: any) => {
+          const key = `wd_${w.id}`;
+          if (!combinedMap.has(key)) {
+            combinedMap.set(key, {
+              id: key,
+              user_id: w.user_id,
+              type: 'withdrawal',
+              amount: Number(w.amount),
+              asset: w.asset || 'USDT',
+              status: w.status.toLowerCase(),
+              memo: `Withdrawal to ${w.bank_details?.bank_name || 'Bank Wire'} (${w.status})`,
+              created_at: w.created_at,
+            });
+          }
+        });
+
+        // Add conversions to transaction history
+        (directConvs.data || []).forEach((c: any) => {
+          const key = `conv_${c.id}`;
+          if (!combinedMap.has(key)) {
+            combinedMap.set(key, {
+              id: key,
+              user_id: c.user_id,
+              type: 'conversion',
+              amount: Number(c.from_amount || c.amount || 0),
+              asset: c.from_currency || 'USDT',
+              status: c.status.toLowerCase(),
+              memo: `Converted ${c.from_amount || 0} ${c.from_currency || 'USDT'} to ${c.to_amount || 0} ${c.to_currency || 'SGD'} (${c.status})`,
+              created_at: c.created_at,
+            });
+          }
+        });
+
+        const sortedCombined = Array.from(combinedMap.values()).sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+
+        setTransactions(sortedCombined);
+        if (directDeps.data && directDeps.data.length > 0) setDeposits(directDeps.data);
+        if (directWds.data && directWds.data.length > 0) setWithdrawals(directWds.data);
+      } else if (txList.length > 0) {
+        setTransactions(txList);
       }
 
       // 6. Process Notifications
@@ -431,7 +509,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
             </div>
             
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Welcome Back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-gold-300 via-gold-400 to-amber-500">{profile?.full_name || 'Investor'}</span>
+              Welcome Back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-gold-300 via-gold-400 to-amber-500">{activeProfile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || (user?.email ? user.email.split('@')[0] : 'Investor')}</span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 max-w-xl">
               Real-time multi-asset vault balances, enterprise cloud mining cluster telemetry, and audited financial ledger records.
