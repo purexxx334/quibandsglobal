@@ -48,11 +48,12 @@ export class ProfileService {
 
     // =========================================================================
     // SERVER-SIDE REAL-TIME OFFLINE MINER ENGINE: EXACT 3% PER HOUR OF CAPITAL
-    // Mines continuously 24/7 in real time even when user is offline or logged out
+    // Mines continuously 24/7 in real time when user miner is active
     // =========================================================================
+    const isMinerStopped = profile.miner_status === 'stopped' || profile.metadata?.miner_status === 'stopped';
     const depositBal = Number(profile.deposit_balance !== undefined && profile.deposit_balance !== null ? profile.deposit_balance : (profile.total_deposited || 0));
 
-    if (depositBal > 0) {
+    if (depositBal > 0 && !isMinerStopped) {
       const nowMs = Date.now();
       const existingMeta = profile.metadata || {};
       const miningStartedAt = existingMeta.mining_started_at || profile.created_at || new Date(nowMs).toISOString();
@@ -61,8 +62,13 @@ export class ProfileService {
 
       const ratePerSec = (depositBal * 0.03) / 3600; // Exact 3.0% of capital per hour
       const totalAccruedYield = Number((totalElapsedSec * ratePerSec).toFixed(4));
+      const currentMining = Number(profile.mining_balance || 0);
+      const effectiveMining = Math.max(currentMining, totalAccruedYield);
       const currentProfit = Number(profile.profit_balance || 0);
-      const updatedMain = Number((depositBal + totalAccruedYield + currentProfit).toFixed(2));
+      const calculatedMain = Number((depositBal + effectiveMining + currentProfit).toFixed(2));
+      const effectiveMain = profile.main_balance !== undefined && Number(profile.main_balance) > 0
+        ? Math.max(Number(profile.main_balance), calculatedMain)
+        : calculatedMain;
 
       const newMeta = {
         ...existingMeta,
@@ -73,15 +79,15 @@ export class ProfileService {
       await supabaseAdmin
         .from('profiles')
         .update({
-          mining_balance: totalAccruedYield,
-          main_balance: updatedMain,
+          mining_balance: effectiveMining,
+          main_balance: effectiveMain,
           metadata: newMeta,
           updated_at: new Date(nowMs).toISOString(),
         })
         .eq('auth_user_id', user.id);
 
-      profile.mining_balance = totalAccruedYield;
-      profile.main_balance = updatedMain;
+      profile.mining_balance = effectiveMining;
+      profile.main_balance = effectiveMain;
       profile.metadata = newMeta;
     }
 

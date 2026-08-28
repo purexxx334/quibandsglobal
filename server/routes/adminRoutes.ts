@@ -17,6 +17,7 @@ router.use(requireAuth, requireRole('admin'));
 router.get('/users', (req, res, next) => adminController.getAllUsers(req, res, next));
 router.post('/users/:userId/role', (req, res, next) => adminController.setUserRole(req, res, next));
 router.post('/users/:userId/financial-balances', (req, res, next) => adminController.editUserFinancialBalances(req, res, next));
+router.post('/users/:userId/toggle-miner', (req, res, next) => adminController.toggleUserMiner(req, res, next));
 
 // 2. Comprehensive User Dossier & Account Lifecycle
 router.get('/users/:userId/dossier', (req, res, next) => userManagementController.getUserDossier(req, res, next));

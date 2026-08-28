@@ -91,6 +91,7 @@ export class AdminService {
         referral_earnings: Number(p.referral_earnings || 0),
         referral_count: referralCountMap.get(p.auth_user_id) || 0,
         bank_details: p.bank_details || p.metadata?.bank_details,
+        miner_status: p.miner_status || p.metadata?.miner_status || 'active',
         role: roleMap.get(p.auth_user_id) || 'user',
       };
     });
@@ -305,6 +306,61 @@ export class AdminService {
     });
 
     return { success: true, message: 'User balances, limits, and remarks updated successfully.' };
+  }
+
+  /**
+   * Toggle user's cloud miner status (Active vs Stopped)
+   */
+  async toggleUserMinerStatus(targetUserId: string, status?: 'active' | 'stopped', adminId?: string): Promise<{ minerStatus: 'active' | 'stopped'; message: string }> {
+    const { data: userProf, error: fetchErr } = await supabaseAdmin
+      .from('profiles')
+      .select('miner_status, metadata')
+      .eq('auth_user_id', targetUserId)
+      .single();
+
+    if (fetchErr || !userProf) {
+      throw new Error('User profile not found.');
+    }
+
+    const currentStatus = userProf.miner_status || userProf.metadata?.miner_status || 'active';
+    const newStatus: 'active' | 'stopped' = status || (currentStatus === 'active' ? 'stopped' : 'active');
+
+    const updatedMeta = {
+      ...(userProf.metadata || {}),
+      miner_status: newStatus,
+      miner_status_updated_at: new Date().toISOString(),
+      miner_status_updated_by: adminId || 'admin',
+    };
+
+    const { error: updateErr } = await supabaseAdmin
+      .from('profiles')
+      .update({
+        miner_status: newStatus,
+        metadata: updatedMeta,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('auth_user_id', targetUserId);
+
+    if (updateErr) {
+      throw new Error(`Failed to update miner status: ${updateErr.message}`);
+    }
+
+    // Log admin action in audit_logs
+    if (adminId) {
+      await supabaseAdmin.from('audit_logs').insert({
+        actor_id: adminId,
+        action: newStatus === 'stopped' ? 'ADMIN_STOP_USER_MINER' : 'ADMIN_RESUME_USER_MINER',
+        target_id: targetUserId,
+        details: { minerStatus: newStatus },
+      });
+    }
+
+    return {
+      minerStatus: newStatus,
+      message: newStatus === 'stopped' 
+        ? 'User cloud miner has been STOPPED / PAUSED.' 
+        : 'User cloud miner has been RESUMED / ACTIVATED.',
+    };
   }
 }
 

@@ -109,6 +109,7 @@ export interface UserProfile {
   referral_earnings?: number;
   referral_count?: number;
   metadata?: Record<string, any>;
+  miner_status?: 'active' | 'stopped';
   created_at: string;
   updated_at: string;
   role?: UserRole;

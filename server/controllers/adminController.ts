@@ -103,6 +103,29 @@ export class AdminController {
   }
 
   /**
+   * POST /api/admin/users/:userId/toggle-miner
+   */
+  async toggleUserMiner(req: AuthenticatedRequest, res: Response<ApiResponse>, next: NextFunction) {
+    try {
+      const { userId } = req.params;
+      const { status } = req.body;
+
+      const result = await adminService.toggleUserMinerStatus(userId, status, req.user!.id);
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+        message: result.message,
+      });
+    } catch (err: any) {
+      return res.status(400).json({
+        success: false,
+        error: err.message || 'Failed to toggle user miner status.',
+      });
+    }
+  }
+
+  /**
    * GET /api/admin/settings
    */
   async getSettings(req: AuthenticatedRequest, res: Response<ApiResponse>, next: NextFunction) {

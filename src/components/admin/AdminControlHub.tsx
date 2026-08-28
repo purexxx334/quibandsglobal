@@ -50,7 +50,10 @@ import {
   Terminal,
   Coins,
   Info,
-  AlertCircle
+  AlertCircle,
+  Play,
+  Square,
+  Pause
 } from 'lucide-react';
 
 import { AdminSupportChatTab } from './AdminSupportChatTab';
@@ -603,6 +606,37 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         showBanner('success', `User ${u.email} has been forcibly logged out.`);
       } else {
         showBanner('error', json.error || 'Failed to revoke user sessions.');
+      }
+    } catch (err: any) {
+      showBanner('error', err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Toggle User Cloud Miner Status (Active vs Stopped)
+  const handleToggleMiner = async (u: UserProfile) => {
+    const isCurrentlyStopped = u.miner_status === 'stopped';
+    const nextAction = isCurrentlyStopped ? 'RESUME / ACTIVATE' : 'STOP / PAUSE';
+    if (!confirm(`Are you sure you want to ${nextAction} the cloud miner for ${u.email}?`)) return;
+
+    setActionLoading(true);
+    try {
+      const headers = await getHeaders();
+      const res = await fetch(`${API_BASE}/admin/users/${u.auth_user_id}/toggle-miner`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ status: isCurrentlyStopped ? 'active' : 'stopped' }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showBanner('success', json.message || `Miner is now ${isCurrentlyStopped ? 'ACTIVE' : 'STOPPED'}.`);
+        fetchData();
+        if (selectedUserId === u.auth_user_id) {
+          loadUserDossier(u.auth_user_id);
+        }
+      } else {
+        showBanner('error', json.error || 'Failed to toggle miner status.');
       }
     } catch (err: any) {
       showBanner('error', err.message);
@@ -1582,6 +1616,29 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                               </td>
                               <td className="px-4 py-3 text-right">
                                 <div className="flex items-center justify-end gap-1.5">
+                                  {/* STOP / RESUME MINER TOGGLE */}
+                                  <button
+                                    onClick={() => handleToggleMiner(u)}
+                                    className={`px-2 py-1 rounded-lg border text-[10px] font-semibold font-sans transition flex items-center gap-1 ${
+                                      u.miner_status === 'stopped'
+                                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-emerald-500/20 hover:text-emerald-300 hover:border-emerald-500/40'
+                                        : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-rose-500/20 hover:text-rose-300 hover:border-rose-500/40'
+                                    }`}
+                                    title={u.miner_status === 'stopped' ? 'Miner is STOPPED - Click to Resume' : 'Miner is ACTIVE - Click to Stop/Pause'}
+                                  >
+                                    {u.miner_status === 'stopped' ? (
+                                      <>
+                                        <Play className="w-3 h-3 text-emerald-400 fill-emerald-400" />
+                                        <span>Resume Miner</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Square className="w-3 h-3 text-rose-400 fill-rose-400" />
+                                        <span>Stop Miner</span>
+                                      </>
+                                    )}
+                                  </button>
+
                                   <button
                                     onClick={() => openFinancialEditor(u)}
                                     className="px-2.5 py-1 rounded-lg bg-gold-500/20 hover:bg-gold-500/30 text-gold-400 border border-gold-500/40 text-[10px] font-semibold font-sans transition flex items-center gap-1"
@@ -1730,6 +1787,46 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                             </div>
                           </div>
                         )}
+
+                        {/* Cloud Miner Control Card in Dossier */}
+                        <div className="pt-2 border-t border-white/5 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <div className="text-cyan-400 text-[10px] uppercase font-bold flex items-center gap-1">
+                              <Cpu className="w-3.5 h-3.5" />
+                              <span>Cloud Miner Control</span>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
+                              userDossier.profile?.miner_status === 'stopped'
+                                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            }`}>
+                              {userDossier.profile?.miner_status === 'stopped' ? 'STOPPED' : 'ACTIVE (HASHING)'}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const u = users.find((x) => x.auth_user_id === selectedUserId) || userDossier.profile;
+                              if (u) handleToggleMiner(u);
+                            }}
+                            className={`w-full py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border ${
+                              userDossier.profile?.miner_status === 'stopped'
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                                : 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30'
+                            }`}
+                          >
+                            {userDossier.profile?.miner_status === 'stopped' ? (
+                              <>
+                                <Play className="w-3.5 h-3.5 fill-emerald-300" />
+                                <span>Resume / Activate User Miner</span>
+                              </>
+                            ) : (
+                              <>
+                                <Square className="w-3.5 h-3.5 fill-rose-300" />
+                                <span>Stop / Pause User Miner</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
 
                       <div className="mt-5 space-y-2">
