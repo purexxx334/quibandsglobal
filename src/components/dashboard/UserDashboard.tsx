@@ -200,11 +200,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   const miningBalanceUsd = hasApprovedDeposit ? (liveMiningBalance > 0 ? liveMiningBalance : dbMiningBal) : dbMiningBal;
   const profitBalanceUsd = miningBalanceUsd;
 
-  // Main balance = Strictly reflects activeProfile.main_balance from admin edits, or defaults to (depositBalanceUsd + miningBalanceUsd)
-  const calculatedMain = Number((depositBalanceUsd + miningBalanceUsd).toFixed(2));
-  const mainBalanceUsd = activeProfile?.main_balance !== undefined && activeProfile?.main_balance !== null
-    ? Number(activeProfile.main_balance)
-    : calculatedMain;
+  // Main balance = Entire Assets: Total of Capital (Deposit Balance) + Profit (Current Mining Balance / Amount Mined), updating live with miner
+  const mainBalanceUsd = Number((depositBalanceUsd + miningBalanceUsd).toFixed(4));
 
   const convertBalance = Number(activeProfile?.convert_balance || 0);
   const convertCurrency = activeProfile?.convert_currency || 'SGD';
@@ -617,7 +614,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
               </div>
               <div>
                 <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight bg-gradient-to-r from-gold-200 via-white to-gold-300 bg-clip-text text-transparent">
-                  ${mainBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${mainBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                 </div>
                 <div className="text-[11px] text-gold-400/90 flex flex-wrap items-center gap-1.5 mt-1 font-mono">
                   <span className="text-cyan-300 font-bold">${depositBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2 })} Capital</span>
