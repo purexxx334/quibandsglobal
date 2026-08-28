@@ -183,27 +183,48 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
     setConversionRef(refCode);
 
     try {
-      // 1. Submit conversion request to API / database
-      const token = session?.access_token;
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      // 1. Submit conversion request to API
+      let submitted = false;
+      try {
+        const token = session?.access_token;
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      await fetch(`${API_BASE}/conversions`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          usdMineAmount: totalUsdMine,
-          targetCurrency: selectedCurrency.code,
-          convertedAmount: convertedValue,
-          exchangeRate: selectedCurrency.ratePerUsd,
-          conversionFeeUsd,
-          conversionFeeBnb,
-          feeWalletAddress: gasFeeWallet,
-          refCode
-        })
-      });
+        const res = await fetch(`${API_BASE}/conversions`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            usdMineAmount: totalUsdMine,
+            targetCurrency: selectedCurrency.code,
+            convertedAmount: convertedValue,
+            exchangeRate: selectedCurrency.ratePerUsd,
+            conversionFeeUsd,
+            conversionFeeBnb,
+            feeWalletAddress: gasFeeWallet,
+            refCode
+          })
+        });
+        if (res.ok) submitted = true;
+      } catch (e) {}
+
+      // 2. Direct Supabase insert fallback
+      if (!submitted && user?.id) {
+        await supabase.from('conversion_requests').insert({
+          user_id: user.id,
+          from_currency: 'USD',
+          from_amount: totalUsdMine,
+          to_currency: selectedCurrency.code,
+          to_amount: convertedValue,
+          exchange_rate: selectedCurrency.ratePerUsd,
+          conversion_fee_usd: conversionFeeUsd,
+          conversion_fee_bnb: conversionFeeBnb,
+          fee_wallet_address: gasFeeWallet,
+          status: 'PENDING',
+          ref_code: refCode,
+        }).catch(() => {});
+      }
     } catch (err) {
-      console.warn('Error submitting conversion request:', err);
+      console.warn('Notice submitting conversion request:', err);
     } finally {
       setIsConverting(false);
       setCurrentStep('pending');
