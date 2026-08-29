@@ -19,6 +19,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { DepositRequest, DepositAddress } from '../../types';
 import { supabase } from '../../lib/supabase';
+import { adminDirectClient } from '../../lib/adminDirectClient';
 import { API_BASE } from '../../config/api';
 
 
@@ -267,7 +268,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose, onS
 
       // 2. Direct Supabase insert fallback
       if (!isSuccess && user?.id) {
-        const { data: directData, error: directErr } = await supabase
+        const { data: directData, error: directErr } = await adminDirectClient
           .from('deposit_requests')
           .insert({
             user_id: user.id,
