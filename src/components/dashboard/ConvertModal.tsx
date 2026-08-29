@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { adminDirectClient } from '../../lib/adminDirectClient';
 import { API_BASE } from '../../config/api';
 
 interface ConvertModalProps {
@@ -206,7 +207,7 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
         }
 
         // 2. Put funds in escrow (hold capital & mining balances so balance is hanging)
-        await supabase
+        await adminDirectClient
           .from('profiles')
           .update({
             deposit_balance: 0,

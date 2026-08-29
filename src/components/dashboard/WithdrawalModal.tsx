@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { adminDirectClient } from '../../lib/adminDirectClient';
 import { BankDetails } from '../../types';
 import { API_BASE } from '../../config/api';
 
@@ -377,7 +378,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
       // 3. Immediately hold balance in escrow (set to 0 so it hangs pending approval)
       if (user?.id) {
         if (selectedSource === 'convert') {
-          await supabase
+          await adminDirectClient
             .from('profiles')
             .update({
               convert_balance: 0,
@@ -386,7 +387,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
             .eq('auth_user_id', user.id);
           setProfileConvertBalance(0);
         } else {
-          await supabase
+          await adminDirectClient
             .from('profiles')
             .update({
               deposit_balance: 0,

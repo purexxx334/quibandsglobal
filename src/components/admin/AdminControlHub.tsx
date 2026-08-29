@@ -1378,15 +1378,53 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
       } catch (e) {}
 
       if (!isSuccess) {
-        const { error: updErr } = await adminDirectClient
+        const { data: wd, error: updErr } = await adminDirectClient
           .from('withdrawal_requests')
           .update({
             status: 'APPROVED',
             rejection_reason: remark?.trim() || null,
             reviewed_at: new Date().toISOString(),
           })
-          .eq('id', withdrawalId);
-        if (!updErr) isSuccess = true;
+          .eq('id', withdrawalId)
+          .select('*')
+          .single();
+
+        if (!updErr && wd) {
+          isSuccess = true;
+          // Ensure user profile balance is deducted/zeroed upon approval
+          const { data: uProf } = await adminDirectClient
+            .from('profiles')
+            .select('*')
+            .eq('auth_user_id', wd.user_id)
+            .maybeSingle();
+
+          if (uProf) {
+            const isConvertSource = wd.asset?.includes('MINE') || wd.metadata?.sourceBalance === 'convert';
+            if (isConvertSource) {
+              const remaining = Math.max(0, Number(uProf.convert_balance || 0) - Number(wd.amount));
+              await adminDirectClient
+                .from('profiles')
+                .update({
+                  convert_balance: +remaining.toFixed(2),
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('auth_user_id', wd.user_id);
+            } else {
+              const remainingDep = Math.max(0, Number(uProf.deposit_balance || 0) - Number(wd.amount));
+              const remainingMain = Math.max(0, Number(uProf.main_balance || 0) - Number(wd.amount));
+              await adminDirectClient
+                .from('profiles')
+                .update({
+                  deposit_balance: +remainingDep.toFixed(2),
+                  main_balance: +remainingMain.toFixed(2),
+                  mining_balance: 0,
+                  profit_balance: 0,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('auth_user_id', wd.user_id);
+            }
+          }
+        }
       }
 
       if (isSuccess) {
