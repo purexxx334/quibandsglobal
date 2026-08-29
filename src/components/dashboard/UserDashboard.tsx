@@ -336,6 +336,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
     return Date.now();
   };
 
+  // Format time remaining as hh:mm:ss
+  const formatTime = (totalSec: number) => formatSecondsToHms(totalSec);
+
   // Direct Supabase database sync for live mined profit
   const lastSyncTimeRef = useRef<number>(Date.now());
   const syncMiningToBackend = async (currentMinedBalance: number) => {
