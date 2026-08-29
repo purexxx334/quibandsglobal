@@ -299,47 +299,44 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   // Calculate session percentage
   const sessionPercent = Math.min(100, Math.max(0, Math.round(((sessionTotalSeconds - sessionSecondsLeft) / sessionTotalSeconds) * 100)));
 
-  // Persistent anchor refs to ensure mining ticker ticks continuously without resetting on 8s polling
-  const uid = user?.id || '';
-  
-  // Compute initial starting anchor accounting for all offline time
-  const getOfflineAdjustedBase = (): number => {
-    const rawDbBal = Number(activeProfile?.mining_balance !== undefined ? activeProfile.mining_balance : (activeProfile?.profit_balance || 0));
-    if (depositBalanceUsd <= 0 || isMinerStopped) return rawDbBal;
-
-    const nowMs = Date.now();
-    const lastSyncIso = activeProfile?.metadata?.mining_last_sync_at || activeProfile?.updated_at || activeProfile?.created_at;
-    const lastSyncMs = lastSyncIso ? new Date(lastSyncIso).getTime() : nowMs;
-
-    let offlineSeconds = 0;
-    if (lastSyncMs > 0 && lastSyncMs < nowMs) {
-      offlineSeconds = Math.min(30 * 86400, Math.floor((nowMs - lastSyncMs) / 1000)); // cap at 30 days max offline
+  // 1. Get the reliable mining start timestamp (from database metadata, or earliest deposit, or user profile creation)
+  const getMiningStartTimeMs = (): number => {
+    if (!user?.id) return Date.now();
+    const uid = user.id;
+    
+    // Check metadata from freshProfile or profile
+    const metaStart = activeProfile?.metadata?.mining_started_at || profile?.metadata?.mining_started_at;
+    if (metaStart) {
+      const parsed = new Date(metaStart).getTime();
+      if (!isNaN(parsed) && parsed > 0 && parsed <= Date.now()) {
+        return parsed;
+      }
     }
 
-    const offlineYield = +(offlineSeconds * (depositBalanceUsd * 0.03 / 3600)).toFixed(4);
-    const cachedMax = uid ? Number(localStorage.getItem(`quibands_miner_${uid}_max_balance`) || 0) : 0;
-    
-    return Math.max(rawDbBal, rawDbBal + offlineYield, cachedMax);
+    // Check first approved deposit created_at
+    const firstApproved = deposits
+      .filter((d) => d.status === 'APPROVED' && d.created_at)
+      .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())[0];
+    if (firstApproved?.created_at) {
+      const parsed = new Date(firstApproved.created_at).getTime();
+      if (!isNaN(parsed) && parsed > 0 && parsed <= Date.now()) {
+        return parsed;
+      }
+    }
+
+    // Check account creation timestamp
+    const profCreated = activeProfile?.created_at || profile?.created_at;
+    if (profCreated) {
+      const parsed = new Date(profCreated).getTime();
+      if (!isNaN(parsed) && parsed > 0 && parsed <= Date.now()) {
+        return parsed;
+      }
+    }
+
+    return Date.now();
   };
 
-  const baseMiningRef = useRef<number>(getOfflineAdjustedBase());
-  const maxMinedRef = useRef<number>(baseMiningRef.current);
-  const sessionMountMsRef = useRef<number>(Date.now());
-
-  useEffect(() => {
-    // If admin explicitly changed database mining balance, update base anchor
-    if (Math.abs(dbMiningBal - baseMiningRef.current) > 1.0) {
-      baseMiningRef.current = dbMiningBal;
-      maxMinedRef.current = dbMiningBal;
-      sessionMountMsRef.current = Date.now();
-      if (uid) localStorage.setItem(`quibands_miner_${uid}_max_balance`, String(dbMiningBal));
-    }
-  }, [dbMiningBal, uid]);
-
-  // Format time remaining as hh:mm:ss
-  const formatTime = (totalSec: number) => formatSecondsToHms(totalSec);
-
-  // Periodic background database sync for live mined profit
+  // Direct Supabase database sync for live mined profit
   const lastSyncTimeRef = useRef<number>(Date.now());
   const syncMiningToBackend = async (currentMinedBalance: number) => {
     if (!user?.id || depositBalanceUsd <= 0 || isMinerStopped) return;
@@ -352,7 +349,6 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
           main_balance: +(depositBalanceUsd + currentMinedBalance).toFixed(4),
           metadata: {
             ...(activeProfile?.metadata || {}),
-            mining_base_balance: currentMinedBalance,
             mining_last_sync_at: new Date().toISOString(),
           },
           updated_at: new Date().toISOString(),
@@ -363,59 +359,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
     }
   };
 
-  // 1. Get the reliable mining start timestamp (from database metadata, or earliest deposit, or user profile creation)
-  const getMiningStartTimeMs = (): number => {
-    if (!user?.id) return Date.now();
-    
-    // Check metadata from freshProfile or profile
-    const metaStart = activeProfile?.metadata?.mining_started_at || profile?.metadata?.mining_started_at;
-    if (metaStart) {
-      const parsed = new Date(metaStart).getTime();
-      if (!isNaN(parsed) && parsed > 0) {
-        localStorage.setItem(`quibands_miner_${uid}_start_time`, String(parsed));
-        return parsed;
-      }
-    }
-
-    // Check localStorage cache (strictly preserve if valid)
-    const localStart = localStorage.getItem(`quibands_miner_${uid}_start_time`);
-    if (localStart) {
-      const parsed = Number(localStart);
-      if (!isNaN(parsed) && parsed > 0 && parsed <= Date.now()) {
-        return parsed;
-      }
-    }
-
-    // Check first approved deposit created_at
-    const firstApproved = deposits
-      .filter((d) => d.status === 'APPROVED' && d.created_at)
-      .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())[0];
-    if (firstApproved?.created_at) {
-      const parsed = new Date(firstApproved.created_at).getTime();
-      if (!isNaN(parsed) && parsed > 0) {
-        localStorage.setItem(`quibands_miner_${uid}_start_time`, String(parsed));
-        return parsed;
-      }
-    }
-
-    // Check account creation timestamp
-    const profCreated = activeProfile?.created_at || profile?.created_at;
-    if (profCreated) {
-      const parsed = new Date(profCreated).getTime();
-      if (!isNaN(parsed) && parsed > 0) {
-        localStorage.setItem(`quibands_miner_${uid}_start_time`, String(parsed));
-        return parsed;
-      }
-    }
-
-    const fallbackNow = Date.now();
-    localStorage.setItem(`quibands_miner_${uid}_start_time`, String(fallbackNow));
-    return fallbackNow;
-  };
-
   // =========================================================================
   // PURE WALL-CLOCK MINING ENGINE: REAL-TIME CONTINUITY ACROSS ALL SESSIONS & REFRESHES
   // =========================================================================
+  const maxMinedRef = useRef<number>(dbMiningBal);
+
   useEffect(() => {
     if (!hasApprovedDeposit || depositBalanceUsd <= 0 || !user?.id || isMinerStopped) {
       setLiveMiningBalance(dbMiningBal);
@@ -427,10 +375,12 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
     const currentUid = user.id;
     const startTimeMs = getMiningStartTimeMs();
+    const baseBalance = Number(activeProfile?.metadata?.mining_base_balance ?? 0);
     
     // Immediate initial sync
     const initialSnap = calculateMiningSnapshot(depositBalanceUsd, startTimeMs, Date.now());
-    const initialBase = Math.max(dbMiningBal, maxMinedRef.current, baseMiningRef.current);
+    const initialCalculated = +(baseBalance + initialSnap.totalAccruedProfit).toFixed(4);
+    const initialBase = Math.max(dbMiningBal, maxMinedRef.current, initialCalculated);
     maxMinedRef.current = initialBase;
     setLiveMiningBalance(initialBase);
     setSessionSecondsLeft(initialSnap.cycleSecondsLeft);
@@ -443,18 +393,15 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
     const interval = setInterval(() => {
       const snap = calculateMiningSnapshot(depositBalanceUsd, startTimeMs, Date.now());
-      const elapsedSinceOpenSec = Math.max(0, Math.floor((Date.now() - sessionMountMsRef.current) / 1000));
-      const liveYield = +(elapsedSinceOpenSec * (depositBalanceUsd * 0.03 / 3600)).toFixed(4);
-      const computedBalance = +(baseMiningRef.current + liveYield).toFixed(4);
+      const computedBalance = +(baseBalance + snap.totalAccruedProfit).toFixed(4);
       
       // Monotonic strictly increasing live balance
-      const exactLiveBalance = Math.max(maxMinedRef.current, computedBalance);
+      const exactLiveBalance = Math.max(maxMinedRef.current, computedBalance, dbMiningBal);
       maxMinedRef.current = exactLiveBalance;
 
       // Update balances & counters
       setLiveMiningBalance(exactLiveBalance);
       localStorage.setItem(`quibands_miner_${currentUid}_mining_balance`, String(exactLiveBalance));
-      localStorage.setItem(`quibands_miner_${currentUid}_max_balance`, String(exactLiveBalance));
 
       // Constant rock-solid hashrate (142.84 TH/s)
       setHashrateSpeed(142.84);
