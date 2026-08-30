@@ -299,12 +299,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   // Calculate session percentage
   const sessionPercent = Math.min(100, Math.max(0, Math.round(((sessionTotalSeconds - sessionSecondsLeft) / sessionTotalSeconds) * 100)));
 
-  // 1. Get the reliable mining start timestamp (from database metadata, or earliest deposit, or user profile creation)
+  // 1. Get the reliable mining start timestamp (anchored to deposit approval / admin update)
   const getMiningStartTimeMs = (): number => {
     if (!user?.id) return Date.now();
-    const uid = user.id;
     
-    // Check metadata from freshProfile or profile
+    // Check metadata mining_started_at set when deposit was approved or admin updated balances
     const metaStart = activeProfile?.metadata?.mining_started_at || profile?.metadata?.mining_started_at;
     if (metaStart) {
       const parsed = new Date(metaStart).getTime();
@@ -313,26 +312,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
       }
     }
 
-    // Check first approved deposit created_at
-    const firstApproved = deposits
-      .filter((d) => d.status === 'APPROVED' && d.created_at)
-      .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())[0];
-    if (firstApproved?.created_at) {
-      const parsed = new Date(firstApproved.created_at).getTime();
-      if (!isNaN(parsed) && parsed > 0 && parsed <= Date.now()) {
-        return parsed;
-      }
-    }
-
-    // Check account creation timestamp
-    const profCreated = activeProfile?.created_at || profile?.created_at;
-    if (profCreated) {
-      const parsed = new Date(profCreated).getTime();
-      if (!isNaN(parsed) && parsed > 0 && parsed <= Date.now()) {
-        return parsed;
-      }
-    }
-
+    // Default to Date.now() so newly depositing users START MINING FROM 0.00 and never jump into backdated figures!
     return Date.now();
   };
 
@@ -365,7 +345,21 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
   // =========================================================================
   // PURE WALL-CLOCK MINING ENGINE: REAL-TIME CONTINUITY ACROSS ALL SESSIONS & REFRESHES
   // =========================================================================
-  const maxMinedRef = useRef<number>(dbMiningBal);
+  const prevDbMiningRef = useRef<number>(dbMiningBal);
+  const sessionStartTimeRef = useRef<number>(getMiningStartTimeMs());
+
+  // Detect when Admin reduces or edits the database mining balance / deposit balance
+  useEffect(() => {
+    if (prevDbMiningRef.current !== dbMiningBal) {
+      prevDbMiningRef.current = dbMiningBal;
+      sessionStartTimeRef.current = Date.now();
+      setLiveMiningBalance(dbMiningBal);
+      if (user?.id) {
+        localStorage.setItem(`quibands_miner_${user.id}_mining_balance`, String(dbMiningBal));
+        localStorage.setItem(`quibands_miner_${user.id}_last_active`, String(Date.now()));
+      }
+    }
+  }, [dbMiningBal, user?.id]);
 
   useEffect(() => {
     if (!hasApprovedDeposit || depositBalanceUsd <= 0 || !user?.id || isMinerStopped) {
@@ -377,15 +371,13 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
     }
 
     const currentUid = user.id;
-    const startTimeMs = getMiningStartTimeMs();
-    const baseBalance = Number(activeProfile?.metadata?.mining_base_balance ?? 0);
+    const startTimeMs = sessionStartTimeRef.current || getMiningStartTimeMs();
+    const baseBalance = dbMiningBal;
     
     // Immediate initial sync
     const initialSnap = calculateMiningSnapshot(depositBalanceUsd, startTimeMs, Date.now());
     const initialCalculated = +(baseBalance + initialSnap.totalAccruedProfit).toFixed(4);
-    const initialBase = Math.max(dbMiningBal, maxMinedRef.current, initialCalculated);
-    maxMinedRef.current = initialBase;
-    setLiveMiningBalance(initialBase);
+    setLiveMiningBalance(initialCalculated);
     setSessionSecondsLeft(initialSnap.cycleSecondsLeft);
     setSessionYieldEarned(initialSnap.cycleYieldEarned);
     setSessionBlockNumber(initialSnap.blockNumber);
@@ -396,11 +388,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
 
     const interval = setInterval(() => {
       const snap = calculateMiningSnapshot(depositBalanceUsd, startTimeMs, Date.now());
-      const computedBalance = +(baseBalance + snap.totalAccruedProfit).toFixed(4);
-      
-      // Monotonic strictly increasing live balance
-      const exactLiveBalance = Math.max(maxMinedRef.current, computedBalance, dbMiningBal);
-      maxMinedRef.current = exactLiveBalance;
+      const exactLiveBalance = +(baseBalance + snap.totalAccruedProfit).toFixed(4);
 
       // Update balances & counters
       setLiveMiningBalance(exactLiveBalance);
@@ -442,16 +430,17 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
       // Persist timestamp of last active heartbeat
       localStorage.setItem(`quibands_miner_${currentUid}_last_active`, String(Date.now()));
 
-      // Periodic direct database sync every 10 seconds
-      if (Date.now() - lastSyncTimeRef.current > 10000 && exactLiveBalance > 0) {
+      // Periodic direct database sync every 15 seconds
+      if (Date.now() - lastSyncTimeRef.current > 15000 && exactLiveBalance > 0) {
         lastSyncTimeRef.current = Date.now();
         syncMiningToBackend(exactLiveBalance);
       }
     }, 1000);
 
     const handleBeforeUnload = () => {
-      if (maxMinedRef.current > 0) {
-        syncMiningToBackend(maxMinedRef.current);
+      const liveVal = Number(localStorage.getItem(`quibands_miner_${currentUid}_mining_balance`) || dbMiningBal);
+      if (liveVal > 0) {
+        syncMiningToBackend(liveVal);
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -461,11 +450,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
       clearInterval(interval);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('pagehide', handleBeforeUnload);
-      if (maxMinedRef.current > 0) {
-        syncMiningToBackend(maxMinedRef.current);
-      }
     };
-  }, [hasApprovedDeposit, depositBalanceUsd, user?.id, isMinerStopped, activeProfile?.metadata?.mining_started_at]);
+  }, [hasApprovedDeposit, depositBalanceUsd, dbMiningBal, user?.id, isMinerStopped, activeProfile?.metadata?.mining_started_at]);
 
 
   return (

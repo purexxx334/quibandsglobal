@@ -571,7 +571,8 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
       } catch (e) {}
 
       if (!isSuccess) {
-        // Direct DB update
+        const nowIso = new Date().toISOString();
+        // 1. Direct Profile update
         await adminDirectClient
           .from('profiles')
           .update({
@@ -587,9 +588,29 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             balance_remark: financialBalanceRemark.trim() || null,
             mining_remark: financialMiningRemark.trim() || null,
             profit_remark: financialProfitRemark.trim() || null,
-            updated_at: new Date().toISOString(),
+            metadata: {
+              ...(actionModal.targetUser?.metadata || {}),
+              mining_started_at: nowIso,
+              mining_base_balance: minVal,
+              mining_last_sync_at: nowIso,
+            },
+            updated_at: nowIso,
           })
           .eq('auth_user_id', actionModal.userId);
+
+        // 2. Direct Wallet update
+        await adminDirectClient
+          .from('wallets')
+          .upsert({
+            user_id: actionModal.userId,
+            currency: 'USDT',
+            balance: mainVal,
+            deposit_balance: depVal,
+            mining_balance: minVal,
+            profit_balance: profVal,
+            updated_at: nowIso,
+          }, { onConflict: 'user_id, currency' });
+
         isSuccess = true;
       }
 

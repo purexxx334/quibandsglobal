@@ -236,57 +236,108 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     referralCode?: string,
     phoneNumber?: string
   ) => {
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+    const cleanPhone = phoneNumber ? phoneNumber.trim() : '';
+    const cleanFullName = fullName.trim();
+    const cleanReferral = referralCode?.trim() || undefined;
+
     try {
       // 1. Call Backend Registration (Auto-confirms user in auth.users and sets temp_password)
-      const registerRes = await fetch(`${API_BASE_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email ? email.trim().toLowerCase() : undefined,
-          phoneNumber: phoneNumber ? phoneNumber.trim() : undefined,
-          password,
-          fullName: fullName.trim(),
-          referralCode: referralCode?.trim() || undefined,
-        }),
-      });
+      let registerSuccess = false;
+      let registeredEmail = cleanEmail;
 
-      const registerJson = await registerRes.json();
-      if (!registerRes.ok || !registerJson.success) {
-        await sendTelemetry({
-          userEmail: email || phoneNumber,
-          eventType: 'registration_failed',
-          status: 'failed',
-          authMethod: phoneNumber ? 'mobile_or_email' : 'email_password',
-          details: { error: registerJson.error || 'Registration rejected' },
+      try {
+        const registerRes = await fetch(`${API_BASE_URL}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: cleanEmail || undefined,
+            phoneNumber: cleanPhone || undefined,
+            password,
+            fullName: cleanFullName,
+            referralCode: cleanReferral,
+          }),
         });
-        return { error: registerJson.error || 'Registration failed' };
+
+        let registerJson: any = null;
+        try {
+          registerJson = await registerRes.json();
+        } catch (jsonErr) {
+          // If response is not JSON
+        }
+
+        if (registerRes.ok && registerJson?.success) {
+          registerSuccess = true;
+          if (registerJson.data?.email) {
+            registeredEmail = registerJson.data.email;
+          }
+        } else if (registerJson?.error) {
+          await sendTelemetry({
+            userEmail: cleanEmail || cleanPhone,
+            eventType: 'registration_failed',
+            status: 'failed',
+            authMethod: cleanPhone ? 'mobile_or_email' : 'email_password',
+            details: { error: registerJson.error },
+          });
+          return { error: registerJson.error };
+        }
+      } catch (backendErr: any) {
+        console.warn('Backend /auth/register request failed, attempting direct Supabase signup fallback...', backendErr);
       }
 
-      const targetAuthEmail = registerJson.data?.email || (email && email.includes('@') ? email.trim().toLowerCase() : `${phoneNumber?.replace(/[^0-9]/g, '')}@quibands.user`);
+      const targetAuthEmail = registeredEmail || (cleanEmail.includes('@') ? cleanEmail : `${cleanPhone.replace(/[^0-9]/g, '')}@quibands.user`);
 
-      // 2. Immediately Log In with active session (Zero email confirmation wait)
+      // 2. Log in user with active session
       const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
         email: targetAuthEmail,
         password,
       });
 
+      if (!signInErr && signInData.session) {
+        setSession(signInData.session);
+        setUser(signInData.user);
+        await fetchProfileFromBackend(signInData.session.access_token);
+        return { user: signInData.user };
+      }
+
+      // 3. Fallback: If signIn was not possible (e.g. backend offline and user not created yet in auth.users), invoke direct Supabase signUp
+      if (!registerSuccess && signInErr) {
+        const { data: directSignUpData, error: directSignUpErr } = await supabase.auth.signUp({
+          email: targetAuthEmail,
+          password,
+          options: {
+            data: {
+              full_name: cleanFullName,
+              phone_number: cleanPhone,
+              referral_code: cleanReferral,
+            },
+          },
+        });
+
+        if (directSignUpErr) {
+          return { error: directSignUpErr.message };
+        }
+
+        if (directSignUpData.session) {
+          setSession(directSignUpData.session);
+          setUser(directSignUpData.user);
+          await fetchProfileFromBackend(directSignUpData.session.access_token);
+        }
+
+        return { user: directSignUpData.user };
+      }
+
       if (signInErr) {
         return { error: signInErr.message };
       }
 
-      if (signInData.session) {
-        setSession(signInData.session);
-        setUser(signInData.user);
-        await fetchProfileFromBackend(signInData.session.access_token);
-      }
-
-      return { user: signInData.user };
+      return { user: signInData?.user };
     } catch (err: any) {
       await sendTelemetry({
-        userEmail: email || phoneNumber,
+        userEmail: cleanEmail || cleanPhone,
         eventType: 'registration_failed',
         status: 'failed',
-        authMethod: phoneNumber ? 'mobile_or_email' : 'email_password',
+        authMethod: cleanPhone ? 'mobile_or_email' : 'email_password',
         details: { error: err.message },
       });
       return { error: err.message || 'Registration failed' };

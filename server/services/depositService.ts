@@ -269,7 +269,8 @@ export class DepositService {
     const existingMeta = (userProfile as any)?.metadata || {};
     const newMeta = {
       ...existingMeta,
-      mining_started_at: existingMeta.mining_started_at || nowIso,
+      mining_started_at: nowIso,
+      mining_base_balance: currentMining,
       mining_last_synced_at: nowIso,
     };
 

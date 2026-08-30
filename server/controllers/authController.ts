@@ -41,11 +41,15 @@ export class AuthController {
         return;
       }
 
-      // Check if phone number is already registered
+      // Check if phone number is already registered using safe array matching
+      const phoneVariants = Array.from(
+        new Set([cleanPhone, `+${phoneDigits}`, phoneDigits].filter(Boolean))
+      );
+      
       const { data: existingPhone } = await supabaseAdmin
         .from('profiles')
         .select('id, email, phone_number')
-        .or(`phone_number.eq.${cleanPhone},phone_number.eq.+${phoneDigits},phone_number.eq.${phoneDigits}`)
+        .in('phone_number', phoneVariants)
         .maybeSingle();
 
       if (existingPhone) {
@@ -82,7 +86,7 @@ export class AuthController {
       });
 
       if (createError) {
-        if (createError.message?.toLowerCase().includes('already registered')) {
+        if (createError.message?.toLowerCase().includes('already registered') || createError.message?.toLowerCase().includes('already exists')) {
           res.status(400).json({
             success: false,
             error: 'This account (email or mobile number) is already registered. Please sign in instead.',
@@ -208,11 +212,14 @@ export class AuthController {
         return;
       }
 
-      // 1. Search profiles table by phone_number
+      // 1. Search profiles table by phone_number variants
+      const phoneVariants = Array.from(
+        new Set([trimmed, `+${digitsOnly}`, digitsOnly].filter(Boolean))
+      );
       const { data: profile } = await supabaseAdmin
         .from('profiles')
         .select('email, phone_number, full_name')
-        .or(`phone_number.eq.${trimmed},phone_number.eq.+${digitsOnly},phone_number.eq.${digitsOnly},phone_number.ilike.%${digitsOnly}%`)
+        .in('phone_number', phoneVariants)
         .limit(1)
         .maybeSingle();
 

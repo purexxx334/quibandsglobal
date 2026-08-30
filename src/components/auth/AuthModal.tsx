@@ -80,25 +80,51 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMsg('');
     setSuccessMsg('');
 
+    const cleanFullName = formData.fullName.trim();
+    const cleanEmail = formData.email.trim().toLowerCase();
+    const cleanPhone = formData.phoneNumber.trim();
+    const cleanPassword = formData.password;
+    const cleanConfirmPassword = formData.confirmPassword;
+    const cleanReferral = formData.referralCode.trim().toUpperCase();
+
     if (mode === 'register') {
-      if (!formData.fullName.trim()) {
+      if (!cleanFullName) {
         setErrorMsg('Please enter your full name.');
         return;
       }
-      if (!formData.email || !formData.email.includes('@')) {
-        setErrorMsg('Please provide a valid email address.');
+      
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+        setErrorMsg('Please provide a valid email address (e.g. name@example.com).');
         return;
       }
-      if (!formData.phoneNumber || formData.phoneNumber.trim().length < 6) {
-        setErrorMsg('Mobile phone number is required for account verification and sign-in.');
+
+      const phoneDigits = cleanPhone.replace(/[^0-9]/g, '');
+      if (!cleanPhone || phoneDigits.length < 6) {
+        setErrorMsg('Please enter a valid mobile phone number with country code (e.g. +1 555 123 4567).');
         return;
       }
-      if (formData.password.length < 6) {
+
+      if (cleanPassword.length < 6) {
         setErrorMsg('Password must be at least 6 characters long.');
         return;
       }
-      if (formData.password !== formData.confirmPassword) {
-        setErrorMsg('Passwords do not match.');
+      if (cleanPassword !== cleanConfirmPassword) {
+        setErrorMsg('Passwords do not match. Please verify your password confirmation.');
+        return;
+      }
+    } else if (mode === 'login') {
+      if (!cleanEmail) {
+        setErrorMsg('Please enter your email address or mobile number.');
+        return;
+      }
+      if (!cleanPassword) {
+        setErrorMsg('Please enter your password.');
+        return;
+      }
+    } else if (mode === 'forgot_password') {
+      if (!cleanEmail || !cleanEmail.includes('@')) {
+        setErrorMsg('Please enter a valid email address for password reset.');
         return;
       }
     }
@@ -108,11 +134,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       if (mode === 'register') {
         const res = await signUp(
-          formData.email, 
-          formData.password, 
-          formData.fullName, 
-          formData.referralCode,
-          formData.phoneNumber
+          cleanEmail, 
+          cleanPassword, 
+          cleanFullName, 
+          cleanReferral,
+          cleanPhone
         );
         if (res.error) {
           setErrorMsg(res.error);
@@ -120,24 +146,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           return;
         }
 
-        onSuccessAuth(formData.email || formData.phoneNumber);
+        onSuccessAuth(cleanEmail || cleanPhone);
         onClose();
       } else if (mode === 'login') {
-
-        const res = await signIn(formData.email, formData.password);
+        const res = await signIn(cleanEmail, cleanPassword);
         if (res.error) {
           setErrorMsg(res.error);
           setLoading(false);
           return;
         }
-        onSuccessAuth(formData.email);
+        onSuccessAuth(cleanEmail);
         onClose();
       } else if (mode === 'forgot_password') {
-        const res = await resetPassword(formData.email);
+        const res = await resetPassword(cleanEmail);
         if (res.error) {
           setErrorMsg(res.error);
         } else {
-          setSuccessMsg(`A cryptographic password reset link has been dispatched to ${formData.email}. Please check your inbox or spam folder.`);
+          setSuccessMsg(`A cryptographic password reset link has been dispatched to ${cleanEmail}. Please check your inbox or spam folder.`);
         }
       }
     } catch (err: any) {
@@ -237,7 +262,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         )}
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           
           {mode === 'register' && (
             <div>
@@ -248,7 +273,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                 <input
                   type="text"
-                  required
+                  autoComplete="name"
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   placeholder="e.g. Jonathan Vance"
@@ -275,8 +300,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
               )}
               <input
-                type={mode === 'login' ? 'text' : 'email'}
-                required
+                type="text"
+                inputMode="email"
+                autoComplete={mode === 'login' ? 'username' : 'email'}
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder={mode === 'login' ? 'e.g. name@example.com or +1 234 567 8900' : 'name@example.com'}
@@ -298,8 +324,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="relative">
                 <Smartphone className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                 <input
-                  type="tel"
-                  required
+                  type="text"
+                  inputMode="tel"
+                  autoComplete="tel"
                   value={formData.phoneNumber}
                   onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                   placeholder="e.g. +1 555 123 4567"
@@ -317,7 +344,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
               <input
                 type={showPassword ? 'text' : 'password'}
-                required
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"
@@ -343,7 +370,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                   <input
                     type="password"
-                    required
+                    autoComplete="new-password"
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                     placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"

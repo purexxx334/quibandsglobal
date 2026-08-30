@@ -100,18 +100,18 @@ export const AdminPortalGateway: React.FC<AdminPortalGatewayProps> = ({ onSucces
         )}
 
         {/* Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} noValidate className="space-y-4">
           <div>
             <label className="block text-xs font-mono uppercase text-slate-400 mb-1.5 font-semibold">
               Admin Identifier / Email
             </label>
             <div className="relative">
               <input
-                type="email"
+                type="text"
+                inputMode="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@quibandsglobal.com"
-                required
                 className="w-full px-4 py-3 rounded-xl bg-dark-950/80 border border-slate-800 focus:border-gold-500 focus:ring-1 focus:ring-gold-500 text-white text-sm placeholder-slate-600 transition-all font-mono outline-none"
               />
             </div>
@@ -127,7 +127,6 @@ export const AdminPortalGateway: React.FC<AdminPortalGatewayProps> = ({ onSucces
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                required
                 className="w-full px-4 py-3 rounded-xl bg-dark-950/80 border border-slate-800 focus:border-gold-500 focus:ring-1 focus:ring-gold-500 text-white text-sm placeholder-slate-600 transition-all font-mono outline-none"
               />
             </div>
