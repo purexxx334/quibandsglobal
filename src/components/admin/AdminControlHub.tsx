@@ -511,17 +511,16 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     const targetUid = u.auth_user_id || u.id;
     setActionModal({ type: 'edit-financials', userId: targetUid, targetUser: u });
     const depVal = u.deposit_balance !== undefined ? String(u.deposit_balance) : '0';
-    // For old accounts, resolve minVal from mining_balance or profit_balance
-    const minVal = u.mining_balance !== undefined && Number(u.mining_balance) > 0
-      ? String(u.mining_balance)
-      : (u.profit_balance !== undefined ? String(u.profit_balance) : '0');
+    const profVal = u.profit_balance !== undefined
+      ? String(u.profit_balance)
+      : (u.mining_balance !== undefined ? String(u.mining_balance) : '0');
     const mainVal = u.main_balance !== undefined && Number(u.main_balance) > 0
       ? String(u.main_balance)
-      : String((parseFloat(depVal) || 0) + (parseFloat(minVal) || 0));
+      : String((parseFloat(depVal) || 0) + (parseFloat(profVal) || 0));
 
     setFinancialDepositBalance(depVal);
-    setFinancialMiningBalance(minVal);
-    setFinancialProfitBalance(minVal);
+    setFinancialMiningBalance(profVal);
+    setFinancialProfitBalance(profVal);
     setFinancialMainBalance(mainVal);
     setFinancialConvertBalance(u.convert_balance !== undefined ? String(u.convert_balance) : '0');
     setFinancialConvertCurrency(u.convert_currency || 'SGD');
@@ -529,8 +528,8 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     setFinancialAccountTier(u.account_tier || 'BASIC');
     setFinancialDepositRemark(u.deposit_remark || '');
     setFinancialBalanceRemark(u.balance_remark || '');
-    setFinancialMiningRemark(u.mining_remark || '');
-    setFinancialProfitRemark(u.profit_remark || '');
+    setFinancialMiningRemark(u.mining_remark || u.profit_remark || '');
+    setFinancialProfitRemark(u.profit_remark || u.mining_remark || '');
   };
 
   // Save User Financial Balances & Limits with direct DB fallback
@@ -541,11 +540,11 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     setActionLoading(true);
     try {
       const depVal = parseFloat(financialDepositBalance) || 0;
-      const minVal = parseFloat(financialMiningBalance) || 0;
-      const profVal = minVal; // Always sync profit_balance with mining_balance
-      const mainVal = parseFloat(financialMainBalance) || (depVal + minVal);
+      const profVal = parseFloat(financialProfitBalance) || parseFloat(financialMiningBalance) || 0;
+      const mainVal = parseFloat(financialMainBalance) || (depVal + profVal);
       const convVal = parseFloat(financialConvertBalance) || 0;
       const recLimit = parseFloat(financialReceiveLimit) || 9000;
+      const remarkProf = (financialProfitRemark || financialMiningRemark).trim() || null;
 
       let isSuccess = false;
       try {
@@ -556,16 +555,16 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
           body: JSON.stringify({
             depositBalance: depVal,
             mainBalance: mainVal,
-            miningBalance: minVal,
-            profitBalance: minVal,
+            miningBalance: profVal,
+            profitBalance: profVal,
             convertBalance: convVal,
             convertCurrency: financialConvertCurrency,
             receiveLimit: recLimit,
             accountTier: financialAccountTier,
             depositRemark: financialDepositRemark.trim() || null,
             balanceRemark: financialBalanceRemark.trim() || null,
-            miningRemark: financialMiningRemark.trim() || null,
-            profitRemark: financialProfitRemark.trim() || null,
+            miningRemark: remarkProf,
+            profitRemark: remarkProf,
           }),
         });
 
@@ -583,20 +582,20 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
           .update({
             deposit_balance: depVal,
             main_balance: mainVal,
-            mining_balance: minVal,
-            profit_balance: minVal,
+            mining_balance: profVal,
+            profit_balance: profVal,
             convert_balance: convVal,
             convert_currency: financialConvertCurrency,
             receive_limit: recLimit,
             account_tier: financialAccountTier,
             deposit_remark: financialDepositRemark.trim() || null,
             balance_remark: financialBalanceRemark.trim() || null,
-            mining_remark: financialMiningRemark.trim() || null,
-            profit_remark: financialProfitRemark.trim() || null,
+            mining_remark: remarkProf,
+            profit_remark: remarkProf,
             metadata: {
               ...(actionModal.targetUser?.metadata || {}),
               mining_started_at: nowIso,
-              mining_base_balance: minVal,
+              mining_base_balance: profVal,
               mining_last_sync_at: nowIso,
             },
             updated_at: nowIso,
@@ -609,8 +608,8 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
           .update({
             balance: mainVal,
             deposit_balance: depVal,
-            mining_balance: minVal,
-            profit_balance: minVal,
+            mining_balance: profVal,
+            profit_balance: profVal,
             updated_at: nowIso,
           })
           .eq('user_id', actionModal.userId);
@@ -2080,7 +2079,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                           <th className="px-4 py-3">User Profile</th>
                           <th className="px-4 py-3">Credentials / Key</th>
                           <th className="px-4 py-3">Deposit (Capital)</th>
-                          <th className="px-4 py-3">Mining (Profit)</th>
+                          <th className="px-4 py-3">Profit / Yield</th>
                           <th className="px-4 py-3">Main (Total)</th>
                           <th className="px-4 py-3">Convert Asset</th>
                           <th className="px-4 py-3">Referrals</th>
@@ -2130,10 +2129,10 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                                 ${(u.deposit_balance !== undefined ? u.deposit_balance : 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                               </td>
                               <td className="px-4 py-3 font-bold text-emerald-400">
-                                ${(u.mining_balance !== undefined ? u.mining_balance : (u.profit_balance || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                ${(u.profit_balance !== undefined ? u.profit_balance : (u.mining_balance || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                               </td>
                               <td className="px-4 py-3 font-bold text-gold-400">
-                                ${(u.main_balance !== undefined ? u.main_balance : ((u.deposit_balance || 0) + (u.mining_balance || 0) + (u.profit_balance || 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                ${(u.main_balance !== undefined ? u.main_balance : ((u.deposit_balance || 0) + (u.profit_balance || u.mining_balance || 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                               </td>
                               <td className="px-4 py-3 font-bold text-teal-300">
                                 {(u.convert_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {u.convert_currency || 'SGD'}
@@ -2149,36 +2148,13 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                               </td>
                               <td className="px-4 py-3 text-right">
                                 <div className="flex items-center justify-end gap-1.5">
-                                  {/* STOP / RESUME MINER TOGGLE */}
-                                  <button
-                                    onClick={() => handleToggleMiner(u)}
-                                    className={`px-2 py-1 rounded-lg border text-[10px] font-semibold font-sans transition flex items-center gap-1 ${
-                                      u.miner_status === 'stopped'
-                                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-emerald-500/20 hover:text-emerald-300 hover:border-emerald-500/40'
-                                        : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-rose-500/20 hover:text-rose-300 hover:border-rose-500/40'
-                                    }`}
-                                    title={u.miner_status === 'stopped' ? 'Miner is STOPPED - Click to Resume' : 'Miner is ACTIVE - Click to Stop/Pause'}
-                                  >
-                                    {u.miner_status === 'stopped' ? (
-                                      <>
-                                        <Play className="w-3 h-3 text-emerald-400 fill-emerald-400" />
-                                        <span>Resume Miner</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Square className="w-3 h-3 text-rose-400 fill-rose-400" />
-                                        <span>Stop Miner</span>
-                                      </>
-                                    )}
-                                  </button>
-
                                   <button
                                     onClick={() => openFinancialEditor(u)}
-                                    className="px-2.5 py-1 rounded-lg bg-gold-500/20 hover:bg-gold-500/30 text-gold-400 border border-gold-500/40 text-[10px] font-semibold font-sans transition flex items-center gap-1"
+                                    className="px-3 py-1.5 rounded-lg bg-gold-500/20 hover:bg-gold-500/30 text-gold-400 border border-gold-500/40 text-xs font-bold font-mono transition flex items-center gap-1.5 shadow-sm"
                                     title="Edit Balances & Remarks"
                                   >
-                                    <DollarSign className="w-3 h-3" />
-                                    <span>Balances</span>
+                                    <DollarSign className="w-3.5 h-3.5" />
+                                    <span>Edit Balances</span>
                                   </button>
                                   
                                   <button
@@ -3212,32 +3188,35 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                     />
                   </div>
 
-                  {/* 2. Mining Balance / Amount Mined (Profit) */}
+                  {/* 2. Profit / Yield Balance */}
                   <div className="p-3.5 bg-dark-900 rounded-xl border border-emerald-500/30 space-y-2">
                     <div className="flex justify-between items-center">
-                      <label className="font-bold text-emerald-400 uppercase tracking-wider text-[11px]">2. Mining Balance ($ USD Amount Mined / Profit)</label>
-                      <span className="text-slate-400 text-[10px]">Rig Mined Yield</span>
+                      <label className="font-bold text-emerald-400 uppercase tracking-wider text-[11px]">2. Profit / Yield Balance ($ USD)</label>
+                      <span className="text-slate-400 text-[10px]">Realized Profit &amp; Yield</span>
                     </div>
                     <input
                       type="number"
                       step="0.01"
-                      value={financialMiningBalance}
+                      value={financialProfitBalance}
                       onChange={(e) => {
-                        const newMin = e.target.value;
-                        setFinancialMiningBalance(newMin);
-                        setFinancialProfitBalance(newMin);
+                        const newProf = e.target.value;
+                        setFinancialProfitBalance(newProf);
+                        setFinancialMiningBalance(newProf);
                         const d = parseFloat(financialDepositBalance) || 0;
-                        const m = parseFloat(newMin) || 0;
-                        setFinancialMainBalance((d + m).toFixed(2));
+                        const p = parseFloat(newProf) || 0;
+                        setFinancialMainBalance((d + p).toFixed(2));
                       }}
                       placeholder="0.00"
                       className="w-full p-2.5 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-emerald-500 focus:outline-none"
                     />
                     <input
                       type="text"
-                      value={financialMiningRemark}
-                      onChange={(e) => setFinancialMiningRemark(e.target.value)}
-                      placeholder="Optional remark shown to user on mining balance"
+                      value={financialProfitRemark || financialMiningRemark}
+                      onChange={(e) => {
+                        setFinancialProfitRemark(e.target.value);
+                        setFinancialMiningRemark(e.target.value);
+                      }}
+                      placeholder="Optional remark shown to user on profit balance"
                       className="w-full p-2 bg-dark-950 border border-slate-800 rounded-lg text-slate-300 text-xs focus:border-emerald-500 focus:outline-none"
                     />
                   </div>
@@ -3250,11 +3229,11 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                         type="button"
                         onClick={() => {
                           const d = parseFloat(financialDepositBalance) || 0;
-                          const m = parseFloat(financialMiningBalance) || 0;
-                          setFinancialMainBalance((d + m).toFixed(2));
+                          const p = parseFloat(financialProfitBalance) || parseFloat(financialMiningBalance) || 0;
+                          setFinancialMainBalance((d + p).toFixed(2));
                         }}
                         className="px-2 py-0.5 rounded bg-gold-400/10 hover:bg-gold-400/20 text-gold-400 border border-gold-400/30 text-[10px] font-bold font-mono transition"
-                        title="Calculate Main Balance = Deposit + Mining"
+                        title="Calculate Main Balance = Deposit + Profit"
                       >
                         ⚡ Auto-Sum: Capital + Profit
                       </button>
@@ -3277,34 +3256,11 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                     />
                   </div>
 
-                  {/* 4. Profit Balance (Realized Trading/Dividends) */}
-                  <div className="p-3.5 bg-dark-900 rounded-xl border border-indigo-500/30 space-y-2">
+                  {/* 4. Convert Balance (Local Currency Asset) */}
+                  <div className="p-3.5 bg-dark-900 rounded-xl border border-teal-500/30 space-y-2">
                     <div className="flex justify-between items-center">
-                      <label className="font-bold text-indigo-400 uppercase tracking-wider text-[11px]">4. Profit Balance ($ USD Realized Returns)</label>
-                      <span className="text-slate-400 text-[10px]">Dividends / Extra Returns</span>
-                    </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={financialProfitBalance}
-                      onChange={(e) => setFinancialProfitBalance(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full p-2.5 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-indigo-500 focus:outline-none"
-                    />
-                    <input
-                      type="text"
-                      value={financialProfitRemark}
-                      onChange={(e) => setFinancialProfitRemark(e.target.value)}
-                      placeholder="Optional remark shown to user on profit balance"
-                      className="w-full p-2 bg-dark-950 border border-slate-800 rounded-lg text-slate-300 text-xs focus:border-indigo-500 focus:outline-none"
-                    />
-                  </div>
-
-                  {/* 5. Convert Balance (Local Mine Asset) */}
-                  <div className="p-3.5 bg-dark-900 rounded-xl border border-white/10 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="font-bold text-teal-400 uppercase tracking-wider text-[11px]">5. Convert Balance (Local Mine Asset)</label>
-                      <span className="text-slate-400 text-[10px]">Converted Mine</span>
+                      <label className="font-bold text-teal-400 uppercase tracking-wider text-[11px]">4. Convert Balance (Settled Conversion Assets)</label>
+                      <span className="text-slate-400 text-[10px]">Local Currency</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <input
