@@ -62,7 +62,7 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
   mainBalance,
   profitBalance
 }) => {
-  const { user, profile, session } = useAuth();
+  const { user, profile, session, refreshProfile } = useAuth();
 
   const [currentStep, setCurrentStep] = useState<'convert' | 'pending' | 'converted'>('convert');
   const [selectedCurrency, setSelectedCurrency] = useState<MineCurrency>(LOCAL_MINE_CURRENCIES[0]); // Default: SGD

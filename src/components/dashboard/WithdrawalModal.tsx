@@ -448,7 +448,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
               onClick={() => {
                 if (step === 'select-balance') {
                   setStep('bank-details');
-                } else if (step === 'hbc-vbc') {
+                } else if (step === 'hbc-vbc-code') {
                   setStep('select-balance');
                 } else {
                   onClose();
