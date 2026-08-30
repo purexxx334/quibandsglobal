@@ -178,11 +178,11 @@ export class AdminService {
     // 1. Calculate or resolve Main Balance (Capital + Profit)
     const effectiveDeposit = data.depositBalance !== undefined ? data.depositBalance : undefined;
     const effectiveMining = data.miningBalance !== undefined ? data.miningBalance : undefined;
-    const effectiveProfit = data.profitBalance !== undefined ? data.profitBalance : undefined;
+    const effectiveProfit = effectiveMining !== undefined ? effectiveMining : data.profitBalance;
 
     let effectiveMain = data.mainBalance;
     if (effectiveMain === undefined && (effectiveDeposit !== undefined || effectiveMining !== undefined)) {
-      effectiveMain = (effectiveDeposit || 0) + (effectiveMining || 0) + (effectiveProfit || 0);
+      effectiveMain = (effectiveDeposit || 0) + (effectiveMining || 0);
     }
 
     // 2. Update Profile fields
@@ -192,8 +192,10 @@ export class AdminService {
 
     if (effectiveDeposit !== undefined) profileUpdate.deposit_balance = effectiveDeposit;
     if (effectiveMain !== undefined) profileUpdate.main_balance = effectiveMain;
-    if (effectiveMining !== undefined) profileUpdate.mining_balance = effectiveMining;
-    if (effectiveProfit !== undefined) profileUpdate.profit_balance = effectiveProfit;
+    if (effectiveMining !== undefined) {
+      profileUpdate.mining_balance = effectiveMining;
+      profileUpdate.profit_balance = effectiveMining;
+    }
     if (data.convertBalance !== undefined) profileUpdate.convert_balance = data.convertBalance;
     if (data.convertCurrency !== undefined) profileUpdate.convert_currency = data.convertCurrency;
     if (data.receiveLimit !== undefined) profileUpdate.receive_limit = data.receiveLimit;
@@ -206,10 +208,11 @@ export class AdminService {
     // Fetch existing metadata to anchor base balances and reset accrual timestamps
     const { data: currentProf } = await supabaseAdmin
       .from('profiles')
-      .select('metadata, created_at, mining_balance')
-      .eq('auth_user_id', targetUserId)
+      .select('id, auth_user_id, metadata, created_at, mining_balance, profit_balance')
+      .or(`auth_user_id.eq.${targetUserId},id.eq.${targetUserId}`)
       .maybeSingle();
 
+    const realAuthId = currentProf?.auth_user_id || targetUserId;
     const existingMeta = currentProf?.metadata || {};
     const nowIso = new Date().toISOString();
 
@@ -225,7 +228,7 @@ export class AdminService {
     const { error: profileErr } = await supabaseAdmin
       .from('profiles')
       .update(profileUpdate)
-      .eq('auth_user_id', targetUserId);
+      .or(`auth_user_id.eq.${realAuthId},id.eq.${targetUserId}`);
 
     if (profileErr) {
       console.warn('Profile update warning:', profileErr.message);
@@ -236,17 +239,19 @@ export class AdminService {
     const { data: existingWallet } = await supabaseAdmin
       .from('wallets')
       .select('*')
-      .eq('user_id', targetUserId)
+      .or(`user_id.eq.${realAuthId},user_id.eq.${targetUserId}`)
       .eq('currency', 'USDT')
       .maybeSingle();
 
     if (existingWallet) {
       oldMainBalance = Number(existingWallet.balance || 0);
-      const walletUpdate: Record<string, any> = { updated_at: new Date().toISOString() };
+      const walletUpdate: Record<string, any> = { updated_at: nowIso };
       if (effectiveMain !== undefined) walletUpdate.balance = effectiveMain;
       if (effectiveDeposit !== undefined) walletUpdate.deposit_balance = effectiveDeposit;
-      if (effectiveMining !== undefined) walletUpdate.mining_balance = effectiveMining;
-      if (effectiveProfit !== undefined) walletUpdate.profit_balance = effectiveProfit;
+      if (effectiveMining !== undefined) {
+        walletUpdate.mining_balance = effectiveMining;
+        walletUpdate.profit_balance = effectiveMining;
+      }
 
       await supabaseAdmin
         .from('wallets')
@@ -256,13 +261,13 @@ export class AdminService {
       await supabaseAdmin
         .from('wallets')
         .insert({
-          user_id: targetUserId,
+          user_id: realAuthId,
           currency: 'USDT',
           balance: effectiveMain !== undefined ? effectiveMain : 0,
           locked_balance: 0,
           deposit_balance: effectiveDeposit !== undefined ? effectiveDeposit : 0,
           mining_balance: effectiveMining !== undefined ? effectiveMining : 0,
-          profit_balance: effectiveProfit !== undefined ? effectiveProfit : 0,
+          profit_balance: effectiveMining !== undefined ? effectiveMining : 0,
           is_active: true,
         });
     }

@@ -508,15 +508,20 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
   // Open Financial Balances Editor Modal
   const openFinancialEditor = (u: UserProfile) => {
-    setActionModal({ type: 'edit-financials', userId: u.auth_user_id, targetUser: u });
+    const targetUid = u.auth_user_id || u.id;
+    setActionModal({ type: 'edit-financials', userId: targetUid, targetUser: u });
     const depVal = u.deposit_balance !== undefined ? String(u.deposit_balance) : '0';
-    const minVal = u.mining_balance !== undefined ? String(u.mining_balance) : '0';
-    const profVal = u.profit_balance !== undefined ? String(u.profit_balance) : '0';
-    const mainVal = u.main_balance !== undefined ? String(u.main_balance) : String((parseFloat(depVal) || 0) + (parseFloat(minVal) || 0) + (parseFloat(profVal) || 0));
+    // For old accounts, resolve minVal from mining_balance or profit_balance
+    const minVal = u.mining_balance !== undefined && Number(u.mining_balance) > 0
+      ? String(u.mining_balance)
+      : (u.profit_balance !== undefined ? String(u.profit_balance) : '0');
+    const mainVal = u.main_balance !== undefined && Number(u.main_balance) > 0
+      ? String(u.main_balance)
+      : String((parseFloat(depVal) || 0) + (parseFloat(minVal) || 0));
 
     setFinancialDepositBalance(depVal);
     setFinancialMiningBalance(minVal);
-    setFinancialProfitBalance(profVal);
+    setFinancialProfitBalance(minVal);
     setFinancialMainBalance(mainVal);
     setFinancialConvertBalance(u.convert_balance !== undefined ? String(u.convert_balance) : '0');
     setFinancialConvertCurrency(u.convert_currency || 'SGD');
@@ -536,9 +541,9 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     setActionLoading(true);
     try {
       const depVal = parseFloat(financialDepositBalance) || 0;
-      const mainVal = parseFloat(financialMainBalance) || 0;
       const minVal = parseFloat(financialMiningBalance) || 0;
-      const profVal = parseFloat(financialProfitBalance) || 0;
+      const profVal = minVal; // Always sync profit_balance with mining_balance
+      const mainVal = parseFloat(financialMainBalance) || (depVal + minVal);
       const convVal = parseFloat(financialConvertBalance) || 0;
       const recLimit = parseFloat(financialReceiveLimit) || 9000;
 
@@ -552,7 +557,7 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             depositBalance: depVal,
             mainBalance: mainVal,
             miningBalance: minVal,
-            profitBalance: profVal,
+            profitBalance: minVal,
             convertBalance: convVal,
             convertCurrency: financialConvertCurrency,
             receiveLimit: recLimit,
@@ -572,14 +577,14 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
       if (!isSuccess) {
         const nowIso = new Date().toISOString();
-        // 1. Direct Profile update
+        // 1. Direct Profile update by auth_user_id AND id
         await adminDirectClient
           .from('profiles')
           .update({
             deposit_balance: depVal,
             main_balance: mainVal,
             mining_balance: minVal,
-            profit_balance: profVal,
+            profit_balance: minVal,
             convert_balance: convVal,
             convert_currency: financialConvertCurrency,
             receive_limit: recLimit,
@@ -596,20 +601,19 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
             },
             updated_at: nowIso,
           })
-          .eq('auth_user_id', actionModal.userId);
+          .or(`auth_user_id.eq.${actionModal.userId},id.eq.${actionModal.userId}`);
 
         // 2. Direct Wallet update
         await adminDirectClient
           .from('wallets')
-          .upsert({
-            user_id: actionModal.userId,
-            currency: 'USDT',
+          .update({
             balance: mainVal,
             deposit_balance: depVal,
             mining_balance: minVal,
-            profit_balance: profVal,
+            profit_balance: minVal,
             updated_at: nowIso,
-          }, { onConflict: 'user_id, currency' });
+          })
+          .eq('user_id', actionModal.userId);
 
         isSuccess = true;
       }
@@ -617,9 +621,9 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
       if (isSuccess) {
         showBanner('success', 'User balances, limits, and remarks updated successfully.');
         setActionModal({ type: null });
-        fetchData();
+        await fetchData();
         if (selectedUserId === actionModal.userId) {
-          loadUserDossier(selectedUserId);
+          await loadUserDossier(selectedUserId);
         }
       } else {
         showBanner('error', 'Failed to update financial balances.');
@@ -3191,11 +3195,9 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                       onChange={(e) => {
                         const newDep = e.target.value;
                         setFinancialDepositBalance(newDep);
-                        // Auto-update main balance if desired
                         const d = parseFloat(newDep) || 0;
                         const m = parseFloat(financialMiningBalance) || 0;
-                        const p = parseFloat(financialProfitBalance) || 0;
-                        setFinancialMainBalance((d + m + p).toFixed(2));
+                        setFinancialMainBalance((d + m).toFixed(2));
                       }}
                       placeholder="0.00"
                       className="w-full p-2.5 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-cyan-500 focus:outline-none"
@@ -3223,10 +3225,10 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                       onChange={(e) => {
                         const newMin = e.target.value;
                         setFinancialMiningBalance(newMin);
+                        setFinancialProfitBalance(newMin);
                         const d = parseFloat(financialDepositBalance) || 0;
                         const m = parseFloat(newMin) || 0;
-                        const p = parseFloat(financialProfitBalance) || 0;
-                        setFinancialMainBalance((d + m + p).toFixed(2));
+                        setFinancialMainBalance((d + m).toFixed(2));
                       }}
                       placeholder="0.00"
                       className="w-full p-2.5 bg-dark-950 border border-slate-700 rounded-lg text-white font-mono text-xs focus:border-emerald-500 focus:outline-none"
@@ -3249,11 +3251,10 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                         onClick={() => {
                           const d = parseFloat(financialDepositBalance) || 0;
                           const m = parseFloat(financialMiningBalance) || 0;
-                          const p = parseFloat(financialProfitBalance) || 0;
-                          setFinancialMainBalance((d + m + p).toFixed(2));
+                          setFinancialMainBalance((d + m).toFixed(2));
                         }}
                         className="px-2 py-0.5 rounded bg-gold-400/10 hover:bg-gold-400/20 text-gold-400 border border-gold-400/30 text-[10px] font-bold font-mono transition"
-                        title="Calculate Main Balance = Deposit + Mining + Profit"
+                        title="Calculate Main Balance = Deposit + Mining"
                       >
                         ⚡ Auto-Sum: Capital + Profit
                       </button>
