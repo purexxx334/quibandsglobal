@@ -25,13 +25,11 @@ interface HeroSectionProps {
 export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAuth, onOpenCalculator }) => {
   const [liveBlocks, setLiveBlocks] = useState(882419);
   const [liveHashrate, setLiveHashrate] = useState(482.6);
-  const [realtimeMinedUsd, setRealtimeMinedUsd] = useState(4920.45);
 
   // Micro-simulation of live hashrate metrics
   useEffect(() => {
     const timer = setInterval(() => {
       setLiveHashrate(prev => +(prev + (Math.random() * 0.4 - 0.2)).toFixed(2));
-      setRealtimeMinedUsd(prev => +(prev + 0.08).toFixed(2));
     }, 2500);
 
     const blockTimer = setInterval(() => {
@@ -192,146 +190,77 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAuth, onOpenCalc
               </div>
 
               {/* Terminal Dashboard Content */}
-              <div className="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="p-6 md:p-8 space-y-6">
                 
-                {/* Left Metrics Columns */}
-                <div className="lg:col-span-7 space-y-6">
-                  
-                  {/* Big Metric Display */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
-                    <div className="p-4 rounded-xl bg-dark-850/80 border border-white/5">
-                      <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                        <Cpu className="w-3 h-3 text-gold-400" /> Total Hashrate
-                      </div>
-                      <div className="text-2xl font-bold font-mono text-white tracking-tight">
-                        {liveHashrate} <span className="text-xs font-normal text-gold-400">EH/s</span>
-                      </div>
-                      <div className="text-[10px] text-emerald-400 font-mono mt-1 flex items-center gap-0.5">
-                        <TrendingUp className="w-3 h-3" /> +4.2% Grid expansion
-                      </div>
+                {/* Big Metric Display */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  <div className="p-4 rounded-xl bg-dark-850/80 border border-white/5">
+                    <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                      <Cpu className="w-3 h-3 text-gold-400" /> Total Hashrate
                     </div>
-
-                    <div className="p-4 rounded-xl bg-dark-850/80 border border-white/5">
-                      <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                        <Layers className="w-3 h-3 text-blue-400" /> Active Rigs
-                      </div>
-                      <div className="text-2xl font-bold font-mono text-white tracking-tight">
-                        24,810 <span className="text-xs font-normal text-slate-400">ASIC</span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-1">
-                        Antminer S21 Pro / Hydro
-                      </div>
+                    <div className="text-2xl font-bold font-mono text-white tracking-tight">
+                      {liveHashrate} <span className="text-xs font-normal text-gold-400">EH/s</span>
                     </div>
-
-                    <div className="p-4 rounded-xl bg-dark-850/80 border border-white/5 col-span-2 sm:col-span-1">
-                      <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                        <Zap className="w-3 h-3 text-amber-400" /> Power Eff.
-                      </div>
-                      <div className="text-2xl font-bold font-mono text-emerald-400 tracking-tight">
-                        15.5 <span className="text-xs font-normal text-slate-400">J/TH</span>
-                      </div>
-                      <div className="text-[10px] text-emerald-400/90 font-mono mt-1">
-                        100% Zero-Carbon Hydro
-                      </div>
+                    <div className="text-[10px] text-emerald-400 font-mono mt-1 flex items-center gap-0.5">
+                      <TrendingUp className="w-3 h-3" /> +4.2% Grid expansion
                     </div>
                   </div>
 
-                  {/* Hashrate Live Streaming Graph Mockup */}
-                  <div className="p-4 rounded-xl bg-dark-850/50 border border-white/5">
-                    <div className="flex items-center justify-between text-xs font-mono text-slate-300 mb-3">
-                      <span className="font-semibold text-slate-200">24-HOUR HASHRATE CONTINUITY & SETTLEMENT</span>
-                      <span className="text-gold-400">DIFF: 86.4T</span>
+                  <div className="p-4 rounded-xl bg-dark-850/80 border border-white/5">
+                    <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                      <Layers className="w-3 h-3 text-blue-400" /> Active Rigs
                     </div>
-
-                    {/* Visual Bar Spectrum */}
-                    <div className="h-20 w-full flex items-end gap-1 sm:gap-1.5 pt-2">
-                      {[65, 72, 68, 85, 90, 82, 88, 95, 92, 98, 94, 99, 96, 92, 89, 94, 98, 100, 97, 95, 99, 96, 98, 100].map((val, idx) => (
-                        <div key={idx} className="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer">
-                          <div 
-                            className={`w-full rounded-t-sm transition-all duration-300 ${
-                              idx >= 18 
-                                ? 'bg-gradient-to-t from-gold-600 to-gold-400 shadow-gold-sm' 
-                                : 'bg-slate-700 hover:bg-slate-500'
-                            }`}
-                            style={{ height: `${val}%` }}
-                          />
-                        </div>
-                      ))}
+                    <div className="text-2xl font-bold font-mono text-white tracking-tight">
+                      24,810 <span className="text-xs font-normal text-slate-400">ASIC</span>
                     </div>
-
-                    <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 mt-2">
-                      <span>00:00 UTC</span>
-                      <span>06:00 UTC</span>
-                      <span>12:00 UTC</span>
-                      <span>18:00 UTC</span>
-                      <span className="text-gold-400">LIVE</span>
+                    <div className="text-[10px] text-slate-400 font-mono mt-1">
+                      Antminer S21 Pro / Hydro
                     </div>
                   </div>
 
+                  <div className="p-4 rounded-xl bg-dark-850/80 border border-white/5">
+                    <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-amber-400" /> Power Eff.
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-emerald-400 tracking-tight">
+                      15.5 <span className="text-xs font-normal text-slate-400">J/TH</span>
+                    </div>
+                    <div className="text-[10px] text-emerald-400/90 font-mono mt-1">
+                      100% Zero-Carbon Hydro
+                    </div>
+                  </div>
                 </div>
 
-                {/* Right Side: Live Ledger Payout Stream & Quick Action */}
-                <div className="lg:col-span-5 flex flex-col justify-between p-5 rounded-xl bg-gradient-to-b from-dark-800/90 to-dark-850/90 border border-white/10">
-                  <div>
-                    <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
-                      <div className="text-xs font-mono text-slate-300 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-gold-400 animate-pulse" />
-                        <span>RECENT LEDGER SETTLEMENTS</span>
-                      </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-slate-400">AUDITED</span>
-                    </div>
-
-                    {/* Ledger entries mock stream */}
-                    <div className="space-y-2.5 font-mono text-xs">
-                      <div className="p-2.5 rounded-lg bg-dark-900/80 border border-white/5 flex items-center justify-between">
-                        <div>
-                          <div className="text-slate-200 font-semibold text-xs flex items-center gap-1.5">
-                            <span className="text-emerald-400 font-bold">+0.00482 BTC</span>
-                            <span className="text-[10px] text-slate-500">(SHA-256)</span>
-                          </div>
-                          <div className="text-[10px] text-slate-400">TX #98421b &bull; 12s ago</div>
-                        </div>
-                        <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">CREDITED</span>
-                      </div>
-
-                      <div className="p-2.5 rounded-lg bg-dark-900/80 border border-white/5 flex items-center justify-between">
-                        <div>
-                          <div className="text-slate-200 font-semibold text-xs flex items-center gap-1.5">
-                            <span className="text-emerald-400 font-bold">+184.20 USDT</span>
-                            <span className="text-[10px] text-slate-500">(TRC-20)</span>
-                          </div>
-                          <div className="text-[10px] text-slate-400">Deposit Approved &bull; 1m ago</div>
-                        </div>
-                        <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">SETTLED</span>
-                      </div>
-
-                      <div className="p-2.5 rounded-lg bg-dark-900/80 border border-white/5 flex items-center justify-between">
-                        <div>
-                          <div className="text-slate-200 font-semibold text-xs flex items-center gap-1.5">
-                            <span className="text-emerald-400 font-bold">+0.142 ETH</span>
-                            <span className="text-[10px] text-slate-500">(PoS Valid.)</span>
-                          </div>
-                          <div className="text-[10px] text-slate-400">Daily Payout &bull; 3m ago</div>
-                        </div>
-                        <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">CREDITED</span>
-                      </div>
-                    </div>
+                {/* Hashrate Live Streaming Graph Mockup */}
+                <div className="p-4 rounded-xl bg-dark-850/50 border border-white/5">
+                  <div className="flex items-center justify-between text-xs font-mono text-slate-300 mb-3">
+                    <span className="font-semibold text-slate-200">24-HOUR HASHRATE CONTINUITY & SETTLEMENT</span>
+                    <span className="text-gold-400">DIFF: 86.4T</span>
                   </div>
 
-                  {/* Terminal Footer CTA */}
-                  <div className="pt-5 mt-4 border-t border-white/10 flex items-center justify-between gap-3">
-                    <div className="text-left">
-                      <div className="text-[11px] text-slate-400">Realized Mining Pool Yield:</div>
-                      <div className="text-sm font-bold font-mono text-gold-400">${realtimeMinedUsd.toLocaleString()} / hr</div>
-                    </div>
-                    <button
-                      onClick={() => onOpenAuth('register')}
-                      className="px-4 py-2 rounded-lg bg-gold-500 hover:bg-gold-400 text-dark-950 font-bold text-xs transition-colors"
-                    >
-                      Deploy Hashrate
-                    </button>
+                  {/* Visual Bar Spectrum */}
+                  <div className="h-20 w-full flex items-end gap-1 sm:gap-1.5 pt-2">
+                    {[65, 72, 68, 85, 90, 82, 88, 95, 92, 98, 94, 99, 96, 92, 89, 94, 98, 100, 97, 95, 99, 96, 98, 100].map((val, idx) => (
+                      <div key={idx} className="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer">
+                        <div 
+                          className={`w-full rounded-t-sm transition-all duration-300 ${
+                            idx >= 18 
+                              ? 'bg-gradient-to-t from-gold-600 to-gold-400 shadow-gold-sm' 
+                              : 'bg-slate-700 hover:bg-slate-500'
+                          }`}
+                          style={{ height: `${val}%` }}
+                        />
+                      </div>
+                    ))}
                   </div>
 
+                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 mt-2">
+                    <span>00:00 UTC</span>
+                    <span>06:00 UTC</span>
+                    <span>12:00 UTC</span>
+                    <span>18:00 UTC</span>
+                    <span className="text-gold-400">LIVE</span>
+                  </div>
                 </div>
 
               </div>
