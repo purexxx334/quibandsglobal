@@ -496,11 +496,6 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ onOpenDeposit, onO
                 <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight bg-gradient-to-r from-gold-200 via-white to-gold-300 bg-clip-text text-transparent">
                   ${mainBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                <div className="text-[11px] text-gold-400/90 flex flex-wrap items-center gap-1.5 mt-1 font-mono">
-                  <span className="text-cyan-300 font-bold">${depositBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2 })} Capital</span>
-                  <span className="text-slate-500">+</span>
-                  <span className="text-emerald-400 font-bold">${profitBalanceUsd.toLocaleString(undefined, { minimumFractionDigits: 2 })} Profit</span>
-                </div>
               </div>
             </div>
 
