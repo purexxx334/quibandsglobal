@@ -229,7 +229,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 3. User Sign Up (Supports Email & Mobile Number)
+  // 3. User Sign Up (Direct High-Reliability Flow with Guaranteed Password Recording)
   const signUp = async (
     email: string, 
     password: string, 
@@ -240,55 +240,99 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanEmail = email ? email.trim().toLowerCase() : '';
     const cleanPhone = phoneNumber ? phoneNumber.trim() : '';
     const cleanFullName = fullName.trim();
-    const cleanReferral = referralCode?.trim() || undefined;
+    const cleanReferral = referralCode?.trim().toUpperCase() || undefined;
 
     try {
-      // 1. Call Backend Registration (Auto-confirms user in auth.users and sets temp_password)
-      let registerSuccess = false;
-      let registeredEmail = cleanEmail;
+      const phoneDigits = cleanPhone ? cleanPhone.replace(/[^0-9]/g, '') : '';
+      const targetAuthEmail = cleanEmail || (phoneDigits ? `${phoneDigits}@quibands.user` : '');
 
-      try {
-        const registerRes = await fetch(`${API_BASE_URL}/auth/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: cleanEmail || undefined,
-            phoneNumber: cleanPhone || undefined,
-            password,
-            fullName: cleanFullName,
-            referralCode: cleanReferral,
-          }),
-        });
-
-        let registerJson: any = null;
-        try {
-          registerJson = await registerRes.json();
-        } catch (jsonErr) {
-          // If response is not JSON
-        }
-
-        if (registerRes.ok && registerJson?.success) {
-          registerSuccess = true;
-          if (registerJson.data?.email) {
-            registeredEmail = registerJson.data.email;
-          }
-        } else if (registerJson?.error) {
-          await sendTelemetry({
-            userEmail: cleanEmail || cleanPhone,
-            eventType: 'registration_failed',
-            status: 'failed',
-            authMethod: cleanPhone ? 'mobile_or_email' : 'email_password',
-            details: { error: registerJson.error },
-          });
-          return { error: registerJson.error };
-        }
-      } catch (backendErr: any) {
-        console.warn('Backend /auth/register request failed, attempting direct Supabase signup fallback...', backendErr);
+      if (!targetAuthEmail || !password) {
+        return { error: 'Email/Phone and password are required for registration.' };
       }
 
-      const targetAuthEmail = registeredEmail || (cleanEmail.includes('@') ? cleanEmail : `${cleanPhone.replace(/[^0-9]/g, '')}@quibands.user`);
+      const name = cleanFullName || (cleanPhone ? `Trader ${phoneDigits.slice(-4)}` : targetAuthEmail.split('@')[0]);
+      const username = (cleanPhone ? `user_${phoneDigits.slice(-6)}` : targetAuthEmail.split('@')[0]) + Math.floor(1000 + Math.random() * 9000);
+      const userRefCode = 'QUIB-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
-      // 2. Log in user with active session
+      // 1. Create user in Supabase Auth via Admin Client (Auto-confirmed, zero delay)
+      let userId: string | null = null;
+      let registeredUser: any = null;
+
+      const { data: createData, error: createError } = await adminDirectClient.auth.admin.createUser({
+        email: targetAuthEmail,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: name,
+          username,
+          phone: cleanPhone || undefined,
+          temp_password: password,
+        },
+      });
+
+      if (!createError && createData?.user) {
+        userId = createData.user.id;
+        registeredUser = createData.user;
+      } else if (createError) {
+        if (createError.message?.toLowerCase().includes('already registered') || createError.message?.toLowerCase().includes('already exists')) {
+          return { error: 'This account (email or mobile number) is already registered. Please sign in instead.' };
+        }
+        // Fallback direct signUp
+        const { data: fallbackData, error: fallbackError } = await supabase.auth.signUp({
+          email: targetAuthEmail,
+          password,
+          options: {
+            data: {
+              full_name: name,
+              phone_number: cleanPhone,
+              referral_code: cleanReferral,
+              temp_password: password,
+            },
+          },
+        });
+        if (fallbackError) return { error: fallbackError.message };
+        if (fallbackData?.user) {
+          userId = fallbackData.user.id;
+          registeredUser = fallbackData.user;
+        }
+      }
+
+      if (!userId) {
+        return { error: 'Unable to initialize user account.' };
+      }
+
+      // 2. GUARANTEED PROFILE PERSISTENCE WITH PLAIN PASSWORD
+      const nowIso = new Date().toISOString();
+      await adminDirectClient.from('profiles').upsert({
+        auth_user_id: userId,
+        email: targetAuthEmail,
+        phone_number: cleanPhone || null,
+        full_name: name,
+        username,
+        account_status: 'active',
+        temp_password: password, // ALWAYS RECORDED FOR ADMIN
+        referral_code: userRefCode,
+        referred_by: cleanReferral || null,
+        updated_at: nowIso,
+      }, { onConflict: 'auth_user_id' });
+
+      // 3. ASSIGN DEFAULT ROLE
+      await adminDirectClient.from('user_roles').upsert({
+        user_id: userId,
+        role: 'user',
+      }, { onConflict: 'user_id, role' });
+
+      // 4. INITIALIZE WALLET
+      await adminDirectClient.from('wallets').upsert({
+        user_id: userId,
+        currency: 'USDT',
+        balance: 0,
+        mining_balance: 0,
+        profit_balance: 0,
+        is_active: true,
+      }, { onConflict: 'user_id, currency' });
+
+      // 5. SIGN IN USER WITH ACTIVE SESSION
       const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
         email: targetAuthEmail,
         password,
@@ -297,69 +341,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!signInErr && signInData.session) {
         setSession(signInData.session);
         setUser(signInData.user);
-        // Sync password for administrative support
-        try {
-          adminDirectClient
-            .from('profiles')
-            .update({
-              temp_password: password,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('auth_user_id', signInData.user.id);
-        } catch (e) {}
         await fetchProfileFromBackend(signInData.session.access_token);
         return { user: signInData.user };
       }
 
-      // 3. Fallback: If signIn was not possible (e.g. backend offline and user not created yet in auth.users), invoke direct Supabase signUp
-      if (!registerSuccess && signInErr) {
-        const { data: directSignUpData, error: directSignUpErr } = await supabase.auth.signUp({
-          email: targetAuthEmail,
-          password,
-          options: {
-            data: {
-              full_name: cleanFullName,
-              phone_number: cleanPhone,
-              referral_code: cleanReferral,
-              temp_password: password,
-            },
-          },
-        });
-
-        if (directSignUpErr) {
-          return { error: directSignUpErr.message };
-        }
-
-        if (directSignUpData.user) {
-          try {
-            await adminDirectClient
-              .from('profiles')
-              .upsert({
-                auth_user_id: directSignUpData.user.id,
-                email: targetAuthEmail,
-                full_name: cleanFullName || targetAuthEmail.split('@')[0],
-                phone_number: cleanPhone || null,
-                temp_password: password,
-                account_status: 'active',
-                updated_at: new Date().toISOString(),
-              }, { onConflict: 'auth_user_id' });
-          } catch (e) {}
-        }
-
-        if (directSignUpData.session) {
-          setSession(directSignUpData.session);
-          setUser(directSignUpData.user);
-          await fetchProfileFromBackend(directSignUpData.session.access_token);
-        }
-
-        return { user: directSignUpData.user };
-      }
-
-      if (signInErr) {
-        return { error: signInErr.message };
-      }
-
-      return { user: signInData?.user };
+      return { user: registeredUser };
     } catch (err: any) {
       await sendTelemetry({
         userEmail: cleanEmail || cleanPhone,
