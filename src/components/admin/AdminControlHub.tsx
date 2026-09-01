@@ -3943,23 +3943,48 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
               </div>
 
               <form onSubmit={handleDirectSetPassword} className="space-y-4 font-mono text-xs">
-                <div>
-                  <label className="block text-[11px] font-bold text-white uppercase tracking-wider mb-1">
-                    Set New Password for User
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-white uppercase tracking-wider">
+                      Set New Password for User
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+                        const cleanName = (passModal.userEmail?.split('@')[0] || 'User').replace(/[^a-zA-Z]/g, '');
+                        const cap = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+                        setPassModal({ ...passModal, newPassword: `${cap}${randomSuffix}!` });
+                      }}
+                      className="text-[10px] text-amber-400 hover:text-amber-300 font-bold underline"
+                    >
+                      🎲 Auto Generate
+                    </button>
+                  </div>
                   <input
                     type="text"
                     required
-                    minLength={8}
+                    minLength={6}
                     value={passModal.newPassword}
                     onChange={(e) => setPassModal({ ...passModal, newPassword: e.target.value })}
-                    placeholder="Enter new password (min 8 chars)..."
+                    placeholder="Enter new password (min 6 chars)..."
                     className="w-full p-3 bg-dark-900 border border-slate-700 rounded-xl text-white focus:border-gold-500 focus:outline-none"
                   />
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    <span className="text-[10px] text-slate-500">Quick presets:</span>
+                    {['festus1234', 'Quibands2026!', 'Trader2026!'].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setPassModal({ ...passModal, newPassword: preset })}
+                        className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 text-[10px] border border-white/10"
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
                   <p className="text-[10px] text-slate-500 mt-1">
                     The user will be able to log in immediately with this new password.
                   </p>
-                </div>
 
                 <div className="flex gap-3 pt-2">
                   <button
