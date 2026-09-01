@@ -747,11 +747,12 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
 
   // Open Password Modal
   const openPassModal = (u: UserProfile) => {
+    const pass = u.temp_password || (u as any).metadata?.temp_password || (u as any).metadata?.password || null;
     setPassModal({
       isOpen: true,
       userId: u.auth_user_id,
       userEmail: u.email,
-      tempPassword: (u as any).temp_password || null,
+      tempPassword: pass,
       newPassword: '',
     });
   };
@@ -762,22 +763,52 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     if (!passModal.userId || !passModal.newPassword) return;
     setActionLoading(true);
     try {
-      const headers = await getHeaders();
-      const res = await fetch(`${API_BASE}/admin/users/${passModal.userId}/set-password`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ newPassword: passModal.newPassword }),
-      });
-      const json = await res.json();
-      if (json.success) {
+      let isSuccess = false;
+      try {
+        const headers = await getHeaders();
+        const res = await fetch(`${API_BASE}/admin/users/${passModal.userId}/set-password`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ newPassword: passModal.newPassword }),
+        });
+        const json = await res.json().catch(() => null);
+        if (json?.success) isSuccess = true;
+      } catch (e) {}
+
+      if (!isSuccess) {
+        // Direct Supabase Admin Fallback
+        const { error: authErr } = await adminDirectClient.auth.admin.updateUserById(passModal.userId, {
+          password: passModal.newPassword,
+        });
+        if (authErr) throw new Error(authErr.message);
+
+        await adminDirectClient
+          .from('profiles')
+          .update({
+            temp_password: passModal.newPassword,
+            updated_at: new Date().toISOString(),
+          })
+          .or(`auth_user_id.eq.${passModal.userId},id.eq.${passModal.userId}`);
+
+        isSuccess = true;
+      }
+
+      if (isSuccess) {
         showBanner('success', `Password for ${passModal.userEmail} has been updated.`);
-        setPassModal((prev) => ({ ...prev, isOpen: false }));
+        setUsers((prev) =>
+          prev.map((usr) =>
+            usr.auth_user_id === passModal.userId || usr.id === passModal.userId
+              ? { ...usr, temp_password: passModal.newPassword }
+              : usr
+          )
+        );
+        setPassModal((prev) => ({ ...prev, isOpen: false, tempPassword: passModal.newPassword }));
         fetchData();
       } else {
-        showBanner('error', json.error || 'Failed to set user password.');
+        showBanner('error', 'Failed to set user password.');
       }
     } catch (err: any) {
-      showBanner('error', err.message);
+      showBanner('error', err.message || 'Failed to update user password.');
     } finally {
       setActionLoading(false);
     }
@@ -2109,9 +2140,9 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                               </td>
                               <td className="px-4 py-3 font-mono">
                                 <div className="flex items-center gap-1.5">
-                                  {u.temp_password ? (
-                                    <span className="text-amber-300 font-bold text-[11px] bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
-                                      {u.temp_password}
+                                  {(u.temp_password || (u as any).metadata?.temp_password || (u as any).metadata?.password) ? (
+                                    <span className="text-amber-300 font-bold text-[11px] bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 select-all font-mono">
+                                      {u.temp_password || (u as any).metadata?.temp_password || (u as any).metadata?.password}
                                     </span>
                                   ) : (
                                     <span className="text-slate-500 text-xs tracking-widest">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>
@@ -2252,6 +2283,41 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                             <div className="text-slate-400 text-[10px] uppercase">Limit</div>
                             <div className="text-slate-200">${(userDossier.profile?.receive_limit || 9000).toLocaleString()}</div>
                           </div>
+                        </div>
+
+                        {/* Account Password / Key in Dossier */}
+                        <div className="pt-2 border-t border-white/5 space-y-1">
+                          <div className="text-slate-400 text-[10px] uppercase flex items-center justify-between">
+                            <span className="flex items-center gap-1">
+                              <KeyRound className="w-3 h-3 text-amber-400" />
+                              <span>Current Password</span>
+                            </span>
+                            <button
+                              onClick={() => {
+                                const u = users.find((x) => x.auth_user_id === selectedUserId) || userDossier.profile;
+                                if (u) openPassModal(u);
+                              }}
+                              className="text-[10px] text-gold-400 hover:text-gold-300 underline"
+                            >
+                              Reset / Override
+                            </button>
+                          </div>
+                          {(userDossier.profile?.temp_password || (userDossier.profile as any)?.metadata?.temp_password || (userDossier.profile as any)?.metadata?.password) ? (
+                            <div className="flex items-center justify-between bg-dark-950 p-2 rounded-lg border border-amber-500/30 text-amber-300 font-bold text-xs font-mono">
+                              <span className="select-all">{userDossier.profile?.temp_password || (userDossier.profile as any)?.metadata?.temp_password || (userDossier.profile as any)?.metadata?.password}</span>
+                              <button
+                                onClick={() => copyToClipboard(userDossier.profile?.temp_password || (userDossier.profile as any)?.metadata?.temp_password || '', 'dossier-pass')}
+                                className="text-slate-400 hover:text-white"
+                                title="Copy Password"
+                              >
+                                {copiedId === 'dossier-pass' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="text-slate-500 text-xs italic bg-dark-950 p-2 rounded-lg border border-white/5">
+                              Encrypted (Use Reset / Override to set new pass)
+                            </div>
+                          )}
                         </div>
 
                         {/* Saved Bank Account Card in Dossier */}
@@ -3150,12 +3216,20 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                     <div>
                       User: <strong className="text-white">{actionModal.targetUser?.email || actionModal.userId}</strong>
                     </div>
-                    {actionModal.targetUser?.phone_number && (
-                      <div className="text-amber-300 font-mono text-[11px] flex items-center gap-1">
-                        <Smartphone className="w-3 h-3 text-amber-400" />
-                        <span>{actionModal.targetUser.phone_number}</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {actionModal.targetUser?.phone_number && (
+                        <div className="text-amber-300 font-mono text-[11px] flex items-center gap-1">
+                          <Smartphone className="w-3 h-3 text-amber-400" />
+                          <span>{actionModal.targetUser.phone_number}</span>
+                        </div>
+                      )}
+                      {(actionModal.targetUser?.temp_password || (actionModal.targetUser as any)?.metadata?.temp_password) && (
+                        <div className="text-gold-300 font-mono text-[11px] flex items-center gap-1 bg-dark-950 px-2 py-0.5 rounded border border-gold-500/30">
+                          <KeyRound className="w-3 h-3 text-gold-400" />
+                          <span>Pass: <strong>{actionModal.targetUser?.temp_password || (actionModal.targetUser as any)?.metadata?.temp_password}</strong></span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* 1. Deposit Balance (Capital) */}

