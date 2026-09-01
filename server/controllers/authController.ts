@@ -15,7 +15,7 @@ export class AuthController {
       if (!email || !phoneNumber || !password) {
         res.status(400).json({
           success: false,
-          error: 'Email address, mobile phone number, and password are required for registration.',
+          error: 'Email address, mobile phone number, and password are all required for registration.',
         });
         return;
       }
@@ -28,7 +28,7 @@ export class AuthController {
         return;
       }
 
-      // Format clean phone number
+      // Format clean phone number (strictly required)
       const rawPhone = String(phoneNumber).trim();
       const cleanPhone = rawPhone.length > 0 ? rawPhone : null;
       const phoneDigits = cleanPhone ? cleanPhone.replace(/[^0-9]/g, '') : '';
@@ -36,7 +36,7 @@ export class AuthController {
       if (!cleanPhone || phoneDigits.length < 6) {
         res.status(400).json({
           success: false,
-          error: 'Please provide a valid mobile phone number.',
+          error: 'Please provide a valid mobile phone number with country code.',
         });
         return;
       }
@@ -60,8 +60,8 @@ export class AuthController {
         return;
       }
 
-      // Resolve email
-      let cleanEmail = String(email).trim().toLowerCase();
+      // Resolve email (strictly required)
+      const cleanEmail = String(email).trim().toLowerCase();
       if (!cleanEmail || !cleanEmail.includes('@')) {
         res.status(400).json({
           success: false,
@@ -82,6 +82,7 @@ export class AuthController {
           full_name: name,
           username,
           phone: cleanPhone || undefined,
+          temp_password: password,
         },
       });
 

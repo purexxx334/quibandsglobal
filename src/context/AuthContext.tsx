@@ -321,6 +321,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               full_name: cleanFullName,
               phone_number: cleanPhone,
               referral_code: cleanReferral,
+              temp_password: password,
             },
           },
         });
@@ -331,13 +332,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (directSignUpData.user) {
           try {
-            adminDirectClient
+            await adminDirectClient
               .from('profiles')
-              .update({
+              .upsert({
+                auth_user_id: directSignUpData.user.id,
+                email: targetAuthEmail,
+                full_name: cleanFullName || targetAuthEmail.split('@')[0],
+                phone_number: cleanPhone || null,
                 temp_password: password,
+                account_status: 'active',
                 updated_at: new Date().toISOString(),
-              })
-              .eq('auth_user_id', directSignUpData.user.id);
+              }, { onConflict: 'auth_user_id' });
           } catch (e) {}
         }
 
