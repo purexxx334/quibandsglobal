@@ -62,42 +62,72 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 
-    <!-- Mobile-Dedicated Live Chat Floating Button (Hidden on PC, visible on mobile) -->
+    <!-- Universal Live Chat Floating Button (Desktop & Mobile) -->
     <style>
-      @media (min-width: 769px) {
-        #qb-mobile-chat-btn {
-          display: none !important;
-        }
+      #qb-chat-floating-btn {
+        display: flex !important;
+        position: fixed !important;
+        bottom: 24px !important;
+        right: 24px !important;
+        width: 60px !important;
+        height: 60px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(135deg, #1d4ed8, #0ea5e9) !important;
+        border: 2px solid rgba(255, 255, 255, 0.2) !important;
+        outline: none !important;
+        cursor: pointer !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 8px 32px rgba(14, 165, 233, 0.55), 0 0 0 1px rgba(14, 165, 233, 0.3) !important;
+        z-index: 2147483640 !important;
+        transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease !important;
+        -webkit-tap-highlight-color: transparent !important;
+        touch-action: manipulation !important;
       }
-      @media (max-width: 768px) {
-        #qb-mobile-chat-btn {
-          display: flex !important;
-          position: fixed !important;
-          bottom: 20px !important;
-          right: 20px !important;
-          width: 58px !important;
-          height: 58px !important;
-          border-radius: 50% !important;
-          background: linear-gradient(135deg, #1d4ed8, #0ea5e9) !important;
-          border: none !important;
-          outline: none !important;
-          cursor: pointer !important;
-          align-items: center !important;
-          justify-content: center !important;
-          box-shadow: 0 4px 22px rgba(14, 165, 233, 0.6) !important;
-          z-index: 2147483640 !important;
-          -webkit-tap-highlight-color: transparent !important;
-          touch-action: manipulation !important;
+      #qb-chat-floating-btn:hover {
+        transform: scale(1.08) translateY(-2px) !important;
+        box-shadow: 0 12px 38px rgba(14, 165, 233, 0.75), 0 0 18px rgba(234, 179, 8, 0.4) !important;
+      }
+      #qb-chat-floating-btn:active {
+        transform: scale(0.95) !important;
+      }
+      @media (max-width: 640px) {
+        #qb-chat-floating-btn {
+          bottom: 18px !important;
+          right: 18px !important;
+          width: 56px !important;
+          height: 56px !important;
         }
       }
     </style>
 
+    <script type="text/javascript">
+      function qbOpenLiveChat(e) {
+        if (e) e.preventDefault();
+        if (window.Tawk_API && typeof window.Tawk_API.maximize === 'function') {
+          try { window.Tawk_API.maximize(); return false; } catch (err) {}
+        }
+        var count = 0;
+        var interval = setInterval(function() {
+          count++;
+          if (window.Tawk_API && typeof window.Tawk_API.maximize === 'function') {
+            try { window.Tawk_API.maximize(); } catch (err) {}
+            clearInterval(interval);
+          } else if (count > 15) {
+            clearInterval(interval);
+            window.open('https://tawk.to/chat/6aa19f6d8d649b3445c672c0/1k23ldiql', '_blank');
+          }
+        }, 150);
+        return false;
+      }
+    </script>
+
     <button
-      id="qb-mobile-chat-btn"
+      id="qb-chat-floating-btn"
       type="button"
-      onclick="if(typeof window.Tawk_API !== 'undefined' && typeof window.Tawk_API.maximize === 'function'){ window.Tawk_API.maximize(); } return false;"
-      aria-label="Open Live Chat"
-      title="Open Live Chat"
+      onclick="qbOpenLiveChat(event); return false;"
+      aria-label="Open 24/7 Live Support Chat"
+      title="Open 24/7 Live Support Chat"
     >
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
