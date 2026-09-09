@@ -160,19 +160,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (currentSession?.access_token) {
           const fetchedProfile = await fetchProfileFromBackend(currentSession.access_token);
-          // Sync authenticated visitor directly with Smartsupp
-          if (typeof window !== 'undefined' && (window as any).smartsupp) {
+          // Sync authenticated visitor directly with Tawk.to
+          if (typeof window !== 'undefined') {
             try {
-              (window as any).smartsupp('name', fetchedProfile?.full_name || currentSession.user?.email || 'Valued Trader');
-              (window as any).smartsupp('email', currentSession.user?.email || '');
-              (window as any).smartsupp('variables', {
-                userId: { value: currentSession.user?.id, label: 'User ID' },
-                fullName: { value: fetchedProfile?.full_name || 'N/A', label: 'Full Name' },
-                email: { value: currentSession.user?.email || 'N/A', label: 'Email' },
-                phoneNumber: { value: fetchedProfile?.phone_number || 'N/A', label: 'Phone Number' },
-                accountTier: { value: fetchedProfile?.kyc_status || 'Standard', label: 'KYC Tier' },
-                activeBalance: { value: `$${fetchedProfile?.total_balance || 0}`, label: 'Total Balance' }
-              });
+              const tawk = (window as any).Tawk_API;
+              const visitorData: Record<string, any> = {
+                name: fetchedProfile?.full_name || currentSession.user?.email || 'Valued Trader',
+                email: currentSession.user?.email || '',
+                userId: currentSession.user?.id || 'N/A',
+                fullName: fetchedProfile?.full_name || 'N/A',
+                phoneNumber: fetchedProfile?.phone_number || 'N/A',
+                accountTier: fetchedProfile?.kyc_status || 'Standard',
+                activeBalance: `$${fetchedProfile?.total_balance || 0}`
+              };
+
+              if (tawk) {
+                tawk.visitor = {
+                  name: visitorData.name,
+                  email: visitorData.email
+                };
+                if (typeof tawk.setAttributes === 'function') {
+                  tawk.setAttributes(visitorData, (err: any) => {
+                    if (err) console.warn('Tawk.to setAttributes error:', err);
+                  });
+                }
+              }
             } catch(e) {}
           }
         } else {
