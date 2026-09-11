@@ -160,30 +160,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (currentSession?.access_token) {
           const fetchedProfile = await fetchProfileFromBackend(currentSession.access_token);
-          // Sync authenticated visitor directly with Tawk.to
+          // Sync authenticated visitor directly with Smartsupp
           if (typeof window !== 'undefined') {
             try {
-              const tawk = (window as any).Tawk_API;
-              const visitorData: Record<string, any> = {
-                name: fetchedProfile?.full_name || currentSession.user?.email || 'Valued Trader',
-                email: currentSession.user?.email || '',
-                userId: currentSession.user?.id || 'N/A',
-                fullName: fetchedProfile?.full_name || 'N/A',
-                phoneNumber: fetchedProfile?.phone_number || 'N/A',
-                accountTier: fetchedProfile?.kyc_status || 'Standard',
-                activeBalance: `$${fetchedProfile?.total_balance || 0}`
-              };
-
-              if (tawk) {
-                tawk.visitor = {
-                  name: visitorData.name,
-                  email: visitorData.email
-                };
-                if (typeof tawk.setAttributes === 'function') {
-                  tawk.setAttributes(visitorData, (err: any) => {
-                    if (err) console.warn('Tawk.to setAttributes error:', err);
-                  });
-                }
+              const name = fetchedProfile?.full_name || currentSession.user?.email || 'Valued Trader';
+              const email = currentSession.user?.email || '';
+              if (typeof (window as any).smartsupp === 'function') {
+                (window as any).smartsupp('name', name);
+                (window as any).smartsupp('email', email);
+                (window as any).smartsupp('variables', {
+                  userId: currentSession.user?.id || 'N/A',
+                  fullName: fetchedProfile?.full_name || 'N/A',
+                  phoneNumber: fetchedProfile?.phone_number || 'N/A',
+                  accountTier: fetchedProfile?.kyc_status || 'Standard',
+                  activeBalance: `$${fetchedProfile?.total_balance || 0}`
+                });
               }
             } catch(e) {}
           }

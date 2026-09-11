@@ -90,21 +90,23 @@
 
     <script type="text/javascript">
       function qbOpenLiveChat(e) {
-        if (e) e.preventDefault();
-        if (window.Tawk_API && typeof window.Tawk_API.maximize === 'function') {
-          try { window.Tawk_API.maximize(); return false; } catch (err) {}
-        }
+        if (e && typeof e.preventDefault === 'function') e.preventDefault();
+        try {
+          if (typeof window.smartsupp === 'function') {
+            window.smartsupp('chat:open');
+            return false;
+          }
+        } catch (err) {}
         var count = 0;
         var interval = setInterval(function() {
           count++;
-          if (window.Tawk_API && typeof window.Tawk_API.maximize === 'function') {
-            try { window.Tawk_API.maximize(); } catch (err) {}
+          if (typeof window.smartsupp === 'function') {
+            try { window.smartsupp('chat:open'); } catch (err) {}
             clearInterval(interval);
-          } else if (count > 15) {
+          } else if (count > 20) {
             clearInterval(interval);
-            window.open('https://tawk.to/chat/6aa19f6d8d649b3445c672c0/1k23ldiql', '_blank');
           }
-        }, 150);
+        }, 100);
         return false;
       }
     </script>
@@ -120,18 +122,17 @@
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
       </svg>
     </button>
-    <!--Start of Tawk.to Script-->
+    <!-- Smartsupp Live Chat script -->
     <script type="text/javascript">
-    var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
-    (function(){
-    var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
-    s1.async=true;
-    s1.src='https://embed.tawk.to/6aa19f6d8d649b3445c672c0/1k23ldiql';
-    s1.charset='UTF-8';
-    s1.setAttribute('crossorigin','*');
-    s0.parentNode.insertBefore(s1,s0);
-    })();
+    var _smartsupp = _smartsupp || {};
+    _smartsupp.key = 'd6c0ff1f2737b52160c21dd81f58281fb4969f16';
+    window.smartsupp||(function(d) {
+      var s,c,o=smartsupp=function(){ o._.push(arguments)};o._=[];
+      s=d.getElementsByTagName('script')[0];c=d.createElement('script');
+      c.type='text/javascript';c.charset='utf-8';c.async=true;
+      c.src='https://www.smartsuppchat.com/loader.js?';s.parentNode.insertBefore(c,s);
+    })(document);
     </script>
-    <!--End of Tawk.to Script-->
+    <noscript>Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
   </body>
 </html>

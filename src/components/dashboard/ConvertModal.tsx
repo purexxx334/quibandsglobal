@@ -231,8 +231,12 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
   };
 
   const handleOpenLiveChat = () => {
-    if (typeof (window as any).Tawk_API !== 'undefined' && typeof (window as any).Tawk_API?.maximize === 'function') {
-      (window as any).Tawk_API.maximize();
+    if (typeof window !== 'undefined') {
+      if (typeof (window as any).qbOpenLiveChat === 'function') {
+        (window as any).qbOpenLiveChat();
+      } else if (typeof (window as any).smartsupp === 'function') {
+        (window as any).smartsupp('chat:open');
+      }
     }
     if (onOpenContact) {
       onOpenContact();
