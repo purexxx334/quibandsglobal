@@ -201,19 +201,7 @@ CREATE POLICY "Only admins or service_role can modify transactions"
     USING (public.is_admin(auth.uid()) OR auth.role() = 'service_role')
     WITH CHECK (public.is_admin(auth.uid()) OR auth.role() = 'service_role');
 
--- 5. SEED INITIAL DEPOSIT ADDRESSES
-INSERT INTO public.deposit_addresses (asset, network, address, memo_tag, is_active, notes)
-VALUES
-    ('BTC', 'BITCOIN', 'bc1q9x37uvk92m64789vqwzepj87vqk33t6a7zfl8m', NULL, true, 'Primary Institutional Cold Vault (Native SegWit)'),
-    ('ETH', 'ERC20', '0x71C0D8B9364b63897d2B638148b172a5a06E7947', NULL, true, 'Multi-Sig Ethereum Treasury'),
-    ('USDT', 'TRC20', 'TYDzsYUEpvnYmQk4zGP9sWWcTEd36AMW9y', NULL, true, 'High-Speed Zero Fee TRON Network Deposit'),
-    ('USDT', 'ERC20', '0x71C0D8B9364b63897d2B638148b172a5a06E7947', NULL, true, 'Institutional ERC-20 Tether Gateway'),
-    ('SOL', 'SOLANA', '7UX2i7SucgLMQcfZ75s3VXmZZY4YRUyKWzqVvUhy9mPz', NULL, true, 'Solana Mainnet High-Throughput Node'),
-    ('LTC', 'LITECOIN', 'ltc1qf8m9yvx8e4m8w2s5p3k9j7d2f4a6c8e0g1b3z5', NULL, true, 'Scrypt ASIC Mining Deposit Vault'),
-    ('BNB', 'BEP20', '0x71C0D8B9364b63897d2B638148b172a5a06E7947', NULL, true, 'BNB Smart Chain Gateway')
-ON CONFLICT (asset, network, address) DO UPDATE
-SET is_active = EXCLUDED.is_active,
-    updated_at = timezone('utc'::text, now());
+-- 5. DEPOSIT ADDRESSES (Managed Exclusively via Admin Dashboard — No Defaults)
 
 -- 6. PERMISSIONS
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;

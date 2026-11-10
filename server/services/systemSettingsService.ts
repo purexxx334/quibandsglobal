@@ -12,12 +12,12 @@ export class SystemSettingsService {
 
     const defaultSettings: Record<string, { value: string; network?: string; description?: string }> = {
       gas_fee_address: {
-        value: 'TYDzsYUEpvnYmQk4zGP9sWWcTEd36AMW9y',
+        value: '',
         network: 'TRC20',
         description: 'Platform Gas Fee Disbursement Vault (20% Withdrawal Fee)',
       },
       tier_upgrade_address: {
-        value: 'TYDzsYUEpvnYmQk4zGP9sWWcTEd36AMW9y',
+        value: '',
         network: 'TRC20',
         description: 'Institutional Account Tier Upgrade Vault (Bronze, Gold, Premium)',
       },

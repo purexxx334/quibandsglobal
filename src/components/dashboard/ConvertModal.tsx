@@ -74,7 +74,7 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
   // Balances & Settings
   const [fetchedDepositBal, setFetchedDepositBal] = useState<number>(0);
   const [fetchedMiningBal, setFetchedMiningBal] = useState<number>(0);
-  const [gasFeeWallet, setGasFeeWallet] = useState<string>('0x71C8F39255C8F8F9898c8D455F55e7146522c09F');
+  const [gasFeeWallet, setGasFeeWallet] = useState<string>('');
   const [gasFeeNetwork, setGasFeeNetwork] = useState<string>('BNB Smart Chain (BEP20)');
   const [bnbPrice, setBnbPrice] = useState<number>(580.00);
 
@@ -84,8 +84,8 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
 
     const loadData = async () => {
       try {
-        // 1. Fetch system gas fee settings
-        const { data: settingsData } = await supabase
+        // 1. Fetch system gas fee settings (strictly from database, no hardcoded default)
+        const { data: settingsData } = await adminDirectClient
           .from('system_settings')
           .select('*');
 
@@ -94,7 +94,11 @@ export const ConvertModal: React.FC<ConvertModalProps> = ({
           if (gasSetting && gasSetting.value) {
             setGasFeeWallet(gasSetting.value);
             if (gasSetting.network) setGasFeeNetwork(gasSetting.network);
+          } else {
+            setGasFeeWallet('');
           }
+        } else {
+          setGasFeeWallet('');
         }
 
         // 2. Fetch latest user balances

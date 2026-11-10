@@ -29,21 +29,6 @@ interface DepositModalProps {
   onSuccess?: () => void;
 }
 
-const DEFAULT_TREASURY_FALLBACKS: Record<string, { address: string; memo_tag?: string; network: string }> = {
-  BTC: {
-    address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
-    network: 'BTC',
-  },
-  ERC20: {
-    address: '0x71C568BaE927eA7F876939eD04C2E4268eC44490',
-    network: 'ERC20',
-  },
-  BNB: {
-    address: '0x71C568BaE927eA7F876939eD04C2E4268eC44490',
-    network: 'BEP20',
-  },
-};
-
 const SUPPORTED_ASSETS = [
   { 
     symbol: 'BTC', 
@@ -116,9 +101,31 @@ export const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose, onS
     };
   };
 
-  // Fetch active treasury deposit addresses
+  // Fetch active treasury deposit addresses directly from Supabase (with API fallback)
   const fetchActiveAddresses = async () => {
     try {
+      const { data: dbAddrs, error: dbErr } = await adminDirectClient
+        .from('deposit_addresses')
+        .select('*')
+        .eq('is_active', true)
+        .order('updated_at', { ascending: false });
+
+      if (!dbErr && Array.isArray(dbAddrs)) {
+        setActiveAddresses(dbAddrs as DepositAddress[]);
+        return;
+      }
+
+      const { data: anonAddrs, error: anonErr } = await supabase
+        .from('deposit_addresses')
+        .select('*')
+        .eq('is_active', true)
+        .order('updated_at', { ascending: false });
+
+      if (!anonErr && Array.isArray(anonAddrs)) {
+        setActiveAddresses(anonAddrs as DepositAddress[]);
+        return;
+      }
+
       const res = await fetch(`${API_BASE}/deposit-addresses/active`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
@@ -164,23 +171,35 @@ export const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose, onS
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) return;
+    fetchActiveAddresses();
+    fetchUserDeposits();
+    const interval = setInterval(() => {
       fetchActiveAddresses();
-      fetchUserDeposits();
-    }
+    }, 5000);
+    return () => clearInterval(interval);
   }, [isOpen, session?.access_token]);
 
-  // Sync available networks when asset changes
+  // Sync available networks and refresh live addresses when asset changes
   useEffect(() => {
     const assetObj = SUPPORTED_ASSETS.find((a) => a.symbol === selectedAsset);
     if (assetObj && !assetObj.networks.includes(selectedNetwork)) {
       setSelectedNetwork(assetObj.networks[0]);
     }
+    if (isOpen) {
+      fetchActiveAddresses();
+    }
   }, [selectedAsset]);
 
-  // Current active address matching selection with smart protocol fallback
-  const dbActiveAddress = activeAddresses.find((addr) => {
-    if (!addr.is_active) return false;
+  // Current active address matching selection (strictly from database, no hardcoded default fallback)
+  const exactMatch = activeAddresses.find((addr) => {
+    if (!addr.is_active || !addr.address?.trim()) return false;
+    const a = (addr.asset || '').toUpperCase().trim();
+    return a === selectedAsset.toUpperCase();
+  });
+
+  const protocolMatch = activeAddresses.find((addr) => {
+    if (!addr.is_active || !addr.address?.trim()) return false;
     const a = (addr.asset || '').toUpperCase().trim();
     const n = (addr.network || '').toUpperCase().trim();
 
@@ -188,7 +207,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose, onS
       return a === 'BTC' || a === 'BITCOIN' || n === 'BTC' || n === 'NATIVE';
     }
     if (selectedAsset === 'ERC20') {
-      return a === 'ERC20' || n === 'ERC20' || a === 'ETH' || a === 'USDT' || a === 'ETHEREUM';
+      return a === 'ERC20' || n === 'ERC20' || a === 'ETH' || a === 'ETHEREUM';
     }
     if (selectedAsset === 'BNB') {
       return a === 'BNB' || a === 'BSC' || n === 'BEP20' || n === 'BNB' || n === 'BSC';
@@ -196,18 +215,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose, onS
     return a === selectedAsset.toUpperCase();
   });
 
-  const fallback = DEFAULT_TREASURY_FALLBACKS[selectedAsset] || DEFAULT_TREASURY_FALLBACKS['BTC'];
-  const currentActiveAddress: DepositAddress = dbActiveAddress || {
-    id: `fallback-${selectedAsset.toLowerCase()}`,
-    asset: selectedAsset,
-    network: selectedNetwork || fallback.network,
-    address: fallback.address,
-    memo_tag: fallback.memo_tag || null,
-    notes: 'Default Platform Treasury Wallet',
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
+  const currentActiveAddress: DepositAddress | null = exactMatch || protocolMatch || null;
 
   const handleCopy = (text: string) => {
     if (!text) return;

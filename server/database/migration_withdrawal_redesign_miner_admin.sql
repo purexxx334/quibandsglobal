@@ -45,16 +45,11 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Seed Default Settings
+-- Seed Default Receive Limit Only (Wallet addresses are configured strictly via Admin Dashboard)
 INSERT INTO public.system_settings (key, value, network, description)
 VALUES 
-    ('gas_fee_address', 'TYDzsYUEpvnYmQk4zGP9sWWcTEd36AMW9y', 'TRC20', 'Platform Gas Fee Disbursement Vault (20% Withdrawal Fee)'),
-    ('tier_upgrade_address', 'TYDzsYUEpvnYmQk4zGP9sWWcTEd36AMW9y', 'TRC20', 'Institutional Account Tier Upgrade Vault (Bronze, Gold, Premium)'),
     ('default_receive_limit', '9000.00', 'USD', 'Default user receiving and withdrawal threshold ($9,000)')
-ON CONFLICT (key) DO UPDATE 
-SET value = EXCLUDED.value,
-    network = COALESCE(EXCLUDED.network, public.system_settings.network),
-    updated_at = NOW();
+ON CONFLICT (key) DO NOTHING;
 
 -- 5. EXTEND WITHDRAWAL REQUESTS TABLE
 ALTER TABLE public.withdrawal_requests

@@ -133,10 +133,10 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [testConsoleOpen, setTestConsoleOpen] = useState(false);
 
-  // System Settings State
-  const [gasFeeAddress, setGasFeeAddress] = useState('TYDzsYUEpvnYmQk4zGP9sWWcTEd36AMW9y');
+  // System Settings State (strictly loaded from database — no hardcoded default addresses)
+  const [gasFeeAddress, setGasFeeAddress] = useState('');
   const [gasFeeNetwork, setGasFeeNetwork] = useState('TRC20');
-  const [tierUpgradeAddress, setTierUpgradeAddress] = useState('TYDzsYUEpvnYmQk4zGP9sWWcTEd36AMW9y');
+  const [tierUpgradeAddress, setTierUpgradeAddress] = useState('');
   const [tierUpgradeNetwork, setTierUpgradeNetwork] = useState('TRC20');
   const [defaultReceiveLimit, setDefaultReceiveLimit] = useState('9000.00');
 
@@ -311,8 +311,17 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         safeFetchJson(`${API_BASE}/admin/security/notifications`, headers),
       ]);
 
-      // 1. Process Settings
-      if (settingsRes.status === 'fulfilled' && settingsRes.value?.success && settingsRes.value?.data) {
+      // 1. Process Settings (Direct from Supabase for instant source-of-truth)
+      const { data: dbSettings } = await adminDirectClient.from('system_settings').select('*');
+      if (dbSettings) {
+        const map: Record<string, any> = {};
+        dbSettings.forEach((s: any) => { map[s.key] = s; });
+        setGasFeeAddress(map.gas_fee_address?.value || '');
+        if (map.gas_fee_address?.network) setGasFeeNetwork(map.gas_fee_address.network);
+        setTierUpgradeAddress(map.tier_upgrade_address?.value || '');
+        if (map.tier_upgrade_address?.network) setTierUpgradeNetwork(map.tier_upgrade_address.network);
+        if (map.default_receive_limit?.value) setDefaultReceiveLimit(map.default_receive_limit.value);
+      } else if (settingsRes.status === 'fulfilled' && settingsRes.value?.success && settingsRes.value?.data) {
         const d = settingsRes.value.data;
         if (d.gas_fee_address) {
           setGasFeeAddress(d.gas_fee_address.value);
@@ -324,15 +333,6 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         }
         if (d.default_receive_limit) {
           setDefaultReceiveLimit(d.default_receive_limit.value);
-        }
-      } else {
-        const { data: dbSettings } = await adminDirectClient.from('system_settings').select('*');
-        if (dbSettings) {
-          const map: Record<string, any> = {};
-          dbSettings.forEach((s: any) => { map[s.key] = s; });
-          if (map.gas_fee_address) setGasFeeAddress(map.gas_fee_address.value);
-          if (map.tier_upgrade_address) setTierUpgradeAddress(map.tier_upgrade_address.value);
-          if (map.default_receive_limit) setDefaultReceiveLimit(map.default_receive_limit.value);
         }
       }
 
@@ -441,12 +441,15 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
         if (dbLogs) setSecurityLogs(dbLogs as any);
       }
 
-      // 9. Process Deposit Addresses / Treasury
-      if (treasuryRes.status === 'fulfilled' && treasuryRes.value?.data && Array.isArray(treasuryRes.value.data)) {
+      // 9. Process Deposit Addresses / Treasury (Direct from Supabase ordered by updated_at DESC)
+      const { data: dbAddrs, error: dbAddrsErr } = await adminDirectClient
+        .from('deposit_addresses')
+        .select('*')
+        .order('updated_at', { ascending: false });
+      if (!dbAddrsErr && Array.isArray(dbAddrs)) {
+        setDepositAddresses(dbAddrs as any);
+      } else if (treasuryRes.status === 'fulfilled' && treasuryRes.value?.data && Array.isArray(treasuryRes.value.data)) {
         setDepositAddresses(treasuryRes.value.data);
-      } else {
-        const { data: dbAddrs } = await adminDirectClient.from('deposit_addresses').select('*').order('created_at', { ascending: false });
-        if (dbAddrs) setDepositAddresses(dbAddrs as any);
       }
 
       // 10. Process Notifications
@@ -634,21 +637,26 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     }
   };
 
+  const matchesCoinCategory = (a: DepositAddress, coinKey: 'BTC' | 'ERC20' | 'BNB') => {
+    const aUpper = (a.asset || '').toUpperCase().trim();
+    const nUpper = (a.network || '').toUpperCase().trim();
+    if (coinKey === 'BTC') return aUpper === 'BTC' || aUpper === 'BITCOIN' || nUpper === 'BTC' || nUpper === 'NATIVE' || nUpper === 'BITCOIN';
+    if (coinKey === 'ERC20') return aUpper === 'ERC20' || nUpper === 'ERC20' || aUpper === 'ETH' || aUpper === 'ETHEREUM';
+    if (coinKey === 'BNB') return aUpper === 'BNB' || aUpper === 'BSC' || nUpper === 'BEP20' || nUpper === 'BNB' || nUpper.includes('BSC');
+    return aUpper === coinKey;
+  };
+
   // Open Deposit Address Editor Modal (strictly BTC, ERC20, BNB)
   const openDepositAddressModal = (addr?: DepositAddress | null, defaultCoin?: 'BTC' | 'ERC20' | 'BNB') => {
     const targetCoin: 'BTC' | 'ERC20' | 'BNB' = defaultCoin || (addr ? (addr.asset as any) : 'BTC');
     
-    // Find matching existing address in depositAddresses list
+    // Find matching existing address in depositAddresses list (prefer exact asset match)
     let existingAddr = addr;
     if (!existingAddr) {
-      existingAddr = depositAddresses.find(a => {
-        const aUpper = (a.asset || '').toUpperCase();
-        const nUpper = (a.network || '').toUpperCase();
-        if (targetCoin === 'BTC') return aUpper === 'BTC' || aUpper === 'BITCOIN' || nUpper === 'BTC' || nUpper === 'NATIVE';
-        if (targetCoin === 'ERC20') return aUpper === 'ERC20' || nUpper === 'ERC20' || aUpper === 'ETH' || aUpper === 'USDT';
-        if (targetCoin === 'BNB') return aUpper === 'BNB' || aUpper === 'BSC' || nUpper === 'BEP20' || nUpper === 'BNB';
-        return aUpper === targetCoin;
-      }) || null;
+      existingAddr =
+        depositAddresses.find(a => (a.asset || '').toUpperCase().trim() === targetCoin) ||
+        depositAddresses.find(a => matchesCoinCategory(a, targetCoin)) ||
+        null;
     }
 
     if (existingAddr) {
@@ -677,69 +685,177 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     }
   };
 
-  // Save / Update Deposit Address
+  // Save / Update Deposit Address directly in Supabase (no fallback to defaults, removes duplicate legacy rows)
   const handleSaveDepositAddress = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanAddress = depositModal.address.trim();
+    if (!cleanAddress) {
+      showBanner('error', 'Please enter a valid destination wallet address.');
+      return;
+    }
+
     setActionLoading(true);
     try {
-      const headers = await getHeaders();
-      const url = depositModal.isEdit && depositModal.id
-        ? `${API_BASE}/admin/deposit-addresses/${depositModal.id}`
-        : `${API_BASE}/admin/deposit-addresses`;
-      const method = depositModal.isEdit ? 'PUT' : 'POST';
+      const targetCoin = depositModal.asset.toUpperCase() as 'BTC' | 'ERC20' | 'BNB';
+      const targetNet = targetCoin === 'BNB' ? 'BEP20' : (targetCoin === 'ERC20' ? 'ERC20' : 'BTC');
+      const nowIso = new Date().toISOString();
 
-      const res = await fetch(url, {
-        method,
-        headers,
-        body: JSON.stringify({
-          asset: depositModal.asset.toUpperCase(),
-          network: depositModal.network.toUpperCase(),
-          address: depositModal.address.trim(),
-          memoTag: depositModal.memoTag.trim() || null,
-          notes: depositModal.notes.trim() || null,
-          isActive: depositModal.isActive,
-          setAsActive: depositModal.isActive,
-          reason: 'Administrator updated deposit credentials',
-        }),
-      });
+      // 1. Fetch all current rows in deposit_addresses to find matching & duplicate rows for this coin
+      const { data: allRows } = await adminDirectClient.from('deposit_addresses').select('*');
+      const matchingRows = (allRows || []).filter((r: any) => matchesCoinCategory(r, targetCoin));
+      const primaryRow =
+        (depositModal.id && matchingRows.find((r: any) => r.id === depositModal.id)) ||
+        matchingRows.find((r: any) => (r.asset || '').toUpperCase() === targetCoin) ||
+        matchingRows[0] ||
+        null;
 
-      const json = await res.json();
-      if (json.success) {
-        showBanner('success', `Deposit address for ${depositModal.asset} saved & active on user dashboard.`);
-        setDepositModal((prev) => ({ ...prev, isOpen: false }));
-        fetchData();
-      } else {
-        showBanner('error', json.error || 'Failed to save deposit address.');
+      // Remove any extra duplicate rows for the same coin category so only 1 authoritative row exists
+      const duplicateIds = matchingRows
+        .filter((r: any) => primaryRow && r.id !== primaryRow.id)
+        .map((r: any) => r.id);
+
+      if (duplicateIds.length > 0) {
+        await adminDirectClient.from('deposit_addresses').delete().in('id', duplicateIds);
       }
+
+      let savedRow: any = null;
+      if (primaryRow) {
+        const { data: updated, error: updErr } = await adminDirectClient
+          .from('deposit_addresses')
+          .update({
+            asset: targetCoin,
+            network: targetNet,
+            address: cleanAddress,
+            memo_tag: depositModal.memoTag.trim() || null,
+            notes: depositModal.notes.trim() || null,
+            is_active: depositModal.isActive,
+            updated_at: nowIso,
+          })
+          .eq('id', primaryRow.id)
+          .select('*')
+          .single();
+
+        if (updErr) throw new Error(updErr.message);
+        savedRow = updated;
+      } else {
+        const { data: inserted, error: insErr } = await adminDirectClient
+          .from('deposit_addresses')
+          .insert({
+            asset: targetCoin,
+            network: targetNet,
+            address: cleanAddress,
+            memo_tag: depositModal.memoTag.trim() || null,
+            notes: depositModal.notes.trim() || null,
+            is_active: depositModal.isActive,
+            created_by: user?.id || null,
+            created_at: nowIso,
+            updated_at: nowIso,
+          })
+          .select('*')
+          .single();
+
+        if (insErr) throw new Error(insErr.message);
+        savedRow = inserted;
+      }
+
+      // Log audit history in deposit_address_history
+      if (savedRow) {
+        await adminDirectClient.from('deposit_address_history').insert({
+          deposit_address_id: savedRow.id,
+          asset: targetCoin,
+          network: targetNet,
+          previous_address: primaryRow?.address || null,
+          new_address: cleanAddress,
+          admin_id: user?.id || null,
+          reason: 'Administrator updated deposit wallet address via Admin Hub',
+        });
+      }
+
+      showBanner('success', `Deposit address for ${targetCoin} (${targetNet}) saved and locked in database.`);
+      setDepositModal((prev) => ({ ...prev, isOpen: false }));
+      await fetchData();
     } catch (err: any) {
-      showBanner('error', err.message);
+      showBanner('error', err.message || 'Failed to save deposit address.');
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Toggle Deposit Address Active Status
+  // Delete a specific coin's deposit wallet address
+  const handleDeleteDepositAddress = async (coinKey: 'BTC' | 'ERC20' | 'BNB') => {
+    if (!confirm(`Are you sure you want to delete the ${coinKey} receiving wallet address? Users will not see any ${coinKey} address until you set a new one.`)) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const { data: allRows } = await adminDirectClient.from('deposit_addresses').select('*');
+      const targetIds = (allRows || [])
+        .filter((r: any) => matchesCoinCategory(r, coinKey))
+        .map((r: any) => r.id);
+
+      if (targetIds.length > 0) {
+        const { error: delErr } = await adminDirectClient
+          .from('deposit_addresses')
+          .delete()
+          .in('id', targetIds);
+        if (delErr) throw new Error(delErr.message);
+      }
+
+      showBanner('success', `${coinKey} deposit wallet deleted. No address will be shown until you set a new one.`);
+      setDepositModal((prev) => ({ ...prev, isOpen: false }));
+      await fetchData();
+    } catch (err: any) {
+      showBanner('error', err.message || 'Failed to delete deposit address.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Delete ALL deposit wallet addresses (including any legacy/burner rows)
+  const handlePurgeAllWallets = async () => {
+    if (!confirm('Are you sure you want to DELETE ALL deposit wallet addresses (including any old/burner rows) from the database? No wallet addresses will be shown to users until you enter new ones.')) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const { data: allRows } = await adminDirectClient.from('deposit_addresses').select('id');
+      const allIds = (allRows || []).map((r: any) => r.id);
+      if (allIds.length > 0) {
+        const { error: delErr } = await adminDirectClient
+          .from('deposit_addresses')
+          .delete()
+          .in('id', allIds);
+        if (delErr) throw new Error(delErr.message);
+      }
+      setDepositAddresses([]);
+      showBanner('success', 'All deposit wallet addresses have been permanently deleted. You can now set your fresh wallet addresses.');
+      await fetchData();
+    } catch (err: any) {
+      showBanner('error', err.message || 'Failed to delete wallet addresses.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Toggle Deposit Address Active Status directly in Supabase
   const handleToggleDepositAddress = async (addr: DepositAddress) => {
     setActionLoading(true);
     try {
-      const headers = await getHeaders();
-      const res = await fetch(`${API_BASE}/admin/deposit-addresses/${addr.id}/toggle`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({
-          isActive: !addr.is_active,
-          reason: `Admin toggled status to ${!addr.is_active ? 'active' : 'inactive'}`,
-        }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        showBanner('success', `Address for ${addr.asset} (${addr.network}) is now ${!addr.is_active ? 'ACTIVE' : 'INACTIVE'}.`);
-        fetchData();
-      } else {
-        showBanner('error', json.error || 'Failed to toggle address status.');
-      }
+      const nextState = !addr.is_active;
+      const { error: updErr } = await adminDirectClient
+        .from('deposit_addresses')
+        .update({
+          is_active: nextState,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', addr.id);
+
+      if (updErr) throw new Error(updErr.message);
+
+      showBanner('success', `Address for ${addr.asset} (${addr.network}) is now ${nextState ? 'ACTIVE' : 'INACTIVE'}.`);
+      await fetchData();
     } catch (err: any) {
-      showBanner('error', err.message);
+      showBanner('error', err.message || 'Failed to toggle address status.');
     } finally {
       setActionLoading(false);
     }
@@ -919,53 +1035,57 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
     }
   };
 
-  // Save System Settings (Gas Fee Address, Upgrade Address, Limit)
-
+  // Save System Settings (Gas Fee Address, Upgrade Address, Limit) directly in Supabase
   const handleSaveSystemSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading(true);
     try {
-      const headers = await getHeaders();
-
-      // 1. Gas fee address
-      await fetch(`${API_BASE}/admin/settings`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
+      const nowIso = new Date().toISOString();
+      const settingsToSave = [
+        {
           key: 'gas_fee_address',
           value: gasFeeAddress.trim(),
           network: gasFeeNetwork,
           description: '20% Withdrawal Gas Fee Treasury Vault',
-        }),
-      });
-
-      // 2. Tier upgrade address
-      await fetch(`${API_BASE}/admin/settings`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
+          updated_by: user?.id || null,
+          updated_at: nowIso,
+        },
+        {
           key: 'tier_upgrade_address',
           value: tierUpgradeAddress.trim(),
           network: tierUpgradeNetwork,
           description: 'Account Tier Upgrade Payment Vault',
-        }),
-      });
-
-      // 3. Default receive limit
-      await fetch(`${API_BASE}/admin/settings`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
+          updated_by: user?.id || null,
+          updated_at: nowIso,
+        },
+        {
           key: 'default_receive_limit',
           value: defaultReceiveLimit.trim(),
+          network: tierUpgradeNetwork,
           description: 'Default user receive limit threshold',
-        }),
-      });
+          updated_by: user?.id || null,
+          updated_at: nowIso,
+        },
+      ];
 
-      showBanner('success', 'System Treasury & Payout Settings saved successfully.');
-      fetchData();
+      for (const item of settingsToSave) {
+        const { data: existing } = await adminDirectClient
+          .from('system_settings')
+          .select('id')
+          .eq('key', item.key)
+          .maybeSingle();
+
+        if (existing?.id) {
+          await adminDirectClient.from('system_settings').update(item).eq('id', existing.id);
+        } else {
+          await adminDirectClient.from('system_settings').insert(item);
+        }
+      }
+
+      showBanner('success', 'System Treasury & Payout Settings saved directly to database.');
+      await fetchData();
     } catch (err: any) {
-      showBanner('error', err.message);
+      showBanner('error', err.message || 'Failed to save system settings.');
     } finally {
       setActionLoading(false);
     }
@@ -3051,9 +3171,19 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                       <span>Deposit Receiving Wallets (BTC, ERC20, BNB)</span>
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Configure the 3 official deposit receiving addresses that users see when depositing funds.
+                      Configure the 3 official deposit receiving addresses. Wallets never reset or fallback to defaults—they only change when you update them here.
                     </p>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={handlePurgeAllWallets}
+                    disabled={actionLoading || depositAddresses.length === 0}
+                    className="px-4 py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 hover:text-white font-mono font-bold text-xs flex items-center gap-2 transition disabled:opacity-40 shrink-0"
+                  >
+                    <Trash2 className="w-4 h-4 text-rose-400" />
+                    <span>Delete All Wallets</span>
+                  </button>
                 </div>
 
                 {/* 3 Dedicated Core Wallet Cards */}
@@ -3090,14 +3220,9 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                       bg: 'bg-dark-900/90'
                     },
                   ] as Array<{ key: 'BTC' | 'ERC20' | 'BNB'; name: string; net: string; icon: string; color: string; badge: string; border: string; bg: string }>).map((coin) => {
-                    const activeAddr = depositAddresses.find(a => {
-                      const aUpper = (a.asset || '').toUpperCase();
-                      const nUpper = (a.network || '').toUpperCase();
-                      if (coin.key === 'BTC') return aUpper === 'BTC' || aUpper === 'BITCOIN' || nUpper === 'BTC' || nUpper === 'NATIVE';
-                      if (coin.key === 'ERC20') return aUpper === 'ERC20' || nUpper === 'ERC20' || aUpper === 'ETH' || aUpper === 'USDT';
-                      if (coin.key === 'BNB') return aUpper === 'BNB' || aUpper === 'BSC' || nUpper === 'BEP20' || nUpper === 'BNB';
-                      return aUpper === coin.key;
-                    });
+                    const activeAddr =
+                      depositAddresses.find(a => (a.asset || '').toUpperCase().trim() === coin.key) ||
+                      depositAddresses.find(a => matchesCoinCategory(a, coin.key));
 
                     return (
                       <div key={coin.key} className={`p-5 rounded-2xl ${coin.bg} border ${coin.border} transition-all shadow-xl flex flex-col justify-between space-y-4`}>
@@ -3160,13 +3285,27 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                           </div>
                         </div>
 
-                        <button
-                          onClick={() => openDepositAddressModal(activeAddr, coin.key)}
-                          className="w-full py-2.5 bg-gradient-to-r from-gold-400 to-amber-600 hover:from-gold-500 hover:to-amber-700 text-dark-950 font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-1.5 transition shadow-gold-sm"
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                          <span>{activeAddr ? `Edit ${coin.key} Address` : `Set ${coin.key} Address`}</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => openDepositAddressModal(activeAddr, coin.key)}
+                            className="flex-1 py-2.5 bg-gradient-to-r from-gold-400 to-amber-600 hover:from-gold-500 hover:to-amber-700 text-dark-950 font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-1.5 transition shadow-gold-sm"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            <span>{activeAddr ? `Edit ${coin.key} Address` : `Set ${coin.key} Address`}</span>
+                          </button>
+
+                          {activeAddr && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDepositAddress(coin.key)}
+                              disabled={actionLoading}
+                              className="p-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-400 hover:text-rose-200 transition"
+                              title={`Delete ${coin.key} Wallet Address`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -3783,15 +3922,10 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                           key={opt.key}
                           type="button"
                           onClick={() => {
-                            // Find existing address for this coin if any
-                            const existing = depositAddresses.find(a => {
-                              const aUpper = (a.asset || '').toUpperCase();
-                              const nUpper = (a.network || '').toUpperCase();
-                              if (opt.key === 'BTC') return aUpper === 'BTC' || aUpper === 'BITCOIN' || nUpper === 'BTC' || nUpper === 'NATIVE';
-                              if (opt.key === 'ERC20') return aUpper === 'ERC20' || nUpper === 'ERC20' || aUpper === 'ETH' || aUpper === 'USDT';
-                              if (opt.key === 'BNB') return aUpper === 'BNB' || aUpper === 'BSC' || nUpper === 'BEP20' || nUpper === 'BNB';
-                              return aUpper === opt.key;
-                            });
+                            const targetKey = opt.key as 'BTC' | 'ERC20' | 'BNB';
+                            const existing =
+                              depositAddresses.find(a => (a.asset || '').toUpperCase().trim() === targetKey) ||
+                              depositAddresses.find(a => matchesCoinCategory(a, targetKey));
 
                             if (existing) {
                               setDepositModal({
@@ -3885,6 +4019,17 @@ export const AdminControlHub: React.FC<AdminControlHubProps> = ({ isOpen, onClos
                   >
                     Cancel
                   </button>
+                  {depositModal.isEdit && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteDepositAddress(depositModal.asset.toUpperCase() as 'BTC' | 'ERC20' | 'BNB')}
+                      disabled={actionLoading}
+                      className="px-4 py-3 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 rounded-xl font-bold text-xs transition flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  )}
                   <button
                     type="submit"
                     disabled={actionLoading || !depositModal.address.trim()}
